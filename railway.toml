@@ -1,0 +1,15 @@
+# railway.toml — AI Agentic Assistant V2
+# Railway reads this file to configure build & deploy for the BACKEND service.
+# The frontend service is configured separately in the Railway dashboard
+# (rootDirectory = frontend, Dockerfile = frontend/Dockerfile).
+
+[build]
+builder          = "dockerfile"
+dockerfilePath   = "backend/Dockerfile"
+buildContext     = "."
+
+[deploy]
+healthcheckPath    = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType  = "ON_FAILURE"
+restartPolicyMaxRetries = 10
