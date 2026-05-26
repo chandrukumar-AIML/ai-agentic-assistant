@@ -1,0 +1,46 @@
+# deploy/railway.toml
+# Copy to repo root: cp deploy/railway.toml railway.toml
+
+[build]
+  builder = "dockerfile"
+
+[deploy]
+  restartPolicyType       = "on_failure"
+  restartPolicyMaxRetries = 3
+
+[services.backend]
+  source     = "backend"
+  dockerfile = "backend/Dockerfile"
+
+  [services.backend.deploy]
+    # Railway injects $PORT — Dockerfile CMD uses ${PORT:-8000}
+    startCommand       = "uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1"
+    healthcheckPath    = "/api/health"
+    healthcheckTimeout = 30
+
+  # Required environment variables — set in Railway dashboard or via deploy/railway_env.sh
+  # DO NOT add [[services.backend.variables]] here — repeated keys are invalid TOML
+  #
+  # Variables to set in dashboard:
+  #   OPENAI_API_KEY, OPENAI_MODEL, OPENAI_EMBEDDING_MODEL
+  #   LANGCHAIN_API_KEY, LANGCHAIN_TRACING_V2, LANGCHAIN_PROJECT
+  #   TAVILY_API_KEY
+  #   JWT_SECRET (min 32 chars: openssl rand -hex 32)
+  #   APP_ENV=production, LOG_LEVEL=INFO
+  #   NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD
+  #   REDIS_URL
+  #   CHROMA_HOST, CHROMA_PORT
+  #   OLLAMA_BASE_URL (if running Ollama as a Railway service)
+  #   CORS_ORIGINS (your frontend Railway URL)
+
+[services.frontend]
+  source     = "frontend"
+  dockerfile = "frontend/Dockerfile"
+
+  [services.frontend.deploy]
+    healthcheckPath    = "/"
+    healthcheckTimeout = 15
+
+  # Frontend variables:
+  #   VITE_API_URL = https://${{backend.RAILWAY_PUBLIC_DOMAIN}}/api
+  #   VITE_WS_URL  = wss://${{backend.RAILWAY_PUBLIC_DOMAIN}}/ws

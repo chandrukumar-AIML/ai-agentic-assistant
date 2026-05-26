@@ -1,0 +1,14 @@
+# docker-compose.gpu.yml
+# GPU passthrough override for Ollama on NVIDIA machines.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+# Requires: nvidia-container-toolkit installed on host
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

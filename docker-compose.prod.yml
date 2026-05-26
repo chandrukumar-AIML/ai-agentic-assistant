@@ -1,0 +1,61 @@
+# docker-compose.prod.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+services:
+
+  backend:
+    environment:
+      APP_ENV:   "production"
+      LOG_LEVEL: "WARNING"
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus:   "2.0"
+
+  frontend:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus:   "0.5"
+
+  neo4j:
+    environment:
+      NEO4J_dbms_memory_heap_max__size: "2G"
+      NEO4J_dbms_memory_pagecache_size: "1G"
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+
+  redis:
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in production}
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+
+  chromadb:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # Ollama excluded from prod — GPT-4o primary, circuit breaker handles fallback
+  ollama:
+    profiles: ["dev-only"]
+
+  # MLflow UI excluded from prod — use remote tracking URI
+  mlflow:
+    profiles: ["dev-only"]

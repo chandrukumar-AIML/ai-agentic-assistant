@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST http://localhost:8000/api/verticals/forms/validate -H 'Content-Type: application/json' -H 'Authorization: Bearer dev-jwt-token' -d '{\"pan\":\"ABCDE1234F\",\"gstin\":\"27AAPFU0939F1ZV\",\"aadhaar\":\"499118665246\"}' --max-time 10)",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(python -c ' *)",
+      "Bash(npm run *)",
+      "Bash(echo \"Frontend PID: $!\")"
+    ]
+  }
+}

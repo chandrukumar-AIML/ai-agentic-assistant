@@ -1,0 +1,162 @@
+USER_AGENT environment variable not set, consider setting it to identify your requests.
+C:\Users\kumar\AppData\Local\Programs\Python\Python311\Lib\site-packages\langgraph\checkpoint\base\__init__.py:18: LangChainPendingDeprecationWarning: The default value of `allowed_objects` will change in a future version. Pass an explicit value (e.g., allowed_objects='messages' or allowed_objects='core') to suppress this warning.
+  from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+INFO:     Started server process [27744]
+INFO:     Waiting for application startup.
+2026-05-26 18:13:50,156 INFO backend.main — \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+2026-05-26 18:13:50,158 INFO backend.main —   AI Agentic Assistant V2 — Starting
+2026-05-26 18:13:50,158 INFO backend.main — \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+2026-05-26 18:13:50,158 INFO backend.observability.langsmith_tracer — LangSmith tracing enabled \u2192 project: ai-agentic-assistant
+2026-05-26 18:13:50,242 INFO backend.observability.mlflow_logger — MLflow configured \u2192 tracking URI: ./data/mlflow_runs
+2026-05-26 18:13:50,659 INFO backend.prompts.registry — Prompt registry DB pool created
+2026-05-26 18:13:50,659 INFO backend.main — PostgreSQL pool ready
+2026-05-26 18:13:50,680 WARNING backend.main — DB migrations (non-fatal): type "plan_tier" already exists
+2026-05-26 18:13:50,692 INFO backend.prompts.prompt_loader — Prompt synthesizer already in registry (v1.0.0)
+2026-05-26 18:13:50,698 INFO backend.prompts.prompt_loader — Prompt planner already in registry (v1.0.0)
+2026-05-26 18:13:50,700 INFO backend.prompts.prompt_loader — Prompt reflection already in registry (v1.0.0)
+2026-05-26 18:13:50,700 INFO backend.prompts.prompt_loader — Prompt supervisor already in registry (v1.0.0)
+2026-05-26 18:13:50,700 INFO backend.main — Prompt registry ready
+2026-05-26 18:13:51,364 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 18:13:52,680 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 18:13:52,680 INFO backend.main — LLM: ollama/llama3.2 active, circuit=closed
+2026-05-26 18:14:09,418 WARNING backend.main — LangGraph compile (non-fatal): DLL load failed while importing onnxruntime_pybind11_state: A dynamic link library (DLL) initialization routine failed.
+2026-05-26 18:14:10,871 INFO backend.observability.mlflow_logger — Prompt version logged: planner_prompt v2.0.0
+2026-05-26 18:14:11,607 INFO backend.observability.mlflow_logger — Prompt version logged: synthesizer_prompt v2.0.0
+2026-05-26 18:14:11,629 INFO backend.graph_db.schema — Applying Neo4j schema constraints and indexes...
+2026-05-26 18:14:15,711 WARNING backend.graph_db.schema — Constraint skipped (may already exist): Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 18:14:19,754 WARNING neo4j.pool — Transaction failed and will be retried in 0.9624834959698234s (Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection))
+2026-05-26 18:14:21,611 WARNING backend.main — Neo4j schema (non-fatal): 
+2026-05-26 18:14:46,122 WARNING backend.main — FlashRank warmup (non-fatal): DLL load failed while importing onnxruntime_pybind11_state: A dynamic link library (DLL) initialization routine failed.
+2026-05-26 18:14:46,135 WARNING backend.main — Whisper warmup (non-fatal): No module named 'faster_whisper'
+2026-05-26 18:14:46,135 INFO apscheduler.scheduler — Scheduler started
+2026-05-26 18:14:46,138 INFO backend.scheduler.task_scheduler — APScheduler started
+2026-05-26 18:14:46,159 INFO apscheduler.scheduler — Added job "_execute_task" to job store "default"
+2026-05-26 18:14:46,159 INFO backend.scheduler.task_scheduler — Reloaded 1 scheduled tasks from DB
+2026-05-26 18:14:46,159 INFO backend.main — Task scheduler (APScheduler) started
+2026-05-26 18:14:46,159 INFO backend.main — HITL expiry sweeper started (5-min interval)
+2026-05-26 18:14:46,159 INFO backend.main — \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+2026-05-26 18:14:46,159 INFO backend.main —   Ready to serve requests
+2026-05-26 18:14:46,159 INFO backend.main — \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-05-26 18:14:46,653 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 18:14:48,094 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 18:15:03,326 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 18:15:03,330 INFO backend.session.redis_client — Redis client connected: redis://localhost:6379
+2026-05-26 18:15:04,165 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 18:15:05,030 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 18:15:20,251 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 18:15:35,504 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 18:15:36,829 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 18:15:52,062 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 18:16:02,014 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 18:16:03,190 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 18:16:18,376 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 18:22:34,453 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 18:22:35,891 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 18:22:51,130 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 18:22:54,201 WARNING backend.api.memory_routes — Memory store unavailable: 'Settings' object has no attribute 'mem0_api_key'
+C:\Users\kumar\ai-agentic\backend\mcp\server.py:82: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  return _make_result(req.id, MCPInitializeResult().dict())
+C:\Users\kumar\ai-agentic\backend\mcp\server.py:189: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  return JSONResponse(content=response.dict(exclude_none=True))
+C:\Users\kumar\AppData\Local\Programs\Python\Python311\Lib\site-packages\RestrictedPython\compile.py:206: SyntaxWarning: Line None: Prints, but never reads 'printed' variable.
+  warnings.warn(
+2026-05-26 18:23:14,984 INFO backend.mcp.server — MCP tool call: run_python_code (error) in 62ms
+C:\Users\kumar\ai-agentic\backend\mcp\server.py:122: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  return _make_result(req.id, result.dict())
+2026-05-26 18:23:21,115 ERROR backend.observability.langsmith_tracer — Failed to fetch project stats: Project ai-agentic-assistant not found
+2026-05-26 18:27:40,520 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 18:27:41,455 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 18:27:56,673 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 18:28:00,251 WARNING backend.api.memory_routes — Memory store unavailable: 'Settings' object has no attribute 'mem0_api_key'
+2026-05-26 18:29:08,016 INFO backend.mcp.server — MCP tool call: run_python_code (error) in 31ms
+2026-05-26 18:29:13,666 ERROR backend.observability.langsmith_tracer — Failed to fetch project stats: Project ai-agentic-assistant not found
+2026-05-26 18:30:29,378 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 18:30:30,071 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 18:30:45,377 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 18:30:52,209 WARNING backend.api.memory_routes — Memory store unavailable: 'Settings' object has no attribute 'mem0_api_key'
+C:\Users\kumar\ai-agentic\backend\mcp\server.py:93: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  return _make_result(req.id, tools_list.dict())
+2026-05-26 18:31:33,910 INFO backend.mcp.server — MCP tool call: run_python_code (error) in 16ms
+2026-05-26 18:31:40,973 INFO httpx — HTTP Request: GET http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=8&sortBy=relevance&sortOrder=descending "HTTP/1.1 301 Moved Permanently"
+2026-05-26 18:31:40,989 ERROR backend.verticals.research.tools.arxiv_tool — ArXiv search failed: Redirect response '301 Moved Permanently' for url 'http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=8&sortBy=relevance&sortOrder=descending'
+Redirect location: 'https://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=8&sortBy=relevance&sortOrder=descending'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/301
+2026-05-26 18:31:41,757 INFO httpx — HTTP Request: GET http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=3&sortBy=submittedDate&sortOrder=descending "HTTP/1.1 301 Moved Permanently"
+2026-05-26 18:31:41,757 ERROR backend.verticals.research.tools.arxiv_tool — ArXiv search failed: Redirect response '301 Moved Permanently' for url 'http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=3&sortBy=submittedDate&sortOrder=descending'
+Redirect location: 'https://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=3&sortBy=submittedDate&sortOrder=descending'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/301
+2026-05-26 18:31:43,420 INFO httpx — HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=LangGraph%20multi-agent%20architecture&limit=5&fields=title%2Cabstract%2Cyear%2CcitationCount%2Cauthors%2CexternalIds%2Curl "HTTP/1.1 429 "
+2026-05-26 18:31:43,424 ERROR backend.verticals.research.tools.semantic_scholar_tool — Semantic Scholar search failed: Client error '429 ' for url 'https://api.semanticscholar.org/graph/v1/paper/search?query=LangGraph%20multi-agent%20architecture&limit=5&fields=title%2Cabstract%2Cyear%2CcitationCount%2Cauthors%2CexternalIds%2Curl'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+2026-05-26 18:33:20,352 ERROR backend.observability.langsmith_tracer — Failed to fetch project stats: Project ai-agentic-assistant not found
+2026-05-26 18:35:51,145 INFO httpx — HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+2026-05-26 18:37:04,482 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 18:37:04,673 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 18:37:20,123 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 18:38:59,851 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 18:39:00,253 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 18:39:15,664 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 18:39:18,170 WARNING backend.api.memory_routes — Memory store unavailable: 'Settings' object has no attribute 'mem0_api_key'
+2026-05-26 18:40:53,592 INFO backend.mcp.server — MCP tool call: run_python_code (error) in 93ms
+2026-05-26 18:40:59,124 INFO httpx — HTTP Request: GET http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=8&sortBy=relevance&sortOrder=descending "HTTP/1.1 301 Moved Permanently"
+2026-05-26 18:40:59,192 ERROR backend.verticals.research.tools.arxiv_tool — ArXiv search failed: Redirect response '301 Moved Permanently' for url 'http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=8&sortBy=relevance&sortOrder=descending'
+Redirect location: 'https://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=8&sortBy=relevance&sortOrder=descending'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/301
+2026-05-26 18:40:59,356 INFO httpx — HTTP Request: GET http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=3&sortBy=submittedDate&sortOrder=descending "HTTP/1.1 301 Moved Permanently"
+2026-05-26 18:40:59,371 ERROR backend.verticals.research.tools.arxiv_tool — ArXiv search failed: Redirect response '301 Moved Permanently' for url 'http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=3&sortBy=submittedDate&sortOrder=descending'
+Redirect location: 'https://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=3&sortBy=submittedDate&sortOrder=descending'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/301
+2026-05-26 18:41:00,676 INFO httpx — HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=LangGraph%20multi-agent%20architecture&limit=5&fields=title%2Cabstract%2Cyear%2CcitationCount%2Cauthors%2CexternalIds%2Curl "HTTP/1.1 200 OK"
+2026-05-26 18:42:59,435 ERROR backend.observability.langsmith_tracer — Failed to fetch project stats: Project ai-agentic-assistant not found
+2026-05-26 18:46:01,809 ERROR backend.llm.router — Both GPT-4o and Ollama failed: Ollama HTTP error: 
+2026-05-26 18:47:17,650 INFO backend.mcp.server — MCP tool call: run_python_code (error) in 203ms
+2026-05-26 19:21:23,846 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 19:21:25,798 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 19:21:41,062 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 19:21:43,314 WARNING backend.api.memory_routes — Memory store unavailable: 'Settings' object has no attribute 'mem0_api_key'
+2026-05-26 19:22:42,944 INFO backend.mcp.server — MCP tool call: run_python_code (error) in 62ms
+2026-05-26 19:22:50,744 INFO httpx — HTTP Request: GET http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=8&sortBy=relevance&sortOrder=descending "HTTP/1.1 301 Moved Permanently"
+2026-05-26 19:22:50,760 ERROR backend.verticals.research.tools.arxiv_tool — ArXiv search failed: Redirect response '301 Moved Permanently' for url 'http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=8&sortBy=relevance&sortOrder=descending'
+Redirect location: 'https://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=8&sortBy=relevance&sortOrder=descending'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/301
+2026-05-26 19:22:50,927 INFO httpx — HTTP Request: GET http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=3&sortBy=submittedDate&sortOrder=descending "HTTP/1.1 301 Moved Permanently"
+2026-05-26 19:22:50,927 ERROR backend.verticals.research.tools.arxiv_tool — ArXiv search failed: Redirect response '301 Moved Permanently' for url 'http://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=3&sortBy=submittedDate&sortOrder=descending'
+Redirect location: 'https://export.arxiv.org/api/query?search_query=all%3ALangGraph%20multi-agent%20architecture&max_results=3&sortBy=submittedDate&sortOrder=descending'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/301
+2026-05-26 19:22:52,071 INFO httpx — HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=LangGraph%20multi-agent%20architecture&limit=5&fields=title%2Cabstract%2Cyear%2CcitationCount%2Cauthors%2CexternalIds%2Curl "HTTP/1.1 429 "
+2026-05-26 19:22:52,077 ERROR backend.verticals.research.tools.semantic_scholar_tool — Semantic Scholar search failed: Client error '429 ' for url 'https://api.semanticscholar.org/graph/v1/paper/search?query=LangGraph%20multi-agent%20architecture&limit=5&fields=title%2Cabstract%2Cyear%2CcitationCount%2Cauthors%2CexternalIds%2Curl'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
+2026-05-26 19:25:07,987 ERROR backend.observability.langsmith_tracer — Failed to fetch project stats: Project ai-agentic-assistant not found
+2026-05-26 19:26:06,235 INFO httpx — HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"
+2026-05-26 19:27:19,000 INFO httpx — HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-05-26 19:27:19,793 INFO httpx — HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-05-26 19:27:35,106 ERROR backend.graph_db.neo4j_client — Neo4j health check failed: Couldn't connect to localhost:7687 (resolved to ('[::1]:7687', '127.0.0.1:7687')):
+Failed to establish connection to ResolvedIPv6Address(('::1', 7687, 0, 0)) (reason [WinError 1225] The remote computer refused the network connection)
+Failed to establish connection to ResolvedIPv4Address(('127.0.0.1', 7687)) (reason [WinError 1225] The remote computer refused the network connection)
+2026-05-26 19:27:45,138 INFO backend.mcp.server — MCP tool call: run_python_code (error) in 109ms

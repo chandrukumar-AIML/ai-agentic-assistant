@@ -1,0 +1,48 @@
+# Root .dockerignore — used when docker build context is "." (project root)
+# Excludes everything the backend container does NOT need.
+
+# Version control
+.git
+.github
+.gitignore
+
+# Frontend (built separately by its own service)
+frontend/
+node_modules/
+
+# Playwright service (built separately)
+playwright-service/
+
+# Python artefacts
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# Virtual environments
+.venv/
+venv/
+backend/.venv/
+backend/venv/
+
+# Secrets — NEVER bake into the image
+.env
+**/.env
+**/*.env
+!.env.example
+
+# Large local data directories (mounted as Docker volumes at runtime)
+data/
+backend/data/
+
+# Logs and temp files
+*.log
+.DS_Store
+Thumbs.db
+
+# Docs and CI (not needed in the container)
+docs/
+*.md
+.github/

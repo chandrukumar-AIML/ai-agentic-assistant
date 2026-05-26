@@ -1,0 +1,235 @@
+# docker-compose.yml — AI Agentic Assistant (development + production)
+# Full stack: neo4j, redis, chromadb, ollama, postgres, coqui_tts, playwright, mlflow, backend, frontend
+
+networks:
+  aaa_network:
+    driver: bridge
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  redis_data:
+  chroma_data:
+  ollama_data:
+  mlflow_data:
+  postgres_data:
+  coqui_models:
+  playwright_tmp:
+
+services:
+
+  # ── Data layer ───────────────────────────────────────────────────────────────
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: aaa_postgres
+    networks: [aaa_network]
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_DB:       agentic_v2
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/memory/init.sql:/docker-entrypoint-initdb.d/01_mem0.sql
+      - ./backend/prompts/migrations/create_prompt_tables.sql:/docker-entrypoint-initdb.d/02_prompts.sql
+      - ./backend/auth/migrations/create_auth_tables.sql:/docker-entrypoint-initdb.d/03_auth.sql
+      - ./backend/auth/migrations/create_workspace_domains.sql:/docker-entrypoint-initdb.d/04_workspace_domains.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+      start_period: 20s
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:5.20-community
+    container_name: aaa_neo4j
+    networks: [aaa_network]
+    ports: ["7474:7474", "7687:7687"]
+    environment:
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:-your-password}"
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+      NEO4J_dbms_memory_heap_initial__size: "512m"
+      NEO4J_dbms_memory_heap_max__size: "1G"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test:     ["CMD", "neo4j", "status"]
+      interval: 15s
+      timeout:  10s
+      retries:  5
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: aaa_redis
+    networks: [aaa_network]
+    ports: ["6379:6379"]
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    volumes: [redis_data:/data]
+    healthcheck:
+      test:     ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout:  3s
+      retries:  5
+    restart: unless-stopped
+
+  chromadb:
+    image: chromadb/chroma:0.5.5
+    container_name: aaa_chroma
+    networks: [aaa_network]
+    ports: ["8001:8000"]
+    volumes: [chroma_data:/chroma/chroma]
+    environment:
+      ANONYMIZED_TELEMETRY: "false"
+    healthcheck:
+      test:     ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── AI layer ─────────────────────────────────────────────────────────────────
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: aaa_ollama
+    networks: [aaa_network]
+    ports: ["11434:11434"]
+    volumes: [ollama_data:/root/.ollama]
+    healthcheck:
+      test:     ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout:  10s
+      retries:  3
+      start_period: 30s
+    restart: unless-stopped
+
+  coqui_tts:
+    image: ghcr.io/coqui-ai/tts:latest
+    container_name: aaa_coqui_tts
+    networks: [aaa_network]
+    ports: ["5002:5002"]
+    command: >
+      python TTS/server/server.py
+      --model_name tts_models/en/ljspeech/tacotron2-DDC
+      --port 5002
+    volumes: [coqui_models:/root/.local/share/tts]
+    healthcheck:
+      test:     ["CMD", "curl", "-f", "http://localhost:5002/api/tts?text=test"]
+      interval: 30s
+      timeout:  15s
+      retries:  3
+      start_period: 60s
+    restart: unless-stopped
+
+  playwright:
+    build:
+      context:    ./playwright-service
+      dockerfile: Dockerfile
+    container_name: aaa_playwright
+    networks: [aaa_network]
+    ports: ["8010:8010"]
+    read_only: true
+    tmpfs: [/tmp, /home/browseruser/.cache]
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus:   "1.0"
+    healthcheck:
+      test:     ["CMD", "curl", "-f", "http://localhost:8010/health"]
+      interval: 30s
+      timeout:  10s
+      retries:  3
+      start_period: 30s
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.17.2
+    container_name: aaa_mlflow
+    networks: [aaa_network]
+    ports: ["5001:5001"]
+    volumes: [mlflow_data:/mlflow]
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5001
+      --backend-store-uri /mlflow/runs
+      --default-artifact-root /mlflow/artifacts
+    healthcheck:
+      test:     ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout:  10s
+      retries:  3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ── Application layer ─────────────────────────────────────────────────────────
+
+  backend:
+    build:
+      context:    .
+      dockerfile: backend/Dockerfile
+      target:     runtime
+    container_name: aaa_backend
+    networks: [aaa_network]
+    ports: ["8000:8000"]
+    env_file: .env
+    environment:
+      NEO4J_URI:           "bolt://aaa_neo4j:7687"
+      REDIS_URL:           "redis://aaa_redis:6379"
+      OLLAMA_BASE_URL:     "http://aaa_ollama:11434"
+      MLFLOW_TRACKING_URI: "http://aaa_mlflow:5001"
+      CHROMA_HOST:         "aaa_chroma"
+      CHROMA_PORT:         "8000"
+      POSTGRES_HOST:       "aaa_postgres"
+      POSTGRES_PORT:       "5432"
+      POSTGRES_DB:         "agentic_v2"
+      POSTGRES_USER:       "postgres"
+      PLAYWRIGHT_SERVICE_URL: "http://aaa_playwright:8010"
+      COQUI_TTS_URL:       "http://aaa_coqui_tts:5002"
+    volumes:
+      - ./data/faiss_index:/app/data/faiss_index
+      - ./data/chroma_db:/app/data/chroma_db
+      - ./data/mlflow_runs:/app/data/mlflow_runs
+      - ./data/training_data:/app/data/training_data
+      - ./data/evidently_reports:/app/data/evidently_reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+    healthcheck:
+      test:     ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/api/health"]
+      interval: 30s
+      timeout:  10s
+      retries:  3
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context:    ./frontend
+      dockerfile: Dockerfile
+    container_name: aaa_frontend
+    networks: [aaa_network]
+    ports: ["5173:80"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
