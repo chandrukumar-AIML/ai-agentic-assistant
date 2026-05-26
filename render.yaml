@@ -1,0 +1,50 @@
+# render.yaml — Render.com deployment config for AI Agentic Assistant V2
+# Free tier: 512MB RAM, spins down after 15 min inactivity (cold start ~30s)
+# PostgreSQL & Redis are on external free services (Neon + Upstash) — NOT Render DB
+# (Render free DB expires after 90 days; Neon is permanently free)
+
+services:
+  - type: web
+    name: ai-agentic-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+
+    envVars:
+      # ── Static values ──────────────────────────────────────────────────────
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: MLFLOW_TRACKING_URI
+        value: /app/data/mlflow_runs
+      - key: OLLAMA_BASE_URL
+        value: http://localhost:11434   # not available on Render; circuit breaker handles fallback to OpenAI
+      - key: CHROMA_HOST
+        value: localhost               # ChromaDB not deployed; FAISS is used as fallback
+      - key: CHROMA_PORT
+        value: "8001"
+      - key: NEO4J_URI
+        value: bolt://localhost:7687   # optional; set to Aura URI if available
+      - key: NEO4J_USER
+        value: neo4j
+
+      # ── Secrets (set in Render Dashboard → Environment) ───────────────────
+      # OPENAI_API_KEY        — from your .env
+      # LANGCHAIN_API_KEY     — from your .env
+      # TAVILY_API_KEY        — from your .env
+      # JWT_SECRET            — generate: openssl rand -hex 32
+      # DATABASE_URL          — from Neon dashboard (postgresql://...@...neon.tech/neondb?sslmode=require)
+      # POSTGRES_HOST         — from Neon (ep-xxx.us-east-2.aws.neon.tech)
+      # POSTGRES_PORT         — 5432
+      # POSTGRES_DB           — neondb (or agentic_v2)
+      # POSTGRES_USER         — from Neon
+      # POSTGRES_PASSWORD     — from Neon
+      # REDIS_URL             — from Upstash (rediss://...@...upstash.io:6379)
+      # NEO4J_PASSWORD        — from Aura (or any value if skipping Neo4j)
+      # CORS_ORIGINS          — ["https://your-app.vercel.app","http://localhost:5173"]
+      # SENDGRID_API_KEY      — optional
+      # LANGCHAIN_TRACING_V2  — true (optional, set if using LangSmith)
