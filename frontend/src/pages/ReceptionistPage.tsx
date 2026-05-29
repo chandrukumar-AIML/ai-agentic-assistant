@@ -25,8 +25,9 @@ export default function ReceptionistPage() {
     }
   }
 
+  const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '')
   const WIDGET_CODE = `<!-- AI Receptionist Widget -->
-<script src="http://localhost:8000/api/verticals/receptionist/widget.js"
+<script src="${API_BASE}/api/verticals/receptionist/widget.js"
   data-session-id="${sessionId}"
   data-theme="dark">
 </script>`

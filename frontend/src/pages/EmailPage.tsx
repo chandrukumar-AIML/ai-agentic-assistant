@@ -115,12 +115,12 @@ export default function EmailPage() {
               {[
                 '1. Go to Google Cloud Console',
                 '2. Create OAuth 2.0 credentials',
-                '3. Add redirect URI: http://localhost:8000/api/email/oauth/gmail/callback',
+                `3. Add redirect URI: ${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api','')}/api/email/oauth/gmail/callback`,
                 '4. Add GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET to .env',
                 '5. Click "Connect Gmail" to authorize',
               ].map(s => <div key={s} style={{ color: '#9ca3af', fontSize: 12, marginBottom: 6 }}>{s}</div>)}
             </div>
-            <a href="http://localhost:8000/api/verticals/email/oauth/gmail" target="_blank" rel="noreferrer">
+            <a href={`${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api','')}/api/verticals/email/oauth/gmail`} target="_blank" rel="noreferrer">
               <Btn variant="primary">Connect Gmail →</Btn>
             </a>
           </Card>
@@ -134,7 +134,7 @@ export default function EmailPage() {
                 '4. Click "Connect Outlook" to authorize',
               ].map(s => <div key={s} style={{ color: '#9ca3af', fontSize: 12, marginBottom: 6 }}>{s}</div>)}
             </div>
-            <a href="http://localhost:8000/api/verticals/email/oauth/outlook" target="_blank" rel="noreferrer">
+            <a href={`${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api','')}/api/verticals/email/oauth/outlook`} target="_blank" rel="noreferrer">
               <Btn variant="secondary">Connect Outlook →</Btn>
             </a>
           </Card>

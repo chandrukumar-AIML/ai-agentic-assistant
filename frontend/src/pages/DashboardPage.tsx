@@ -149,9 +149,9 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div style={{ color: '#6b7280', fontSize: 11 }}>Documentation</div>
-                <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer"
+                <a href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:8000'}/docs`} target="_blank" rel="noreferrer"
                   style={{ color: '#6366f1', fontSize: 13, fontWeight: 500 }}>
-                  localhost:8000/docs ↗
+                  API Docs ↗
                 </a>
               </div>
               <div>
@@ -160,7 +160,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div style={{ color: '#6b7280', fontSize: 11 }}>Swagger UI</div>
-                <a href="http://localhost:8000/redoc" target="_blank" rel="noreferrer"
+                <a href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:8000'}/redoc`} target="_blank" rel="noreferrer"
                   style={{ color: '#6366f1', fontSize: 13, fontWeight: 500 }}>
                   ReDoc ↗
                 </a>
