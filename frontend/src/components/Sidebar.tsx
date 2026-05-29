@@ -1,5 +1,6 @@
 // frontend/src/components/Sidebar.tsx
 import { PageId } from '../App'
+import NotificationBell from './NotificationBell'
 
 interface NavItem {
   id: PageId
@@ -31,6 +32,7 @@ const NAV: NavItem[] = [
   { id: 'devops',       label: 'DevOps Engineer',  icon: '⚙️', badge: 'V2',  group: 'Verticals' },
   { id: 'billing',        label: 'Billing & Plans',  icon: '💳', badge: 'F8',  group: 'Settings' },
   { id: 'knowledge-base', label: 'Knowledge Base',   icon: '🧠', badge: 'RAG', group: 'Settings' },
+  { id: 'webhooks',       label: 'Webhooks',         icon: '🔌', badge: 'NEW', group: 'Settings' },
   { id: 'settings',       label: 'Settings',         icon: '⚙️',              group: 'Settings' },
 ]
 
@@ -74,7 +76,7 @@ export default function Sidebar({ current, onNavigate, collapsed, onToggle }: Pr
             </div>
             <div>
               <div style={{ color: '#fff', fontSize: 12, fontWeight: 600, lineHeight: 1.2 }}>AI Agentic</div>
-              <div style={{ color: '#6366f1', fontSize: 10 }}>v2.0 • 23 Features</div>
+              <div style={{ color: '#6366f1', fontSize: 10 }}>v2.0 • 24 Features</div>
             </div>
           </div>
         )}
@@ -87,11 +89,13 @@ export default function Sidebar({ current, onNavigate, collapsed, onToggle }: Pr
             <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>A</span>
           </div>
         )}
-        <button onClick={onToggle} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: '#4b5563', fontSize: 14, padding: 2,
-          display: collapsed ? 'none' : 'block',
-        }}>☰</button>
+        <div style={{ display: collapsed ? 'none' : 'flex', alignItems: 'center', gap: 4 }}>
+          <NotificationBell />
+          <button onClick={onToggle} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: '#4b5563', fontSize: 14, padding: 2,
+          }}>☰</button>
+        </div>
       </div>
 
       {/* Nav Items */}

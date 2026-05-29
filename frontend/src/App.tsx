@@ -1,6 +1,7 @@
 // frontend/src/App.tsx — Full dashboard with sidebar navigation + auth guard
 import { useState } from 'react'
 import Sidebar from './components/Sidebar'
+import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import ChatPage from './pages/ChatPage'
@@ -24,13 +25,14 @@ import AnalystPage from './pages/AnalystPage'
 import DevopsPage from './pages/DevopsPage'
 import KnowledgeBasePage from './pages/KnowledgeBasePage'
 import SettingsPage from './pages/SettingsPage'
+import WebhooksPage from './pages/WebhooksPage'
 
 export type PageId =
   | 'dashboard' | 'chat' | 'agri' | 'legal' | 'cybersec'
   | 'ab-test' | 'receptionist' | 'form-reader' | 'email'
   | 'sales' | 'accountant' | 'hr' | 'social'
   | 'hitl' | 'scheduler' | 'billing' | 'compliance' | 'output'
-  | 'analyst' | 'devops' | 'knowledge-base' | 'settings'
+  | 'analyst' | 'devops' | 'knowledge-base' | 'settings' | 'webhooks'
 
 const PAGE_MAP: Record<PageId, React.ReactNode> = {
   dashboard:       <DashboardPage />,
@@ -55,16 +57,21 @@ const PAGE_MAP: Record<PageId, React.ReactNode> = {
   devops:          <DevopsPage />,
   'knowledge-base': <KnowledgeBasePage />,
   settings:        <SettingsPage />,
+  webhooks:        <WebhooksPage />,
 }
 
 export default function App() {
-  const [authed, setAuthed] = useState(!!sessionStorage.getItem('aaa_token'))
-  const [page, setPage] = useState<PageId>('dashboard')
+  const [authed,    setAuthed]    = useState(!!sessionStorage.getItem('aaa_token'))
+  const [showLogin, setShowLogin] = useState(false)
+  const [page,      setPage]      = useState<PageId>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  // Show login screen if not authenticated
+  // Not authenticated: show Landing → then Login
   if (!authed) {
-    return <LoginPage onLogin={() => setAuthed(true)} />
+    if (showLogin) {
+      return <LoginPage onLogin={() => setAuthed(true)} />
+    }
+    return <LandingPage onSignIn={() => setShowLogin(true)} />
   }
 
   return (
