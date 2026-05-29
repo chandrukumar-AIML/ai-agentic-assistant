@@ -29,7 +29,9 @@ const NAV: NavItem[] = [
   { id: 'social',       label: 'Social Media',     icon: '📱', badge: 'F19', group: 'Verticals' },
   { id: 'analyst',      label: 'Data Analyst',     icon: '📊', badge: 'V1',  group: 'Verticals' },
   { id: 'devops',       label: 'DevOps Engineer',  icon: '⚙️', badge: 'V2',  group: 'Verticals' },
-  { id: 'billing',      label: 'Billing & Plans',  icon: '💳', badge: 'F8',  group: 'Settings' },
+  { id: 'billing',        label: 'Billing & Plans',  icon: '💳', badge: 'F8',  group: 'Settings' },
+  { id: 'knowledge-base', label: 'Knowledge Base',   icon: '🧠', badge: 'RAG', group: 'Settings' },
+  { id: 'settings',       label: 'Settings',         icon: '⚙️',              group: 'Settings' },
 ]
 
 interface Props {
@@ -72,7 +74,7 @@ export default function Sidebar({ current, onNavigate, collapsed, onToggle }: Pr
             </div>
             <div>
               <div style={{ color: '#fff', fontSize: 12, fontWeight: 600, lineHeight: 1.2 }}>AI Agentic</div>
-              <div style={{ color: '#6366f1', fontSize: 10 }}>v2.0 • 21 Features</div>
+              <div style={{ color: '#6366f1', fontSize: 10 }}>v2.0 • 23 Features</div>
             </div>
           </div>
         )}

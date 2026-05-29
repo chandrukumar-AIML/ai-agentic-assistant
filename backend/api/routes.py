@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from backend.api.auth    import verify_token, limiter, create_access_token  # FIXED: from api.auth → from backend.api.auth
 from backend.api.schema import (  # FIXED: from api.schema → from backend.api.schema
@@ -59,24 +60,77 @@ async def health_check():
 
 @router.post("/auth/token")
 async def get_token(username: str, password: str):
-    """
-    Demo token endpoint — DISABLED in production.
-    In production, use your OAuth provider.
-    """
+    """Legacy query-param token endpoint (dev only)."""
     if settings.app_env == "production":
-        raise HTTPException(501, "Token endpoint disabled in production. Use your OAuth provider.")
-    if not username or not password:
-        raise HTTPException(400, "Username and password required")
-    from backend.api.auth import UserRole, PlanTier
+        raise HTTPException(501, "Use /auth/login instead.")
+    from backend.api.auth import UserRole
     token_resp = create_access_token(
-        user_id=username,
-        email=f"{username}@agentic.local",
-        workspace_id="ws-default",
-        workspace_slug="default",
-        role=UserRole.ADMIN,
-        plan_tier=PlanTier.ENTERPRISE,
+        user_id=username, email=f"{username}@agentic.local",
+        workspace_id="ws-default", workspace_slug="default",
+        role=UserRole.ADMIN, plan_tier=PlanTier.ENTERPRISE,
     )
     return {"access_token": token_resp.access_token, "token_type": "bearer"}
+
+
+class LoginRequest(BaseModel):
+    email:    str
+    password: str
+
+
+# Demo users — in production replace with DB lookup + bcrypt verify
+_DEMO_USERS = {
+    "admin@agentic.local": {"password": "admin123",  "role": "admin",  "plan": "enterprise"},
+    "demo@agentic.local":  {"password": "demo123",   "role": "viewer", "plan": "free"},
+}
+
+
+@router.post("/auth/login")
+async def login(body: LoginRequest):
+    """
+    JSON login endpoint — works in all environments.
+    Demo credentials: admin@agentic.local / admin123
+    """
+    from backend.api.auth import UserRole
+    user = _DEMO_USERS.get(body.email.lower().strip())
+    if not user or user["password"] != body.password:
+        raise HTTPException(401, "Invalid email or password")
+    role_map  = {"admin": UserRole.ADMIN, "viewer": UserRole.VIEWER, "editor": UserRole.EDITOR}
+    plan_map  = {"enterprise": PlanTier.ENTERPRISE, "pro": PlanTier.PRO, "free": PlanTier.FREE}
+    token_resp = create_access_token(
+        user_id        = body.email,
+        email          = body.email,
+        workspace_id   = "ws-default",
+        workspace_slug = "default",
+        role           = role_map.get(user["role"], UserRole.VIEWER),
+        plan_tier      = plan_map.get(user["plan"], PlanTier.FREE),
+    )
+    return {"access_token": token_resp.access_token, "token_type": "bearer", "expires_in": 86400}
+
+
+@router.get("/rag/documents")
+async def list_rag_documents(_token: dict = Depends(verify_token)):
+    """Return deduplicated list of documents ingested into the FAISS vector store."""
+    from backend.rag.faiss_store import load_or_create
+    _, metadata = load_or_create()
+
+    # Group chunks by source → produce one doc entry per source
+    seen: dict[str, dict] = {}
+    for chunk in metadata:
+        src = chunk.get("source", "unknown")
+        if src not in seen:
+            import os
+            filename = os.path.basename(src)
+            seen[src] = {
+                "id":          chunk.get("id", src),
+                "filename":    filename,
+                "source":      src,
+                "chunk_count": 0,
+                "ingested_at": chunk.get("ingested_at", ""),
+                "category":    chunk.get("category", "general"),
+            }
+        seen[src]["chunk_count"] += 1
+
+    return {"documents": list(seen.values())}
 
 
 @router.post("/ingest", response_model=IngestResponse)
