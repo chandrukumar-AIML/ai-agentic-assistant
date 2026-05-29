@@ -83,7 +83,7 @@ const TECH = [
 ]
 
 const STATS = [
-  { value: '23',   label: 'Enterprise Features' },
+  { value: '24',   label: 'Enterprise Features' },
   { value: '12',   label: 'Domain Verticals' },
   { value: '133+', label: 'API Endpoints' },
   { value: '182',  label: 'Python Modules' },
