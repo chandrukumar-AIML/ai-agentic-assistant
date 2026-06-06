@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     openai_cost_per_1k_tokens: float = 0.0025
 
     # ── LangSmith ─────────────────────────────────────────────────────────────
-    langchain_api_key: str
-    langchain_tracing_v2: bool = True
+    langchain_api_key: Optional[str] = None   # optional — tracing disabled if not set
+    langchain_tracing_v2: bool = False         # default off; set True when key provided
     langchain_project: str = "ai-agentic-assistant"
 
     # ── RAG ───────────────────────────────────────────────────────────────────
@@ -32,10 +32,10 @@ class Settings(BaseSettings):
     # ── Neo4j ─────────────────────────────────────────────────────────────────
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
-    neo4j_password: str
+    neo4j_password: str = ""   # optional — leave blank to skip Neo4j on free tier
 
     # ── Web search ────────────────────────────────────────────────────────────
-    tavily_api_key: str
+    tavily_api_key: Optional[str] = None   # optional — web search disabled if not set
 
     # ── Ollama (local LLM, used for A/B testing with open-source models) ──────
     ollama_base_url: str = "http://localhost:11434"
@@ -141,7 +141,9 @@ class Settings(BaseSettings):
 
     @field_validator("langchain_api_key")
     @classmethod
-    def validate_langsmith_key(cls, v: str) -> str:
+    def validate_langsmith_key(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v.strip() == "":
+            return None   # tracing disabled — not an error
         if not (v.startswith("ls__") or v.startswith("lsv2_")):
             raise ValueError("LANGCHAIN_API_KEY must start with 'ls__' or 'lsv2_'")
         return v
