@@ -59,9 +59,20 @@ class Settings(BaseSettings):
     # ── API / Auth ────────────────────────────────────────────────────────────
     jwt_secret: str
     api_rate_limit: int = 60
-    cors_origins: list[str] = ["http://localhost:5173"]
+    cors_origins: str = "http://localhost:5173"   # comma-sep or JSON array
     backend_url: str = "http://localhost:8000"
     frontend_url: str = "http://localhost:5173"
+
+    def get_cors_origins(self) -> list[str]:
+        """Parse CORS_ORIGINS — accepts comma-sep string or JSON array."""
+        import json
+        v = self.cors_origins.strip()
+        if v.startswith("["):
+            try:
+                return json.loads(v)
+            except Exception:
+                pass
+        return [o.strip() for o in v.split(",") if o.strip()]
 
     # ── App ───────────────────────────────────────────────────────────────────
     app_env: str = "development"
