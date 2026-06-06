@@ -39,7 +39,7 @@ class Settings(BaseSettings):
 
     # ── Ollama (local LLM, used for A/B testing with open-source models) ──────
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3"
+    ollama_model: str = "llama3.2"
 
     # ── PostgreSQL ────────────────────────────────────────────────────────────
     postgres_host:     str = "localhost"

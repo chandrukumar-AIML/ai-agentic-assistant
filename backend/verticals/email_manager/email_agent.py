@@ -358,19 +358,16 @@ async def summarize_inbox(messages: list[dict], language: str = "en") -> dict:
     invoices = [m for m in messages if m.get("category") == "invoice"]
     followups = [m for m in messages if m.get("category") == "follow_up"]
 
-    # AI summary of top urgent messages
+    # AI summary of top urgent messages — uses llm_router (Ollama→OpenAI fallback)
     summary_text = ""
     if urgent or invoices or followups:
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=settings.openai_api_key)
-
         items_text = "\n".join(
             f"- [{m.get('category','?').upper()}] {m.get('subject','')} (from {m.get('from','')})"
             for m in (urgent + invoices + followups)[:10]
         )
         try:
-            resp = await client.chat.completions.create(
-                model="gpt-4o-mini",
+            from backend.llm.router import llm_router
+            summary_text, _ = await llm_router.complete(
                 messages=[
                     {"role": "system", "content": (
                         f"Summarize these emails into 3-5 action items in {language}. "
@@ -380,7 +377,6 @@ async def summarize_inbox(messages: list[dict], language: str = "en") -> dict:
                 ],
                 max_tokens=300,
             )
-            summary_text = resp.choices[0].message.content or ""
         except Exception:
             summary_text = f"{len(urgent)} urgent, {len(invoices)} invoices, {len(followups)} follow-ups need attention."
 

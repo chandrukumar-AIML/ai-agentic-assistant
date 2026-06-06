@@ -123,18 +123,22 @@ class LLMRouter:
     async def _call_ollama(self, messages, temperature, max_tokens, stream) -> tuple:
         try:
             if stream:
-                # FIXED: missing `await` — ollama_chat is async def; without await a coroutine
-                # object was returned instead of the async generator the caller expects.
                 result = await ollama_chat(messages, temperature, max_tokens, stream=True)
                 return result, f"ollama/{settings.ollama_model}"
             else:
                 result = await ollama_chat(messages, temperature, max_tokens, stream=False)
                 return result, f"ollama/{settings.ollama_model}"
         except OllamaCallError as e:
-            logger.error(f"Both GPT-4o and Ollama failed: {e}")
+            logger.warning(f"Ollama failed: {e} — trying OpenAI fallback")
+            # Fallback to OpenAI if key is configured
+            if settings.openai_api_key and settings.openai_api_key.startswith("sk-"):
+                try:
+                    return await self._call_openai(messages, temperature, max_tokens, stream)
+                except Exception as oe:
+                    logger.error(f"OpenAI fallback also failed: {oe}")
             return (
                 "I'm currently unable to process your request — "
-                "both primary and fallback models are unavailable.",
+                "Ollama is not running locally. Start it with: ollama serve",
                 "none"
             )
 
