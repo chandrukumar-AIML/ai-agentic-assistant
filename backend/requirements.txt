@@ -78,7 +78,8 @@ numpy==1.26.4
 
 
 # Phase E: Guardrails
-nemoguardrails==0.9.1
+# nemoguardrails removed — conflicts with langchain>=0.3.0
+# guard_engine.py degrades gracefully when not installed (try/except ImportError)
 spacy==3.7.4
 # Download spaCy model after install:
 # python -m spacy download en_core_web_sm   
@@ -86,8 +87,7 @@ spacy==3.7.4
 
 # Phase H: Auth + RBAC
 passlib[bcrypt]==1.7.4
-python-jose[cryptography]==3.3.0   # already in v1 requirements
-# asyncpg already added in Phase A
+# python-jose already listed above (line 55) — duplicate removed
 
 # ── Phase N: Guardian Agent (Compliance) ─────────────────────────────────────
 presidio-analyzer==2.2.355          # Microsoft Presidio NLP PII/PHI
