@@ -15,6 +15,9 @@ WORKDIR /build
 # Build context is project root — requirements.txt lives under backend/
 COPY backend/requirements.txt requirements.txt
 
+# Cache-bust: changing this value forces full pip reinstall (2026-06-06-v2)
+ARG CACHE_BUST=2026-06-06-v2
+
 RUN pip install --upgrade pip \
  && pip install --prefix=/install --no-cache-dir -r requirements.txt
 
