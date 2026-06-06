@@ -198,11 +198,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "0"   # modern browsers ignore; CSP is the real guard
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "   # inline needed for Vite HMR in dev
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: blob:; "
+            "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net fonts.googleapis.com; "
+            "img-src 'self' data: blob: fastapi.tiangolo.com cdn.jsdelivr.net; "
             "connect-src 'self' ws: wss:; "
-            "font-src 'self'; "
+            "font-src 'self' fonts.gstatic.com cdn.jsdelivr.net; "
             "frame-ancestors 'none';"
         )
         if settings.app_env != "development":
