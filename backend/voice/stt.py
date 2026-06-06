@@ -11,7 +11,12 @@ import time
 from functools import lru_cache
 from typing import Optional
 
-from faster_whisper import WhisperModel
+try:
+    from faster_whisper import WhisperModel
+    _WHISPER_AVAILABLE = True
+except ImportError:
+    WhisperModel = None  # type: ignore
+    _WHISPER_AVAILABLE = False
 
 from backend.voice.audio_utils import pcm_float32_to_wav_bytes, is_silent
 from backend.config import get_settings

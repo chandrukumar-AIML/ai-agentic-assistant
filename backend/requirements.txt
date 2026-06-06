@@ -74,19 +74,17 @@ psycopg2-binary==2.9.9
 asyncpg==0.29.0 
 
 # Phase D: Voice
-faster-whisper==1.0.3
+# faster-whisper removed from prod image — 200MB+ binary, voice runs via external service
+# Install locally: pip install faster-whisper==1.0.3
+# stt.py handles ImportError gracefully
 soundfile==0.12.1
 numpy==1.26.4
-# TTS via Docker (Coqui) — not installed in backend directly
-# Optional: pip install TTS if running Coqui in same process  
-
 
 # Phase E: Guardrails
 # nemoguardrails removed — conflicts with langchain>=0.3.0
-# guard_engine.py degrades gracefully when not installed (try/except ImportError)
-spacy==3.7.4
-# Download spaCy model after install:
-# python -m spacy download en_core_web_sm   
+# presidio-analyzer/anonymizer removed — pii_detector.py uses pure regex (no spaCy needed)
+# spaCy removed — not imported anywhere in codebase
+# All PII/PHI detection works via regex patterns in guardrails/pii_detector.py   
 
 
 # Phase H: Auth + RBAC
@@ -94,9 +92,8 @@ passlib[bcrypt]==1.7.4
 # python-jose already listed above (line 55) — duplicate removed
 
 # ── Phase N: Guardian Agent (Compliance) ─────────────────────────────────────
-presidio-analyzer==2.2.355          # Microsoft Presidio NLP PII/PHI
-presidio-anonymizer==2.2.355        # Presidio masking engine
-# spaCy model required: python -m spacy download en_core_web_lg
+# presidio removed — pii_detector.py uses pure regex, no NLP model needed
+# Saves ~400MB from Docker image
 
 # ── Phase O: HITL + Notifications ────────────────────────────────────────────
 # sendgrid — email notifications (SENDGRID_API_KEY)
@@ -106,7 +103,7 @@ sendgrid==6.11.0
 # ── Features 4–19: Shared dependencies ───────────────────────────────────────
 # Task Scheduler (Feature 4)
 apscheduler==3.10.4
-celery[redis]==5.4.0
+# celery removed — not imported anywhere, APScheduler handles all scheduling
 
 # Commerce & Payments (Features 5, 8)
 stripe==11.3.0
@@ -135,4 +132,4 @@ hubspot-api-client==11.1.0
 tweepy==4.15.0                      # Twitter/X API v2
 
 # A/B Testing statistics (Feature 12)
-scipy==1.14.1                       # Welch's t-test p-values (pure-Python fallback exists without this)
+# scipy removed — using pure-Python fallback for Welch's t-test (saves ~70MB)
