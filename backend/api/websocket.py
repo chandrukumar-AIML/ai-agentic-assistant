@@ -93,6 +93,19 @@ async def websocket_endpoint(websocket: WebSocket):
 
     session_id = websocket.query_params.get("session_id", str(uuid.uuid4()))
     await manager.connect(session_id, websocket)
+
+    # Lazy-compile LangGraph agent on first connection (saves ~150MB RAM at startup)
+    if websocket.app.state.agent is None:
+        async with websocket.app.state.agent_lock:
+            if websocket.app.state.agent is None:   # double-check after lock
+                try:
+                    from backend.agent.graph import compile_graph
+                    from langgraph.checkpoint.memory import MemorySaver
+                    websocket.app.state.agent = compile_graph(checkpointer=MemorySaver())
+                    logger.info("LangGraph agent compiled on first WS connection")
+                except Exception as e:
+                    logger.warning(f"LangGraph compile failed: {e}")
+
     graph = websocket.app.state.agent
 
     try:

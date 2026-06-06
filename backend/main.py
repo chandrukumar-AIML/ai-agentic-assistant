@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Prompt seed (non-fatal): {e}")
 
-    # LLM warmup
+    # LLM warmup — lightweight check only, no model loading
     try:
         from backend.llm.router import llm_router
         health = await asyncio.wait_for(llm_router.health(), timeout=5.0)
@@ -89,17 +89,13 @@ async def lifespan(app: FastAPI):
     except (asyncio.TimeoutError, Exception) as e:
         logger.warning(f"LLM warmup (non-fatal): {e}")
 
-    # Compile LangGraph agent
-    try:
-        from backend.agent.graph import compile_graph
-        from langgraph.checkpoint.memory import MemorySaver
-        app.state.agent = compile_graph(checkpointer=MemorySaver())
-        logger.info("LangGraph agent compiled")
-    except Exception as e:
-        logger.warning(f"LangGraph compile (non-fatal): {e}")
-        app.state.agent = None
+    # LangGraph agent — lazy compile on first request to save startup RAM
+    # On Render free tier (512MB) eager compile causes OOM before port binds
+    app.state.agent = None
+    app.state.agent_lock = asyncio.Lock()
+    logger.info("LangGraph agent: lazy-compile on first request")
 
-    # Log prompt versions
+    # Log prompt versions — lightweight, no model loading
     try:
         from backend.agent.prompts import PLANNER_PROMPT, SYNTHESIZER_PROMPT
         log_prompt_version("planner_prompt",     PLANNER_PROMPT,     "v2.0.0")
@@ -107,28 +103,35 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Prompt version logging (non-fatal): {e}")
 
-    # Neo4j schema
-    try:
-        from backend.graph_db.schema import apply_schema
-        await asyncio.wait_for(apply_schema(), timeout=10.0)
-    except (Exception, asyncio.TimeoutError) as e:
-        logger.warning(f"Neo4j schema (non-fatal): {e}")
-
-    # Service warmups
-    for warmup_name, warmup_fn in [
-        ("FlashRank", lambda: __import__("backend.rag.reranker", fromlist=["get_ranker"]).get_ranker()),
-    ]:
+    # Neo4j schema — skip if no password configured (free tier uses FAISS only)
+    if settings.neo4j_password:
         try:
-            warmup_fn()
-            logger.info(f"{warmup_name} loaded")
-        except Exception as e:
-            logger.warning(f"{warmup_name} warmup (non-fatal): {e}")
+            from backend.graph_db.schema import apply_schema
+            await asyncio.wait_for(apply_schema(), timeout=10.0)
+        except (Exception, asyncio.TimeoutError) as e:
+            logger.warning(f"Neo4j schema (non-fatal): {e}")
+    else:
+        logger.info("Neo4j skipped — NEO4J_PASSWORD not set")
 
-    try:
-        from backend.voice.stt import warmup_whisper
-        await warmup_whisper()
-    except Exception as e:
-        logger.warning(f"Whisper warmup (non-fatal): {e}")
+    # Heavy model warmups — skipped on free tier to stay under 512MB RAM
+    # Models load lazily on first actual request instead
+    if settings.app_env != "production":
+        for warmup_name, warmup_fn in [
+            ("FlashRank", lambda: __import__("backend.rag.reranker", fromlist=["get_ranker"]).get_ranker()),
+        ]:
+            try:
+                warmup_fn()
+                logger.info(f"{warmup_name} loaded")
+            except Exception as e:
+                logger.warning(f"{warmup_name} warmup (non-fatal): {e}")
+
+        try:
+            from backend.voice.stt import warmup_whisper
+            await warmup_whisper()
+        except Exception as e:
+            logger.warning(f"Whisper warmup (non-fatal): {e}")
+    else:
+        logger.info("Production mode: heavy model warmups deferred to first request")
 
     # APScheduler — load and resume all active scheduled tasks
     try:

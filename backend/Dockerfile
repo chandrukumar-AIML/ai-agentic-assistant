@@ -16,7 +16,9 @@ WORKDIR /build
 COPY backend/requirements.txt requirements.txt
 
 # Cache-bust: changing this value forces full pip reinstall (2026-06-06-v3)
-ARG CACHE_BUST=2026-06-06-v5
+ARG CACHE_BUST=2026-06-06-v6
+# Silence MLflow's git warning (git not available in Docker slim)
+ENV GIT_PYTHON_REFRESH=quiet
 
 RUN pip install --upgrade pip \
  && pip install --prefix=/install --no-cache-dir -r requirements.txt
