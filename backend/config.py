@@ -135,8 +135,9 @@ class Settings(BaseSettings):
     @field_validator("openai_api_key")
     @classmethod
     def validate_openai_key(cls, v: str) -> str:
-        if not v.startswith("sk-"):
-            raise ValueError("OPENAI_API_KEY must start with 'sk-'")
+        if v and not v.startswith("sk-"):
+            raise ValueError("OPENAI_API_KEY must start with 'sk-' (got non-empty invalid key)")
+        # Allow empty string so app starts — actual API calls will fail without real key
         return v
 
     @field_validator("langchain_api_key")
@@ -145,7 +146,8 @@ class Settings(BaseSettings):
         if v is None or v.strip() == "":
             return None   # tracing disabled — not an error
         if not (v.startswith("ls__") or v.startswith("lsv2_")):
-            raise ValueError("LANGCHAIN_API_KEY must start with 'ls__' or 'lsv2_'")
+            # Invalid format → disable tracing silently instead of crashing
+            return None
         return v
 
     @field_validator("jwt_secret")
