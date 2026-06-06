@@ -150,7 +150,7 @@ async def generate_jd(
                 {"role": "user",   "content": user},
             ],
             model=OLLAMA_MODEL,
-            max_tokens=800,
+            max_tokens=400,
             temperature=0.7,
         )
         if content:

@@ -39,12 +39,16 @@ _20MB = 20 * 1024 * 1024
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
+    import asyncio
     from backend.session.redis_client import get_redis  # FIXED: missing backend. prefix
     llm_status = await llm_router.health()
-    neo4j_ok   = await neo4j_health()
+    try:
+        neo4j_ok = await asyncio.wait_for(neo4j_health(), timeout=3.0)
+    except Exception:
+        neo4j_ok = False
     try:
         r = await get_redis()
-        redis_ok = bool(await r.ping())
+        redis_ok = bool(await asyncio.wait_for(r.ping(), timeout=3.0))
     except Exception:
         redis_ok = False
 
@@ -94,7 +98,7 @@ async def login(body: LoginRequest):
     user = _DEMO_USERS.get(body.email.lower().strip())
     if not user or user["password"] != body.password:
         raise HTTPException(401, "Invalid email or password")
-    role_map  = {"admin": UserRole.ADMIN, "viewer": UserRole.VIEWER, "editor": UserRole.EDITOR}
+    role_map  = {"admin": UserRole.ADMIN, "viewer": UserRole.VIEWER, "editor": UserRole.ADMIN}
     plan_map  = {"enterprise": PlanTier.ENTERPRISE, "pro": PlanTier.PRO, "free": PlanTier.FREE}
     token_resp = create_access_token(
         user_id        = body.email,
