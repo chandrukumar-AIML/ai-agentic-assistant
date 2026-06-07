@@ -79,7 +79,7 @@ export default function SocialPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                     <Badge text={platform.toUpperCase()} color="blue" />
                     <Badge text={tone} color="purple" />
-                    {post.model && <Badge text="Ollama" color="purple" />}
+                    
                   </div>
                   {postText && (
                     <div style={{ background: '#0f1117', borderRadius: 8, padding: 16, marginBottom: 10 }}>
@@ -159,7 +159,7 @@ export default function SocialPage() {
               <Card style={{ marginBottom: 12 }}>
                 <img src={imgApi.data.image_url} alt="Generated" style={{ width: '100%', borderRadius: 8 }} />
                 <div style={{ marginTop: 8, fontSize: 11, color: '#6b7280' }}>
-                  DALL-E 3 • 1024×1024 • {imgApi.data.model || 'dall-e-3'}
+                  AI-generated image • 1024×1024
                 </div>
               </Card>
             )}

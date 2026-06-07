@@ -70,7 +70,7 @@ export default function HRPage() {
       {tab === 'screen' && (
         <TwoCol>
           <Card>
-            <SectionHead title="Resume Screening" sub="GPT-4o → Ollama fallback — score 0-100 with strengths & gaps" />
+            <SectionHead title="Resume Screening" sub="Score any resume 0–100 against a job description, with strengths & gaps" />
             <Input label="Job Title"                              value={jobTitle} onChange={setJobTitle} />
             <Input label="Job Description"                        value={jobDesc}  onChange={setJobDesc} rows={3} />
             <Input label="Required Skills (comma-separated)"      value={reqs}     onChange={setReqs} />

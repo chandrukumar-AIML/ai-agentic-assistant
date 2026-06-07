@@ -55,7 +55,7 @@ export default function LoginPage({ onLogin }: Props) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 26, fontWeight: 800, color: '#fff',
           }}>A</div>
-          <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0 }}>AI Agentic Assistant</h1>
+          <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0 }}>AI Agentic</h1>
           <p style={{ color: '#6b7280', fontSize: 13, margin: '6px 0 0' }}>Your all-in-one AI workspace for business</p>
         </div>
 
@@ -153,7 +153,7 @@ export default function LoginPage({ onLogin }: Props) {
         </div>
 
         <p style={{ textAlign: 'center', color: '#374151', fontSize: 11, marginTop: 20 }}>
-          AI Agentic Assistant V2 · LangGraph + FastAPI · © 2026
+          AI Agentic · © 2026
         </p>
       </div>
     </div>

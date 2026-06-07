@@ -153,7 +153,7 @@ export default function SettingsPage() {
           </Card>
 
           <Card>
-            <SectionHead title="Stack Info" sub="AI Agentic Assistant V2 tech stack" />
+            <SectionHead title="Stack Info" sub="Technology behind your workspace" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {[
                 { label: 'Backend',     value: 'FastAPI + LangGraph' },

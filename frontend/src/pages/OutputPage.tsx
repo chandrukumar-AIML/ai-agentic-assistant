@@ -34,7 +34,7 @@ export default function OutputPage() {
   const sampleSlides = [
     { title: 'Q3 2024 Review', content: 'AI Agentic Assistant — Business Performance' },
     { title: 'Revenue', content: '$2.5M Total Revenue\n+23% Year-over-Year' },
-    { title: 'Product Highlights', content: '19 Features Live\n80+ API Endpoints\nEnterprise Ready' },
+    { title: 'Product Highlights', content: 'All tools live\nWorks in 3 languages\nEnterprise-ready' },
     { title: 'Next Quarter', content: 'Enterprise launch\n3 new markets\n15 new hires' },
   ]
 

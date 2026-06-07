@@ -7,44 +7,44 @@ interface Props {
 
 const FEATURES = [
   {
-    icon: '🤖', color: '#10b981',
-    title: 'LangGraph Multi-Agent',
-    desc: 'Supervisor → Planner → Worker → Reflection loop. Agents reason, self-critique, and retry until confident.',
+    icon: '🧰', color: '#10b981',
+    title: '24+ ready-made assistants',
+    desc: 'Pre-built AI for finance, legal, HR, sales, healthcare, agriculture, education and more — ready the moment you log in.',
   },
   {
     icon: '📚', color: '#22c55e',
-    title: 'Dual RAG Engine',
-    desc: 'FAISS + ChromaDB vector stores with HyDE query expansion, cross-encoder reranking, and semantic caching.',
+    title: 'Answers from your documents',
+    desc: 'Upload your files and get instant, accurate answers grounded in your own data — no more digging through folders.',
   },
   {
     icon: '🛡️', color: '#f59e0b',
-    title: 'Enterprise Guardrails',
-    desc: 'PII/PHI detection, prompt injection blocking, RBAC access control, JWT auth, and full audit logging.',
+    title: 'Your data stays safe',
+    desc: 'Automatic detection & redaction of personal data, access control per user, and a full audit trail of every action.',
   },
   {
-    icon: '🎙️', color: '#06b6d4',
-    title: 'Voice AI Pipeline',
-    desc: 'Whisper speech-to-text → Agent reasoning → Coqui TTS — real-time voice over WebSocket.',
+    icon: '🌐', color: '#06b6d4',
+    title: 'Works in your language',
+    desc: 'English, தமிழ் and हिन्दी across the verticals that need it — built for Indian businesses and beyond.',
   },
   {
     icon: '👁️', color: '#ec4899',
-    title: 'Human-in-the-Loop',
-    desc: 'Approval queues for high-stakes decisions. Agents pause, escalate, notify — humans stay in control.',
+    title: 'You stay in control',
+    desc: 'Sensitive actions — like sending an email or an offer letter — pause for your approval before anything happens.',
   },
   {
-    icon: '📊', color: '#06b6d4',
-    title: 'Full Observability',
-    desc: 'LangSmith tracing, MLflow experiments, Prometheus metrics, cost tracking, and budget enforcement.',
+    icon: '🤝', color: '#06b6d4',
+    title: 'Connects to your tools',
+    desc: 'Plugs into Gmail, HubSpot, Salesforce, Twilio, Razorpay and more — turn on what you need with a single key.',
   },
   {
-    icon: '🔌', color: '#f97316',
-    title: 'MCP + A2A Protocols',
-    desc: 'Model Context Protocol server with 7 tools. Agent-to-Agent (A2A) communication for multi-system AI.',
+    icon: '⚡', color: '#f97316',
+    title: 'No setup, instant results',
+    desc: 'Nothing to install. Open a tool, fill a short form, and get a polished result in seconds.',
   },
   {
-    icon: '🌐', color: '#10b981',
-    title: '12 Domain Verticals',
-    desc: 'Ready-made AI agents for AgriTech, Legal, HR, Sales, DevOps, Cybersec, Finance, and 5 more.',
+    icon: '💳', color: '#10b981',
+    title: 'Per-client access & billing',
+    desc: 'Give each client exactly the tools they need, on Free / Pro / Enterprise plans — paid via Stripe or UPI.',
   },
 ]
 
@@ -59,8 +59,10 @@ const VERTICALS = [
   { icon: '🧮', name: 'Accountant',   badge: 'Finance' },
   { icon: '👥', name: 'HR Assistant', badge: 'People' },
   { icon: '📱', name: 'Social Media', badge: 'Marketing' },
-  { icon: '📊', name: 'Data Analyst', badge: 'SQL+Charts' },
-  { icon: '⚙️', name: 'DevOps Eng',  badge: 'Infra' },
+  { icon: '📊', name: 'Data Analyst', badge: 'Insights' },
+  { icon: '🏥', name: 'Healthcare',   badge: 'Clinics' },
+  { icon: '🏘️', name: 'Real Estate',  badge: 'Property' },
+  { icon: '📚', name: 'EdTech',        badge: 'Education' },
 ]
 
 const TECH = [
@@ -83,10 +85,10 @@ const TECH = [
 ]
 
 const STATS = [
-  { value: '24',   label: 'Enterprise Features' },
-  { value: '12',   label: 'Domain Verticals' },
-  { value: '133+', label: 'API Endpoints' },
-  { value: '182',  label: 'Python Modules' },
+  { value: '24+',  label: 'AI Tools' },
+  { value: '11',   label: 'Business Domains' },
+  { value: '3',    label: 'Languages' },
+  { value: '100%', label: 'PII-Safe & Compliant' },
 ]
 
 export default function LandingPage({ onSignIn }: Props) {
@@ -116,11 +118,7 @@ export default function LandingPage({ onSignIn }: Props) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 16, fontWeight: 800, color: '#fff',
           }}>A</div>
-          <span style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>AI Agentic Assistant</span>
-          <span style={{
-            fontSize: 10, fontWeight: 600, padding: '2px 8px',
-            borderRadius: 20, background: 'rgba(16,185,129,0.2)', color: '#5eead4',
-          }}>v2.0</span>
+          <span style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>AI Agentic</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <a
@@ -156,7 +154,7 @@ export default function LandingPage({ onSignIn }: Props) {
           fontSize: 12, color: '#5eead4', marginBottom: 28,
         }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-          Production-Ready · Deploy on Render + Vercel · 100% Free Tier
+          Live demo · No setup · Try every tool free
         </div>
 
         <h1 style={{
@@ -167,16 +165,16 @@ export default function LandingPage({ onSignIn }: Props) {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}>
-          Enterprise Multi-Agent<br />AI Platform
+          One AI Workspace<br />for Your Whole Business
         </h1>
 
         <p style={{
           fontSize: 18, color: '#9ca3af', maxWidth: 620, margin: '0 auto 36px',
           lineHeight: 1.7,
         }}>
-          Full-stack AI assistant with LangGraph orchestration, RAG knowledge base,
-          voice pipeline, 12 domain verticals, and enterprise-grade security —
-          built to ship to production.
+          24+ ready-to-use AI assistants for finance, legal, HR, sales, healthcare,
+          agriculture and more — in English, Tamil & Hindi. No setup, works instantly,
+          and your data stays private.
         </p>
 
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -189,7 +187,7 @@ export default function LandingPage({ onSignIn }: Props) {
             🚀 Launch Dashboard
           </button>
           <a
-            href="http://localhost:8000/docs"
+            href="https://github.com/chandrukumar-AIML/ai-agentic-assistant"
             target="_blank" rel="noopener noreferrer"
             style={{
               padding: '13px 32px', borderRadius: 10, fontSize: 15, fontWeight: 600,
@@ -197,7 +195,7 @@ export default function LandingPage({ onSignIn }: Props) {
               border: '1px solid #374151', textDecoration: 'none',
               display: 'inline-block',
             }}>
-            📄 API Docs
+            ⭐ View on GitHub
           </a>
         </div>
       </section>
@@ -273,10 +271,10 @@ export default function LandingPage({ onSignIn }: Props) {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <h2 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 10px', color: '#fff' }}>
-              12 Industry-Specific AI Agents
+              A tool for every part of your business
             </h2>
             <p style={{ color: '#6b7280', fontSize: 14, margin: 0 }}>
-              Each vertical has its own specialized backend agent + full-page frontend UI
+              From accounting to agriculture — a dedicated AI assistant for each.
             </p>
           </div>
           <div style={{
@@ -308,7 +306,7 @@ export default function LandingPage({ onSignIn }: Props) {
             Built With Best-in-Class Tech
           </h2>
           <p style={{ color: '#6b7280', fontSize: 14, margin: 0 }}>
-            Production stack — not toy libraries
+            Reliable, production-grade technology you can trust
           </p>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
@@ -390,7 +388,7 @@ export default function LandingPage({ onSignIn }: Props) {
         flexWrap: 'wrap', gap: 12,
       }}>
         <div style={{ color: '#374151', fontSize: 12 }}>
-          AI Agentic Assistant V2 · LangGraph + FastAPI · © 2026
+AI Agentic · Built with FastAPI + React · © 2026
         </div>
         <div style={{ display: 'flex', gap: 20 }}>
           {[
