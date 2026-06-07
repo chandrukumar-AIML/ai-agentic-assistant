@@ -22,7 +22,7 @@ export default function SchedulerPage() {
   }
 
   return (
-    <PageShell icon="⏰" title="Agentic Task Scheduler" subtitle="Feature 4 — APScheduler + Celery + 4 trigger types: cron/interval/date/one-shot">
+    <PageShell icon="⏰" title="Agentic Task Scheduler" subtitle="Automate recurring tasks on your own schedule">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 20 }}>
         <StatCard label="Total Tasks"   value={tasks.length} icon="📋" />
         <StatCard label="Active"        value={tasks.filter(t => t.status === 'active' || t.enabled).length} icon="✅" />

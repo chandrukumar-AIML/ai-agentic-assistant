@@ -39,7 +39,7 @@ export default function FormReaderPage() {
   }
 
   return (
-    <PageShell icon="📋" title="AI Form Reader & Data Extractor" subtitle="Feature 14 — GPT-4o Vision • PAN/Aadhaar/GSTIN validation • Verhoeff check">
+    <PageShell icon="📋" title="AI Form Reader & Data Extractor" subtitle="Extract & validate data from PAN, Aadhaar & GST forms">
       <TwoCol>
         <div>
           <Card style={{ marginBottom: 16 }}>

@@ -32,7 +32,7 @@ export default function ABTestPage() {
   }
 
   return (
-    <PageShell icon="⚗️" title="Agent A/B Testing Framework" subtitle="Feature 12 — Welch's t-test, Cohen's d, auto-promote, MLflow tracking">
+    <PageShell icon="⚗️" title="Agent A/B Testing Framework" subtitle="Compare prompt versions and promote the winner with confidence">
       <Tabs
         tabs={[
           { id: 'list',   label: 'Experiments', icon: '📋' },

@@ -56,7 +56,7 @@ export default function LoginPage({ onLogin }: Props) {
             fontSize: 26, fontWeight: 800, color: '#fff',
           }}>A</div>
           <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, margin: 0 }}>AI Agentic Assistant</h1>
-          <p style={{ color: '#6b7280', fontSize: 13, margin: '6px 0 0' }}>v2.0 · Enterprise Multi-Agent Platform</p>
+          <p style={{ color: '#6b7280', fontSize: 13, margin: '6px 0 0' }}>Your all-in-one AI workspace for business</p>
         </div>
 
         {/* Card */}

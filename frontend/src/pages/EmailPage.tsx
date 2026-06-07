@@ -17,7 +17,7 @@ export default function EmailPage() {
   }, [tab, provider])
 
   return (
-    <PageShell icon="📧" title="AI Email Manager" subtitle="Feature 15 — Gmail API v1 + Microsoft Graph (Outlook) + HITL before send">
+    <PageShell icon="📧" title="AI Email Manager" subtitle="Draft, summarise & manage your Gmail and Outlook inbox">
       <Tabs
         tabs={[
           { id: 'inbox', label: 'Inbox',        icon: '📥' },

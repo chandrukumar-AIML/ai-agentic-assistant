@@ -35,7 +35,7 @@ export default function AccountantPage() {
   const budgetApi = useApi()
 
   return (
-    <PageShell icon="🧮" title="AI Accountant Assistant" subtitle="Feature 17 — GST/TDS calc, GSTR-1/3B, P&L analysis, Budget forecasting">
+    <PageShell icon="🧮" title="AI Accountant Assistant" subtitle="GST & TDS calculation, GSTR filing, P&L analysis & budgeting">
       <Tabs
         tabs={[
           { id: 'gst',    label: 'GST Calculator', icon: '💰' },

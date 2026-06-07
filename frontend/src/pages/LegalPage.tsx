@@ -51,7 +51,7 @@ export default function LegalPage() {
   const ndaApi = useApi()
 
   return (
-    <PageShell icon="⚖️" title="Indian Legal Research Agent" subtitle="Feature 10 — IndianKanoon + IPC/CPC/CrPC Bare Acts + Contract Review + NDA Generator">
+    <PageShell icon="⚖️" title="Indian Legal Research Agent" subtitle="Indian case-law research, contract review & NDA generation">
       <Tabs
         tabs={[
           { id: 'research',  label: 'Legal Research',  icon: '⚖️' },

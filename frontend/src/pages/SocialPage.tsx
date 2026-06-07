@@ -36,7 +36,7 @@ export default function SocialPage() {
   const campaignApi = useApi()
 
   return (
-    <PageShell icon="📱" title="AI Social Media Manager" subtitle="Feature 19 — LinkedIn + Twitter/X + DALL-E 3 + SEO Audit + Campaign Brief">
+    <PageShell icon="📱" title="AI Social Media Manager" subtitle="Content, hashtags, AI images, SEO audits & campaign briefs">
       <Tabs
         tabs={[
           { id: 'content',  label: 'Content Generator', icon: '✍️' },

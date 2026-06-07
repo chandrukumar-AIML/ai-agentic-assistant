@@ -26,7 +26,7 @@ export default function HITLPage() {
   const done    = approvals.filter(a => a.status !== 'pending')
 
   return (
-    <PageShell icon="👁️" title="HITL Approval Dashboard" subtitle="Feature 6 — LangGraph interrupt, 30-min auto-reject, SendGrid+Slack notifications">
+    <PageShell icon="👁️" title="HITL Approval Dashboard" subtitle="Review & approve sensitive AI actions before they run">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 20 }}>
         <StatCard label="Total"    value={approvals.length} icon="📋" />
         <StatCard label="Pending"  value={pending.length}   icon="⏳" />

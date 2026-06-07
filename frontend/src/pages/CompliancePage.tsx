@@ -16,7 +16,7 @@ export default function CompliancePage() {
   const api = useApi()
 
   return (
-    <PageShell icon="🛡️" title="Guardian Compliance Agent" subtitle="Feature 1 — HIPAA 18 Safe Harbor, GDPR Art.6/17/44-49, SOC2, EU AI Act">
+    <PageShell icon="🛡️" title="Guardian Compliance Agent" subtitle="Automatic PII detection & compliance — HIPAA, GDPR, SOC2">
       <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20 }}>
         <div>
           <Card style={{ marginBottom: 16 }}>

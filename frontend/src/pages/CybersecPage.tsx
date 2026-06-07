@@ -56,7 +56,7 @@ export default function CybersecPage() {
   const qApi   = useApi()
 
   return (
-    <PageShell icon="🔐" title="Cybersecurity Monitoring Agent" subtitle="Feature 11 — Log anomaly detection, NVD CVE lookup, OWASP review, Incident reports">
+    <PageShell icon="🔐" title="Cybersecurity Monitoring Agent" subtitle="Log anomaly detection, CVE lookup, OWASP review & incident reports">
       <Tabs
         tabs={[
           { id: 'logs',  label: 'Log Analysis',   icon: '📋' },

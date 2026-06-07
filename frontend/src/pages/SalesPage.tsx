@@ -60,7 +60,7 @@ export default function SalesPage() {
   const updateLead = (key: string, val: string | number | boolean) => setLead(p => ({ ...p, [key]: val }))
 
   return (
-    <PageShell icon="💼" title="AI Sales Assistant & Lead Qualifier" subtitle="Feature 16 — BANT scoring, CRM sync, email sequences, meeting prep">
+    <PageShell icon="💼" title="AI Sales Assistant & Lead Qualifier" subtitle="Lead scoring, CRM sync, email sequences & meeting prep">
       <Tabs
         tabs={[
           { id: 'score',     label: 'Lead Scoring',     icon: '📊' },

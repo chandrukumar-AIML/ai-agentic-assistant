@@ -52,7 +52,7 @@ export default function ReceptionistPage() {
 </script>`
 
   return (
-    <PageShell icon="☎️" title="AI Receptionist Agent" subtitle="Feature 13 — Chat, FAQ Builder, SLA Policy, Escalation Matrix">
+    <PageShell icon="☎️" title="AI Receptionist Agent" subtitle="24/7 chat, FAQ builder, SLA policy & escalation matrix">
       <Tabs
         tabs={[
           { id: 'chat',       label: 'Chat Simulation', icon: '💬' },

@@ -56,7 +56,7 @@ export default function BillingPage() {
   const apiLimit = limits.api_calls ?? 0
 
   return (
-    <PageShell icon="💳" title="Billing & Subscription Plans" subtitle="Feature 8 — Stripe (global) + Razorpay (India · UPI/NetBanking) · FREE / PRO / ENTERPRISE">
+    <PageShell icon="💳" title="Billing & Subscription Plans" subtitle="Subscriptions & payments via Stripe and Razorpay (UPI / NetBanking)">
       {/* Usage Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
         <StatCard label="Current Plan"  value={(sub.plan_tier || 'free').toUpperCase()} icon="💎" />

@@ -39,7 +39,7 @@ export default function OutputPage() {
   ]
 
   return (
-    <PageShell icon="📄" title="Multi-modal Output Generator" subtitle="Feature 7 — PDF (ReportLab) / PPTX (python-pptx) / Excel (openpyxl) / DALL-E 3 Images">
+    <PageShell icon="📄" title="Multi-modal Output Generator" subtitle="Export documents to PDF, PowerPoint, Excel & images">
       <Tabs
         tabs={[
           { id: 'pdf',   label: 'PDF Report', icon: '📄' },

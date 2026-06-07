@@ -55,7 +55,7 @@ export default function HRPage() {
   const hbApi = useApi()
 
   return (
-    <PageShell icon="👥" title="AI HR Assistant" subtitle="Feature 18 — Resume screening, JD generation, Onboarding, Performance reviews, Handbook">
+    <PageShell icon="👥" title="AI HR Assistant" subtitle="Resume screening, job descriptions, onboarding & performance reviews">
       <Tabs
         tabs={[
           { id: 'screen',   label: 'Resume Screen',   icon: '📄' },

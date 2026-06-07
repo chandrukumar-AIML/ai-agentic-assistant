@@ -49,7 +49,7 @@ export default function AgriPage() {
   const mktApi = useApi()
 
   return (
-    <PageShell icon="🌾" title="AgriTech Domain Agent" subtitle="Feature 9 — Tamil/Hindi/English • Crop advisory, Mandi prices, Weather, Schemes, Yield prediction">
+    <PageShell icon="🌾" title="AgriTech Domain Agent" subtitle="Crop advisory, mandi prices, weather & schemes — Tamil, Hindi & English">
       <Tabs
         tabs={[
           { id: 'query',   label: 'AI Query',          icon: '🤖' },
