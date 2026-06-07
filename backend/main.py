@@ -51,33 +51,41 @@ async def lifespan(app: FastAPI):
     configure_tracing()
     configure_mlflow()
 
-    # PostgreSQL pool
+    # PostgreSQL pool — timeout-guarded so an unreachable DB can never hang
+    # startup (otherwise the port never binds → Render "port scan timeout").
+    db_ready = False
     try:
         from backend.prompts.registry import get_pool
-        await get_pool()
+        await asyncio.wait_for(get_pool(), timeout=8.0)
+        db_ready = True
         logger.info("PostgreSQL pool ready")
     except Exception as e:
-        logger.warning(f"PostgreSQL (non-fatal): {e}")
+        logger.warning(f"PostgreSQL unavailable (non-fatal, app runs without it): {e}")
 
-    # DB migrations
-    try:
-        from pathlib import Path
-        from backend.prompts.registry import get_pool as gp
-        pool = await gp()
-        for sql_file in sorted(Path("backend").rglob("create_*.sql")):
-            async with pool.acquire() as conn:
-                await conn.execute(sql_file.read_text())
-        logger.info("DB migrations applied")
-    except Exception as e:
-        logger.warning(f"DB migrations (non-fatal): {e}")
+    # DB migrations — only if the pool connected; timeout-guarded
+    if db_ready:
+        try:
+            from pathlib import Path
+            from backend.prompts.registry import get_pool as gp
+            async def _migrate():
+                pool = await gp()
+                for sql_file in sorted(Path("backend").rglob("create_*.sql")):
+                    async with pool.acquire() as conn:
+                        await conn.execute(sql_file.read_text())
+            await asyncio.wait_for(_migrate(), timeout=20.0)
+            logger.info("DB migrations applied")
+        except Exception as e:
+            logger.warning(f"DB migrations (non-fatal): {e}")
 
-    # Prompt registry
-    try:
-        from backend.prompts.prompt_loader import seed_default_prompts
-        await seed_default_prompts()
-        logger.info("Prompt registry ready")
-    except Exception as e:
-        logger.warning(f"Prompt seed (non-fatal): {e}")
+        # Prompt registry (needs DB)
+        try:
+            from backend.prompts.prompt_loader import seed_default_prompts
+            await asyncio.wait_for(seed_default_prompts(), timeout=10.0)
+            logger.info("Prompt registry ready")
+        except Exception as e:
+            logger.warning(f"Prompt seed (non-fatal): {e}")
+    else:
+        logger.info("Skipping DB migrations + prompt seed — no database")
 
     # LLM warmup — lightweight check only, no model loading
     try:
@@ -134,10 +142,10 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Production mode: heavy model warmups deferred to first request")
 
-    # APScheduler — load and resume all active scheduled tasks
+    # APScheduler — load and resume all active scheduled tasks (timeout-guarded)
     try:
         from backend.scheduler.task_scheduler import start_scheduler
-        await start_scheduler()
+        await asyncio.wait_for(start_scheduler(), timeout=10.0)
         logger.info("Task scheduler (APScheduler) started")
     except Exception as e:
         logger.warning(f"Task scheduler (non-fatal): {e}")
