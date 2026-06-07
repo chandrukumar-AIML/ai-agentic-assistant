@@ -72,7 +72,7 @@ export default function FormReaderPage() {
             <SectionHead title="India Document Validation" />
             {[
               { name: 'PAN Card', checks: ['Entity type from char 4', 'Format: XXXXX1234X'] },
-              { name: 'Aadhaar', checks: ['Verhoeff check digit', '12-digit format'] },
+              { name: 'Aadhaar', checks: ['Checksum validation', '12-digit format'] },
               { name: 'GSTIN', checks: ['38-state prefix table', 'PAN cross-validation', '15-char format'] },
             ].map(doc => (
               <div key={doc.name} style={{ marginBottom: 10 }}>

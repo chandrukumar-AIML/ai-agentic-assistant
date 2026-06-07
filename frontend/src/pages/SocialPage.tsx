@@ -140,7 +140,7 @@ export default function SocialPage() {
       {tab === 'image' && (
         <TwoCol>
           <Card>
-            <SectionHead title="AI Image Generation" sub="DALL-E 3 — 1024×1024 social media images" />
+            <SectionHead title="AI Image Generation" sub="AI-generated 1024×1024 images for your posts" />
             <Input label="Image Prompt" value={imgPrompt} onChange={setImgPrompt} rows={3} />
             <div style={{ marginBottom: 12 }}>
               {['Modern AI technology with Indian corporate professionals','Vibrant startup ecosystem in Bengaluru','Digital transformation in Indian agriculture'].map(p => (

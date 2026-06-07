@@ -89,7 +89,7 @@ export default function AgriPage() {
       {tab === 'mandi' && (
         <TwoCol>
           <Card>
-            <SectionHead title="Mandi (Market) Prices" sub="Agmarknet API — real prices per quintal" />
+            <SectionHead title="Mandi (Market) Prices" sub="Live market prices, updated per quintal" />
             <Select label="Commodity" value={commodity} onChange={setCommodity}
               options={COMMODITIES.map(c => ({ label: c.charAt(0).toUpperCase()+c.slice(1), value: c }))} />
             <Input label="State" value={state} onChange={setState} />

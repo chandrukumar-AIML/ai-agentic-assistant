@@ -113,7 +113,7 @@ export default function CybersecPage() {
       {tab === 'cve' && (
         <TwoCol>
           <Card>
-            <SectionHead title="NVD CVE Database Search" sub="NIST National Vulnerability Database — no API key required" />
+            <SectionHead title="Vulnerability (CVE) Search" sub="Search the latest known security vulnerabilities" />
             <Input label="Search Keyword" value={cveKw} onChange={setCveKw} placeholder="e.g. log4j, OpenSSL, Apache RCE" />
             <Select label="Severity Filter" value={severity} onChange={setSeverity}
               options={[{ label: 'All Severities', value: '' }, { label: 'CRITICAL', value: 'CRITICAL' }, { label: 'HIGH', value: 'HIGH' }, { label: 'MEDIUM', value: 'MEDIUM' }]} />

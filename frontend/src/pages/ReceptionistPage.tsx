@@ -102,10 +102,10 @@ export default function ReceptionistPage() {
             <Card style={{ marginBottom: 16 }}>
               <SectionHead title="Capabilities" />
               {[
-                { icon: '📞', label: 'Twilio Voice',          desc: 'Inbound call TwiML — IVR + voicemail' },
+                { icon: '📞', label: 'Twilio Voice',          desc: 'Inbound calls, IVR & voicemail' },
                 { icon: '💬', label: 'WhatsApp Business',     desc: 'Twilio WhatsApp API integration' },
                 { icon: '📅', label: 'Appointment Booking',   desc: 'Calendar integration via Calendly' },
-                { icon: '🎙️', label: 'Voicemail Transcription', desc: 'Whisper STT for missed calls' },
+                { icon: '🎙️', label: 'Voicemail Transcription', desc: 'Auto-transcribe missed calls' },
                 { icon: '🌐', label: 'Embeddable Widget',     desc: 'Copy-paste JS for any website' },
               ].map(c => (
                 <div key={c.label} style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'flex-start' }}>

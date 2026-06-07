@@ -337,11 +337,11 @@ export default function LandingPage({ onSignIn }: Props) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
           {[
             { title: '🏗️ Portfolio-Ready',    text: 'Full project — not a Jupyter notebook. CI/CD, Docker, tests, README, deploy guides included.' },
-            { title: '🏢 Enterprise-Grade',   text: 'JWT+RBAC, PII/PHI detection, audit logs, HITL approvals — features real companies pay for.' },
+            { title: '🏢 Enterprise-Grade',   text: 'Enterprise security, personal-data protection, audit logs and approval workflows — the things real companies pay for.' },
             { title: '💰 100% Free to Deploy', text: 'Vercel (frontend) + Render (backend) + Neon (DB) + Upstash (Redis) = $0/month.' },
             { title: '🔌 Extensible',          text: 'MCP + A2A protocols, webhook manager, API keys — plug into any existing business stack.' },
             { title: '🌐 Multi-domain',        text: '12 vertical agents cover agriculture to DevOps — show any client their exact use case.' },
-            { title: '📈 Observable',           text: 'LangSmith + MLflow + Prometheus + cost tracking — production monitoring from day one.' },
+            { title: '📈 Observable',           text: 'Built-in usage, cost and performance monitoring from day one.' },
           ].map(p => (
             <div key={p.title} style={{ display: 'flex', gap: 14 }}>
               <div style={{ flexShrink: 0 }}>

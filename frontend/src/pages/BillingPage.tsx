@@ -5,7 +5,7 @@ import { getBillingStatus, getUsageStats, upgradePlan, upgradePlanRazorpay } fro
 
 const PLANS = [
   { id: 'free', name: 'FREE', price: '₹0', sub: 'forever', features: ['50 queries/day','Core verticals','Chat + RAG','Community support'], color: '#6b7280' },
-  { id: 'pro',  name: 'PRO',  price: '₹2,499', sub: '/month', features: ['500 queries/day','All 27 features','Priority support','Image + audio gen','MLflow dashboard'], color: '#10b981', popular: true },
+  { id: 'pro',  name: 'PRO',  price: '₹2,499', sub: '/month', features: ['500 queries/day','All 27 features','Priority support','Image + audio gen','Analytics dashboard'], color: '#10b981', popular: true },
   { id: 'enterprise', name: 'ENTERPRISE', price: 'Custom', sub: 'contact us', features: ['Unlimited queries','Dedicated infra','Custom models','SLA + compliance','Dedicated CSM'], color: '#06b6d4' },
 ]
 
