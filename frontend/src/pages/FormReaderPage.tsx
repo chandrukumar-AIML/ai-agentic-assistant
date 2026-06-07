@@ -76,7 +76,7 @@ export default function FormReaderPage() {
               { name: 'GSTIN', checks: ['38-state prefix table', 'PAN cross-validation', '15-char format'] },
             ].map(doc => (
               <div key={doc.name} style={{ marginBottom: 10 }}>
-                <div style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 600, marginBottom: 3 }}>{doc.name}</div>
+                <div style={{ color: '#5eead4', fontSize: 12, fontWeight: 600, marginBottom: 3 }}>{doc.name}</div>
                 {doc.checks.map(c => <div key={c} style={{ color: '#6b7280', fontSize: 11, marginBottom: 1 }}>✓ {c}</div>)}
               </div>
             ))}

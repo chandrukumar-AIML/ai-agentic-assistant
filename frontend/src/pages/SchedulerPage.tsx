@@ -54,9 +54,9 @@ export default function SchedulerPage() {
             ].map(([label, expr]) => (
               <button key={expr} onClick={() => setNewTask(p => ({ ...p, schedule_expr: expr }))} style={{
                 marginRight: 6, marginBottom: 4, padding: '3px 8px', borderRadius: 5,
-                background: newTask.schedule_expr === expr ? 'rgba(99,102,241,0.2)' : '#0f1117',
-                border: `1px solid ${newTask.schedule_expr === expr ? '#6366f1' : '#1e2535'}`,
-                color: newTask.schedule_expr === expr ? '#a5b4fc' : '#6b7280', fontSize: 10, cursor: 'pointer',
+                background: newTask.schedule_expr === expr ? 'rgba(16,185,129,0.2)' : '#0f1117',
+                border: `1px solid ${newTask.schedule_expr === expr ? '#10b981' : '#1e2535'}`,
+                color: newTask.schedule_expr === expr ? '#5eead4' : '#6b7280', fontSize: 10, cursor: 'pointer',
               }}>
                 {label} <span style={{ opacity: 0.5 }}>({expr})</span>
               </button>

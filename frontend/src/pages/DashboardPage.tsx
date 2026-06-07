@@ -3,19 +3,19 @@ import { useEffect, useState } from 'react'
 import { StatCard, Card } from '../components/ui'
 
 const FEATURES = [
-  { num: 1,  name: 'Guardian Agent',     icon: '🛡️', desc: 'HIPAA/GDPR/SOC2/EU AI Act compliance',  status: 'live', color: '#6366f1' },
-  { num: 2,  name: 'A2A Protocol',       icon: '🔗', desc: 'Google Agent-to-Agent SSE streaming',    status: 'live', color: '#8b5cf6' },
+  { num: 1,  name: 'Guardian Agent',     icon: '🛡️', desc: 'HIPAA/GDPR/SOC2/EU AI Act compliance',  status: 'live', color: '#10b981' },
+  { num: 2,  name: 'A2A Protocol',       icon: '🔗', desc: 'Google Agent-to-Agent SSE streaming',    status: 'live', color: '#06b6d4' },
   { num: 3,  name: 'Memory System',      icon: '🧠', desc: 'Redis + PostgreSQL long-term memory',    status: 'live', color: '#a855f7' },
-  { num: 4,  name: 'Task Scheduler',     icon: '⏰', desc: 'APScheduler + Celery + 4 trigger types', status: 'live', color: '#6366f1' },
-  { num: 5,  name: 'Commerce',           icon: '🛒', desc: 'Calendly + DocuSign + Stripe',           status: 'live', color: '#8b5cf6' },
+  { num: 4,  name: 'Task Scheduler',     icon: '⏰', desc: 'APScheduler + Celery + 4 trigger types', status: 'live', color: '#10b981' },
+  { num: 5,  name: 'Commerce',           icon: '🛒', desc: 'Calendly + DocuSign + Stripe',           status: 'live', color: '#06b6d4' },
   { num: 6,  name: 'HITL Approvals',     icon: '👁️', desc: 'LangGraph interrupt + 30min timeout',   status: 'live', color: '#ec4899' },
   { num: 7,  name: 'Output Generator',   icon: '📄', desc: 'PDF / PPTX / Excel / Image / Audio',    status: 'live', color: '#06b6d4' },
   { num: 8,  name: 'Billing & Plans',    icon: '💳', desc: 'Stripe + Razorpay + FREE/PRO/ENTERPRISE',status: 'live', color: '#22c55e' },
   { num: 9,  name: 'AgriTech',           icon: '🌾', desc: 'Tamil/Hindi crop disease + mandi prices',status: 'live', color: '#84cc16' },
   { num: 10, name: 'Legal Research',     icon: '⚖️', desc: 'IndianKanoon + IPC/CPC/CrPC RAG',       status: 'live', color: '#f59e0b' },
   { num: 11, name: 'Cybersecurity',      icon: '🔐', desc: 'Log anomaly + NVD CVE + PDF reports',   status: 'live', color: '#ef4444' },
-  { num: 12, name: 'A/B Testing',        icon: '⚗️', desc: "Welch's t-test + auto-promote + MLflow", status: 'live', color: '#6366f1' },
-  { num: 13, name: 'Receptionist',       icon: '☎️', desc: 'Twilio Voice + WhatsApp + JS widget',   status: 'live', color: '#8b5cf6' },
+  { num: 12, name: 'A/B Testing',        icon: '⚗️', desc: "Welch's t-test + auto-promote + MLflow", status: 'live', color: '#10b981' },
+  { num: 13, name: 'Receptionist',       icon: '☎️', desc: 'Twilio Voice + WhatsApp + JS widget',   status: 'live', color: '#06b6d4' },
   { num: 14, name: 'Form Reader',        icon: '📋', desc: 'PAN/Aadhaar/GSTIN + GPT-4o Vision',     status: 'live', color: '#06b6d4' },
   { num: 15, name: 'Email Manager',      icon: '📧', desc: 'Gmail + Outlook OAuth + HITL send',      status: 'live', color: '#22c55e' },
   { num: 16, name: 'Sales & CRM',        icon: '💼', desc: 'BANT scoring + HubSpot + Salesforce',   status: 'live', color: '#f59e0b' },
@@ -47,13 +47,13 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 10,
-                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                background: 'linear-gradient(135deg, #10b981, #06b6d4)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 18,
               }}>⚡</div>
               <div>
                 <div style={{ color: '#e2e8f0', fontSize: 20, fontWeight: 700 }}>AI Agentic Assistant V2</div>
-                <div style={{ color: '#6b7280', fontSize: 12 }}>Enterprise Multi-Agent Platform • 19 Production Features</div>
+                <div style={{ color: '#6b7280', fontSize: 12 }}>Your all-in-one AI workspace for business</div>
               </div>
             </div>
           </div>
@@ -81,8 +81,8 @@ export default function DashboardPage() {
 
         {/* Architecture Banner */}
         <div style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(139,92,246,0.1) 100%)',
-          border: '1px solid rgba(99,102,241,0.3)',
+          background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(139,92,246,0.1) 100%)',
+          border: '1px solid rgba(16,185,129,0.3)',
           borderRadius: 12, padding: '14px 20px', marginBottom: 24,
           display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
         }}>
@@ -98,7 +98,7 @@ export default function DashboardPage() {
           ].map(tech => (
             <div key={tech.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ fontSize: 14 }}>{tech.icon}</span>
-              <span style={{ color: '#a5b4fc', fontSize: 12, fontWeight: 500 }}>{tech.label}</span>
+              <span style={{ color: '#5eead4', fontSize: 12, fontWeight: 500 }}>{tech.label}</span>
             </div>
           ))}
         </div>
@@ -106,7 +106,7 @@ export default function DashboardPage() {
         {/* Feature Grid */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600, marginBottom: 14 }}>
-            All 19 Market Features
+Your AI Tools
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
@@ -120,10 +120,6 @@ export default function DashboardPage() {
               <span style={{ fontSize: 24, flexShrink: 0 }}>{f.icon}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                  <span style={{
-                    fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
-                    background: 'rgba(99,102,241,0.2)', color: '#a5b4fc',
-                  }}>F{f.num}</span>
                   <span style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 600 }}>{f.name}</span>
                 </div>
                 <div style={{ color: '#6b7280', fontSize: 11, lineHeight: 1.4 }}>{f.desc}</div>
@@ -150,7 +146,7 @@ export default function DashboardPage() {
               <div>
                 <div style={{ color: '#6b7280', fontSize: 11 }}>Documentation</div>
                 <a href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:8000'}/docs`} target="_blank" rel="noreferrer"
-                  style={{ color: '#6366f1', fontSize: 13, fontWeight: 500 }}>
+                  style={{ color: '#10b981', fontSize: 13, fontWeight: 500 }}>
                   API Docs ↗
                 </a>
               </div>
@@ -161,7 +157,7 @@ export default function DashboardPage() {
               <div>
                 <div style={{ color: '#6b7280', fontSize: 11 }}>Swagger UI</div>
                 <a href={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:8000'}/redoc`} target="_blank" rel="noreferrer"
-                  style={{ color: '#6366f1', fontSize: 13, fontWeight: 500 }}>
+                  style={{ color: '#10b981', fontSize: 13, fontWeight: 500 }}>
                   ReDoc ↗
                 </a>
               </div>

@@ -5,8 +5,8 @@ import { getBillingStatus, getUsageStats, upgradePlan, upgradePlanRazorpay } fro
 
 const PLANS = [
   { id: 'free', name: 'FREE', price: '₹0', sub: 'forever', features: ['50 queries/day','Core verticals','Chat + RAG','Community support'], color: '#6b7280' },
-  { id: 'pro',  name: 'PRO',  price: '₹2,499', sub: '/month', features: ['500 queries/day','All 27 features','Priority support','Image + audio gen','MLflow dashboard'], color: '#6366f1', popular: true },
-  { id: 'enterprise', name: 'ENTERPRISE', price: 'Custom', sub: 'contact us', features: ['Unlimited queries','Dedicated infra','Custom models','SLA + compliance','Dedicated CSM'], color: '#8b5cf6' },
+  { id: 'pro',  name: 'PRO',  price: '₹2,499', sub: '/month', features: ['500 queries/day','All 27 features','Priority support','Image + audio gen','MLflow dashboard'], color: '#10b981', popular: true },
+  { id: 'enterprise', name: 'ENTERPRISE', price: 'Custom', sub: 'contact us', features: ['Unlimited queries','Dedicated infra','Custom models','SLA + compliance','Dedicated CSM'], color: '#06b6d4' },
 ]
 
 export default function BillingPage() {
@@ -71,17 +71,17 @@ export default function BillingPage() {
         <div style={{ display: 'flex', gap: 12 }}>
           {([
             { id: 'razorpay', title: 'Razorpay', desc: 'India • INR • UPI • NetBanking', accent: '#22c55e' },
-            { id: 'stripe',   title: 'Stripe',   desc: 'Global • USD / EUR / GBP',       accent: '#6366f1' },
+            { id: 'stripe',   title: 'Stripe',   desc: 'Global • USD / EUR / GBP',       accent: '#10b981' },
           ] as const).map(p => (
             <button key={p.id} onClick={() => setProvider(p.id)} style={{
               flex: 1, textAlign: 'left', padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
-              background: provider === p.id ? 'rgba(99,102,241,0.1)' : '#0f1117',
+              background: provider === p.id ? 'rgba(16,185,129,0.1)' : '#0f1117',
               border: `1px solid ${provider === p.id ? p.accent : '#1e2535'}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.accent, display: 'inline-block' }} />
                 <span style={{ color: p.accent, fontWeight: 700, fontSize: 14 }}>{p.title}</span>
-                {provider === p.id && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#a5b4fc' }}>SELECTED</span>}
+                {provider === p.id && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#5eead4' }}>SELECTED</span>}
               </div>
               <div style={{ color: '#6b7280', fontSize: 11, marginTop: 4 }}>{p.desc}</div>
             </button>
@@ -90,7 +90,7 @@ export default function BillingPage() {
       </Card>
 
       {/* Status messages */}
-      {msg && <div style={{ padding: '10px 14px', marginBottom: 16, background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 8, color: '#a5b4fc', fontSize: 13 }}>{msg}</div>}
+      {msg && <div style={{ padding: '10px 14px', marginBottom: 16, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, color: '#5eead4', fontSize: 13 }}>{msg}</div>}
       {err && <div style={{ padding: '10px 14px', marginBottom: 16, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: '#fca5a5', fontSize: 13 }}>⚠ {err}</div>}
 
       {/* Plans */}
@@ -103,7 +103,7 @@ export default function BillingPage() {
               background: '#161b27',
               border: `1px solid ${plan.popular ? plan.color : '#1e2535'}`,
               borderRadius: 14, padding: 24, position: 'relative',
-              boxShadow: plan.popular ? `0 0 20px rgba(99,102,241,0.2)` : 'none',
+              boxShadow: plan.popular ? `0 0 20px rgba(16,185,129,0.2)` : 'none',
             }}>
               {plan.popular && (
                 <div style={{

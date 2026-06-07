@@ -206,8 +206,8 @@ export default function HRPage() {
             <Input label="Company Name"  value={hbCompany}  onChange={setHbCo} />
             <Input label="Industry"      value={hbIndustry} onChange={setHbInd} />
             <Input label="Topics to Cover (comma-separated)" value={hbTopics} onChange={setHbTopics} rows={4} />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4 }}>📖 Handbook structure</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4 }}>📖 Handbook structure</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>Welcome • Company values • Employment policies • Benefits • Performance management • Grievance • IT security • Acknowledgement</div>
             </div>
             <Btn

@@ -248,11 +248,11 @@ export default function TechLeadPage() {
             <SectionHead title="Technology Radar" sub="Team context → Thoughtworks-style radar with Adopt/Trial/Assess/Hold" />
             <Input label="Team Context"         value={teamCtx}      onChange={setTeamCtx}      rows={4} />
             <Input label="Current Stack (one per line)" value={currentStack} onChange={setCurrentStack} rows={8} />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', fontWeight: 600, marginBottom: 6 }}>Radar Rings</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', fontWeight: 600, marginBottom: 6 }}>Radar Rings</div>
               {[
                 { ring: 'ADOPT',  color: '#22c55e', desc: 'Use in production now' },
-                { ring: 'TRIAL',  color: '#6366f1', desc: 'Try on low-risk project' },
+                { ring: 'TRIAL',  color: '#10b981', desc: 'Try on low-risk project' },
                 { ring: 'ASSESS', color: '#eab308', desc: 'Research and spike' },
                 { ring: 'HOLD',   color: '#ef4444', desc: 'Migrate away from' },
               ].map(({ ring, color, desc }) => (
@@ -299,7 +299,7 @@ export default function TechLeadPage() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#a5b4fc', fontWeight: 600, marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #1e2535' }}>
+              <div style={{ fontSize: 12, color: '#5eead4', fontWeight: 600, marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #1e2535' }}>
                 📊 Vendor Scorecard
               </div>
               <Input label="Vendor Name"      value={vendorName}   onChange={setVendorName} />
@@ -322,7 +322,7 @@ export default function TechLeadPage() {
             </div>
 
             <div style={{ borderTop: '1px solid #1e2535', paddingTop: 16 }}>
-              <div style={{ fontSize: 12, color: '#a5b4fc', fontWeight: 600, marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: '#5eead4', fontWeight: 600, marginBottom: 12 }}>
                 ⚖️ Build vs Buy
               </div>
               <Input label="Feature to Build/Buy"   value={buildFeature}   onChange={setBuildFeature} />

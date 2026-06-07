@@ -65,7 +65,7 @@ export default function ABTestPage() {
                   <div>
                     <div style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>{exp.name}</div>
                     <div style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
-                      Model A: <span style={{ color: '#a5b4fc' }}>{exp.model_a}</span> vs Model B: <span style={{ color: '#86efac' }}>{exp.model_b}</span>
+                      Model A: <span style={{ color: '#5eead4' }}>{exp.model_a}</span> vs Model B: <span style={{ color: '#86efac' }}>{exp.model_b}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -108,7 +108,7 @@ export default function ABTestPage() {
             {runApi.data && (
               <div>
                 {['A','B'].map(variant => (
-                  <Card key={variant} style={{ marginBottom: 12, borderLeft: `3px solid ${variant === 'A' ? '#6366f1' : '#22c55e'}` }}>
+                  <Card key={variant} style={{ marginBottom: 12, borderLeft: `3px solid ${variant === 'A' ? '#10b981' : '#22c55e'}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                       <Badge text={`Variant ${variant}`} color={variant === 'A' ? 'blue' : 'green'} />
                       <div style={{ color: '#6b7280', fontSize: 11 }}>
@@ -148,7 +148,7 @@ export default function ABTestPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 {[
                   { label: 'p-value', value: sigApi.data.p_value?.toFixed(6), color: sigApi.data.p_value < 0.05 ? '#22c55e' : '#f59e0b' },
-                  { label: "Cohen's d", value: sigApi.data.effect_size?.toFixed(3), color: '#a5b4fc' },
+                  { label: "Cohen's d", value: sigApi.data.effect_size?.toFixed(3), color: '#5eead4' },
                   { label: 'Significant?', value: sigApi.data.significant ? 'YES ✓' : 'NO', color: sigApi.data.significant ? '#22c55e' : '#f59e0b' },
                   { label: 'Mean A vs B', value: `${sigApi.data.mean_a?.toFixed(3)} vs ${sigApi.data.mean_b?.toFixed(3)}`, color: '#e2e8f0' },
                 ].map(s => (

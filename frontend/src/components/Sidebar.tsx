@@ -96,21 +96,21 @@ export default function Sidebar({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{
               width: 28, height: 28, borderRadius: 8,
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              background: 'linear-gradient(135deg, #10b981, #06b6d4)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>A</span>
             </div>
             <div>
               <div style={{ color: '#fff', fontSize: 12, fontWeight: 600, lineHeight: 1.2 }}>AI Agentic</div>
-              <div style={{ color: '#6366f1', fontSize: 10 }}>v2.0 • 27 Features</div>
+              <div style={{ color: '#10b981', fontSize: 10 }}>Business AI Suite</div>
             </div>
           </div>
         )}
         {collapsed && (
           <div style={{
             width: 28, height: 28, borderRadius: 8,
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            background: 'linear-gradient(135deg, #10b981, #06b6d4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>A</span>
@@ -144,9 +144,9 @@ export default function Sidebar({
                   gap: collapsed ? 0 : 8,
                   padding: collapsed ? '10px 0' : '8px 14px',
                   justifyContent: collapsed ? 'center' : 'flex-start',
-                  background: active ? 'rgba(99,102,241,0.15)' : 'none',
-                  border: 'none', borderLeft: active ? '2px solid #6366f1' : '2px solid transparent',
-                  cursor: 'pointer', color: active ? '#a5b4fc' : '#6b7280',
+                  background: active ? 'rgba(16,185,129,0.15)' : 'none',
+                  border: 'none', borderLeft: active ? '2px solid #10b981' : '2px solid transparent',
+                  cursor: 'pointer', color: active ? '#5eead4' : '#6b7280',
                   fontSize: 13, borderRadius: collapsed ? '0' : '0',
                   transition: 'all 0.15s',
                   textAlign: 'left',
@@ -155,11 +155,11 @@ export default function Sidebar({
                   {!collapsed && (
                     <>
                       <span style={{ flex: 1, fontWeight: active ? 500 : 400 }}>{item.label}</span>
-                      {item.badge && (
+                      {item.badge && !/^[FV]\d+$/.test(item.badge) && (
                         <span style={{
                           fontSize: 9, fontWeight: 600, padding: '1px 5px',
-                          borderRadius: 4, background: active ? 'rgba(99,102,241,0.3)' : '#1e2535',
-                          color: active ? '#a5b4fc' : '#4b5563',
+                          borderRadius: 4, background: active ? 'rgba(16,185,129,0.3)' : '#1e2535',
+                          color: active ? '#5eead4' : '#4b5563',
                         }}>{item.badge}</span>
                       )}
                     </>
@@ -182,7 +182,7 @@ export default function Sidebar({
                 </span>
                 <span style={{
                   fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
-                  background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', textTransform: 'uppercase',
+                  background: 'rgba(16,185,129,0.2)', color: '#5eead4', textTransform: 'uppercase',
                 }}>{profile.plan_tier}</span>
               </div>
               <div style={{ color: '#6b7280', fontSize: 10, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.email}</div>

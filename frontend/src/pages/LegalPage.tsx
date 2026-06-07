@@ -74,9 +74,9 @@ export default function LegalPage() {
                 {(['case_search','bare_act','legal_advice'] as const).map(cat => (
                   <button key={cat} onClick={() => { setCategory(cat); setQuery(SAMPLES[cat][0]) }} style={{
                     display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', marginBottom: 4,
-                    background: category === cat ? 'rgba(99,102,241,0.15)' : '#0f1117',
-                    border: `1px solid ${category === cat ? '#6366f1' : '#1e2535'}`,
-                    borderRadius: 7, color: category === cat ? '#a5b4fc' : '#9ca3af', fontSize: 12, cursor: 'pointer',
+                    background: category === cat ? 'rgba(16,185,129,0.15)' : '#0f1117',
+                    border: `1px solid ${category === cat ? '#10b981' : '#1e2535'}`,
+                    borderRadius: 7, color: category === cat ? '#5eead4' : '#9ca3af', fontSize: 12, cursor: 'pointer',
                   }}>
                     {cat === 'case_search' ? '⚖️ Case Search' : cat === 'bare_act' ? '📜 Bare Acts' : '💬 Legal Advice'}
                   </button>
@@ -88,9 +88,9 @@ export default function LegalPage() {
               {SAMPLES[category].map(s => (
                 <button key={s} onClick={() => setQuery(s)} style={{
                   display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', marginBottom: 5,
-                  background: query === s ? 'rgba(99,102,241,0.1)' : 'none',
-                  border: '1px solid ' + (query === s ? '#6366f1' : '#1e2535'),
-                  borderRadius: 7, color: query === s ? '#a5b4fc' : '#6b7280', fontSize: 12, cursor: 'pointer',
+                  background: query === s ? 'rgba(16,185,129,0.1)' : 'none',
+                  border: '1px solid ' + (query === s ? '#10b981' : '#1e2535'),
+                  borderRadius: 7, color: query === s ? '#5eead4' : '#6b7280', fontSize: 12, cursor: 'pointer',
                 }}>{s}</button>
               ))}
             </Card>
@@ -180,8 +180,8 @@ export default function LegalPage() {
             <Input label="Confidentiality Duration"        value={ndaDuration}     onChange={setNdaDuration} />
             <Select label="Governing Law & Jurisdiction"   value={ndaJurisdiction} onChange={setNdaJuris}
               options={JURISDICTIONS.map(j => ({ label: j, value: j }))} />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4 }}>📄 NDA includes</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4 }}>📄 NDA includes</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>Recitals • Definition of Confidential Information • Obligations • Permitted disclosures • Return/destruction • Remedies • Term • Dispute resolution • Signature blocks</div>
             </div>
             <Btn

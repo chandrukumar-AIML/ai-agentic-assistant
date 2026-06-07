@@ -73,9 +73,9 @@ export default function DevopsPage() {
                   style={{
                     display: 'block', width: '100%', textAlign: 'left',
                     padding: '6px 10px', marginBottom: 4,
-                    background: query === q ? 'rgba(99,102,241,0.1)' : 'none',
-                    border: `1px solid ${query === q ? '#6366f1' : '#1e2535'}`,
-                    borderRadius: 7, color: query === q ? '#a5b4fc' : '#6b7280',
+                    background: query === q ? 'rgba(16,185,129,0.1)' : 'none',
+                    border: `1px solid ${query === q ? '#10b981' : '#1e2535'}`,
+                    borderRadius: 7, color: query === q ? '#5eead4' : '#6b7280',
                     fontSize: 12, cursor: 'pointer',
                   }}
                 >
@@ -112,7 +112,7 @@ export default function DevopsPage() {
                     <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>Sources</div>
                     {data.sources.map((s: string, i: number) => (
                       <a key={i} href={s} target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'block', fontSize: 11, color: '#6366f1', wordBreak: 'break-all', marginBottom: 3, textDecoration: 'none' }}>
+                        style={{ display: 'block', fontSize: 11, color: '#10b981', wordBreak: 'break-all', marginBottom: 3, textDecoration: 'none' }}>
                         🔗 {s}
                       </a>
                     ))}
@@ -138,8 +138,8 @@ export default function DevopsPage() {
               <Input label="Port" value={iacPort} onChange={setIacPort} />
             </div>
             <Input label="Environment Variables Needed" value={iacEnvVars} onChange={setIacEnv} />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', fontWeight: 600, marginBottom: 4 }}>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', fontWeight: 600, marginBottom: 4 }}>
                 {iacType === 'dockerfile'       ? '🐳 Multi-stage Dockerfile — non-root user, health check, layer cache optimization'
                 : iacType === 'k8s'             ? '☸️ Deployment + Service + HPA + PodDisruptionBudget + ConfigMap'
                 : iacType === 'terraform'       ? '🌍 main.tf + variables.tf + outputs.tf — remote state, provider pinning'
@@ -178,7 +178,7 @@ export default function DevopsPage() {
               { step: '7', icon: '🎫', title: 'Jira Ticket',         desc: 'Optionally creates a bug/task ticket with full diagnostic context' },
             ].map(({ step, icon, title, desc }) => (
               <div key={step} style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'flex-start' }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(99,102,241,0.2)', border: '1px solid #6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#a5b4fc', fontWeight: 700, flexShrink: 0 }}>{step}</div>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(16,185,129,0.2)', border: '1px solid #10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#5eead4', fontWeight: 700, flexShrink: 0 }}>{step}</div>
                 <div>
                   <div style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{icon} {title}</div>
                   <div style={{ color: '#6b7280', fontSize: 12 }}>{desc}</div>
@@ -203,8 +203,8 @@ export default function DevopsPage() {
                 <Badge text={badge} color="blue" />
               </div>
             ))}
-            <div style={{ marginTop: 14, padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4 }}>💡 Pro tip</div>
+            <div style={{ marginTop: 14, padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4 }}>💡 Pro tip</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>
                 Include the repo name (owner/repo) and service name in your query for the deepest diagnostics.
                 E.g. <em>"Debug repo myorg/api-service, container backend"</em>

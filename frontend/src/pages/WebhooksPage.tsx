@@ -179,9 +179,9 @@ export default function WebhooksPage() {
                   <button key={ev} onClick={() => toggleEvent(ev)} style={{
                     padding: '4px 12px', borderRadius: 20, fontSize: 11, cursor: 'pointer',
                     border: '1px solid',
-                    borderColor: events.includes(ev) ? '#6366f1' : '#1e2535',
-                    background: events.includes(ev) ? 'rgba(99,102,241,0.15)' : '#161b27',
-                    color: events.includes(ev) ? '#a5b4fc' : '#6b7280',
+                    borderColor: events.includes(ev) ? '#10b981' : '#1e2535',
+                    background: events.includes(ev) ? 'rgba(16,185,129,0.15)' : '#161b27',
+                    color: events.includes(ev) ? '#5eead4' : '#6b7280',
                     transition: 'all 0.15s',
                   }}>
                     {ev}
@@ -237,12 +237,12 @@ export default function WebhooksPage() {
                         {wh.fire_count} fires
                       </span>
                     </div>
-                    <code style={{ fontSize: 11, color: '#6366f1', wordBreak: 'break-all' }}>{wh.url}</code>
+                    <code style={{ fontSize: 11, color: '#10b981', wordBreak: 'break-all' }}>{wh.url}</code>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
                       {wh.events.map(ev => (
                         <span key={ev} style={{
                           fontSize: 10, fontWeight: 600, padding: '1px 7px',
-                          borderRadius: 10, background: 'rgba(99,102,241,0.12)', color: '#a5b4fc',
+                          borderRadius: 10, background: 'rgba(16,185,129,0.12)', color: '#5eead4',
                         }}>{ev}</span>
                       ))}
                     </div>
@@ -289,7 +289,7 @@ export default function WebhooksPage() {
               background: '#0f1117', borderRadius: 8, padding: '10px 12px',
               display: 'flex', flexDirection: 'column', gap: 4,
             }}>
-              <code style={{ fontSize: 11, color: '#a5b4fc' }}>{ev}</code>
+              <code style={{ fontSize: 11, color: '#5eead4' }}>{ev}</code>
               <span style={{ fontSize: 11, color: '#6b7280' }}>{desc}</span>
             </div>
           ))}
@@ -301,7 +301,7 @@ export default function WebhooksPage() {
         <SectionHead title="Payload Format" sub="JSON structure sent to your endpoint on every event" />
         <pre style={{
           background: '#0f1117', borderRadius: 8, padding: '14px 16px',
-          color: '#a5b4fc', fontSize: 11, lineHeight: 1.8, overflowX: 'auto',
+          color: '#5eead4', fontSize: 11, lineHeight: 1.8, overflowX: 'auto',
           margin: 0,
         }}>
 {`{

@@ -59,7 +59,7 @@ export default function OutputPage() {
               <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>Sections included:</div>
               {sampleSections.map(s => (
                 <div key={s.heading} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 6, padding: '6px 10px', marginBottom: 4 }}>
-                  <div style={{ color: '#a5b4fc', fontSize: 11, fontWeight: 600 }}>{s.heading}</div>
+                  <div style={{ color: '#5eead4', fontSize: 11, fontWeight: 600 }}>{s.heading}</div>
                   <div style={{ color: '#6b7280', fontSize: 10 }}>{s.body.slice(0, 60)}...</div>
                 </div>
               ))}
@@ -73,7 +73,7 @@ export default function OutputPage() {
               <Card style={{ marginBottom: 12 }}>
                 <div style={{ color: '#22c55e', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>✅ PDF Generated!</div>
                 <a href={`${(import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:8000')}${pdfApi.data.download_url}`} target="_blank" rel="noreferrer"
-                  style={{ color: '#6366f1', fontSize: 13, display: 'block', marginBottom: 4 }}>
+                  style={{ color: '#10b981', fontSize: 13, display: 'block', marginBottom: 4 }}>
                   📥 Download PDF →
                 </a>
                 <div style={{ color: '#6b7280', fontSize: 11 }}>Size: {pdfApi.data.size_kb}KB • Pages: {pdfApi.data.pages}</div>
@@ -95,7 +95,7 @@ export default function OutputPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead>
                     <tr style={{ background: '#1e2535' }}>
-                      {sampleSheets[0].headers.map(h => <th key={h} style={{ padding: '6px 10px', color: '#a5b4fc', textAlign: 'left', border: '1px solid #374151' }}>{h}</th>)}
+                      {sampleSheets[0].headers.map(h => <th key={h} style={{ padding: '6px 10px', color: '#5eead4', textAlign: 'left', border: '1px solid #374151' }}>{h}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -117,7 +117,7 @@ export default function OutputPage() {
               <Card style={{ marginBottom: 12 }}>
                 <div style={{ color: '#22c55e', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>✅ Excel Generated!</div>
                 <a href={`${(import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:8000')}${xlApi.data.download_url}`} target="_blank" rel="noreferrer"
-                  style={{ color: '#6366f1', fontSize: 13 }}>📥 Download Excel →</a>
+                  style={{ color: '#10b981', fontSize: 13 }}>📥 Download Excel →</a>
               </Card>
             )}
             <ResultBox data={xlApi.data} loading={xlApi.loading} error={xlApi.error} title="Excel Result" />
@@ -133,7 +133,7 @@ export default function OutputPage() {
             <div style={{ marginBottom: 14 }}>
               {sampleSlides.map((s, i) => (
                 <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#0f1117', borderRadius: 6, padding: '7px 10px', marginBottom: 4 }}>
-                  <span style={{ color: '#6366f1', fontSize: 11, fontWeight: 700, minWidth: 20 }}>#{i+1}</span>
+                  <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700, minWidth: 20 }}>#{i+1}</span>
                   <div>
                     <div style={{ color: '#e2e8f0', fontSize: 11, fontWeight: 600 }}>{s.title}</div>
                     <div style={{ color: '#6b7280', fontSize: 10 }}>{s.content.slice(0, 50)}...</div>
@@ -150,7 +150,7 @@ export default function OutputPage() {
               <Card style={{ marginBottom: 12 }}>
                 <div style={{ color: '#22c55e', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>✅ PPTX Generated!</div>
                 <a href={`${(import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:8000')}${pptxApi.data.download_url}`} target="_blank" rel="noreferrer"
-                  style={{ color: '#6366f1', fontSize: 13 }}>📥 Download PPTX →</a>
+                  style={{ color: '#10b981', fontSize: 13 }}>📥 Download PPTX →</a>
                 <div style={{ color: '#6b7280', fontSize: 11, marginTop: 4 }}>{pptxApi.data.slide_count} slides</div>
               </Card>
             )}

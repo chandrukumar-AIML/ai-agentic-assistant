@@ -7,7 +7,7 @@ interface Props {
 
 const FEATURES = [
   {
-    icon: '🤖', color: '#6366f1',
+    icon: '🤖', color: '#10b981',
     title: 'LangGraph Multi-Agent',
     desc: 'Supervisor → Planner → Worker → Reflection loop. Agents reason, self-critique, and retry until confident.',
   },
@@ -22,7 +22,7 @@ const FEATURES = [
     desc: 'PII/PHI detection, prompt injection blocking, RBAC access control, JWT auth, and full audit logging.',
   },
   {
-    icon: '🎙️', color: '#8b5cf6',
+    icon: '🎙️', color: '#06b6d4',
     title: 'Voice AI Pipeline',
     desc: 'Whisper speech-to-text → Agent reasoning → Coqui TTS — real-time voice over WebSocket.',
   },
@@ -65,7 +65,7 @@ const VERTICALS = [
 
 const TECH = [
   { name: 'FastAPI',       color: '#009688' },
-  { name: 'LangGraph',     color: '#6366f1' },
+  { name: 'LangGraph',     color: '#10b981' },
   { name: 'OpenAI GPT-4o', color: '#10a37f' },
   { name: 'Ollama llama3', color: '#f59e0b' },
   { name: 'React 18',      color: '#61dafb' },
@@ -75,7 +75,7 @@ const TECH = [
   { name: 'PostgreSQL',    color: '#336791' },
   { name: 'Redis',         color: '#dc2626' },
   { name: 'Neo4j',         color: '#00b4cc' },
-  { name: 'LangSmith',     color: '#6366f1' },
+  { name: 'LangSmith',     color: '#10b981' },
   { name: 'MLflow',        color: '#0194e2' },
   { name: 'Prometheus',    color: '#e6522c' },
   { name: 'Docker',        color: '#2496ed' },
@@ -112,14 +112,14 @@ export default function LandingPage({ onSignIn }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 32, height: 32, borderRadius: 10,
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            background: 'linear-gradient(135deg, #10b981, #06b6d4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 16, fontWeight: 800, color: '#fff',
           }}>A</div>
           <span style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>AI Agentic Assistant</span>
           <span style={{
             fontSize: 10, fontWeight: 600, padding: '2px 8px',
-            borderRadius: 20, background: 'rgba(99,102,241,0.2)', color: '#a5b4fc',
+            borderRadius: 20, background: 'rgba(16,185,129,0.2)', color: '#5eead4',
           }}>v2.0</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -135,7 +135,7 @@ export default function LandingPage({ onSignIn }: Props) {
           </a>
           <button onClick={onSignIn} style={{
             padding: '7px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+            background: 'linear-gradient(90deg, #10b981, #06b6d4)',
             color: '#fff', border: 'none', cursor: 'pointer',
           }}>
             Sign In →
@@ -147,13 +147,13 @@ export default function LandingPage({ onSignIn }: Props) {
       <section style={{
         padding: '80px 32px 60px',
         textAlign: 'center',
-        background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,0.15) 0%, transparent 60%)',
+        background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(16,185,129,0.15) 0%, transparent 60%)',
       }}>
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
           padding: '5px 14px', borderRadius: 20,
-          background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
-          fontSize: 12, color: '#a5b4fc', marginBottom: 28,
+          background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)',
+          fontSize: 12, color: '#5eead4', marginBottom: 28,
         }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
           Production-Ready · Deploy on Render + Vercel · 100% Free Tier
@@ -163,7 +163,7 @@ export default function LandingPage({ onSignIn }: Props) {
           fontSize: 'clamp(32px, 6vw, 64px)',
           fontWeight: 800, lineHeight: 1.1,
           margin: '0 0 20px',
-          background: 'linear-gradient(135deg, #fff 40%, #a5b4fc)',
+          background: 'linear-gradient(135deg, #fff 40%, #5eead4)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}>
@@ -182,9 +182,9 @@ export default function LandingPage({ onSignIn }: Props) {
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={onSignIn} style={{
             padding: '13px 32px', borderRadius: 10, fontSize: 15, fontWeight: 600,
-            background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+            background: 'linear-gradient(90deg, #10b981, #06b6d4)',
             color: '#fff', border: 'none', cursor: 'pointer',
-            boxShadow: '0 0 30px rgba(99,102,241,0.35)',
+            boxShadow: '0 0 30px rgba(16,185,129,0.35)',
           }}>
             🚀 Launch Dashboard
           </button>
@@ -213,7 +213,7 @@ export default function LandingPage({ onSignIn }: Props) {
             padding: '28px 40px', textAlign: 'center', flex: '1 1 150px',
             borderRight: i < STATS.length - 1 ? '1px solid #1e2535' : 'none',
           }}>
-            <div style={{ fontSize: 36, fontWeight: 800, color: '#a5b4fc', lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 36, fontWeight: 800, color: '#5eead4', lineHeight: 1 }}>{s.value}</div>
             <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontWeight: 500 }}>{s.label}</div>
           </div>
         ))}
@@ -361,7 +361,7 @@ export default function LandingPage({ onSignIn }: Props) {
       {/* ── Final CTA ───────────────────────────────────────────────── */}
       <section style={{
         textAlign: 'center', padding: '56px 32px 80px',
-        background: 'radial-gradient(ellipse 60% 80% at 50% 100%, rgba(99,102,241,0.12) 0%, transparent 70%)',
+        background: 'radial-gradient(ellipse 60% 80% at 50% 100%, rgba(16,185,129,0.12) 0%, transparent 70%)',
       }}>
         <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 12, color: '#fff' }}>
           Ready to explore?
@@ -371,9 +371,9 @@ export default function LandingPage({ onSignIn }: Props) {
         </p>
         <button onClick={onSignIn} style={{
           padding: '14px 40px', borderRadius: 10, fontSize: 16, fontWeight: 700,
-          background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+          background: 'linear-gradient(90deg, #10b981, #06b6d4)',
           color: '#fff', border: 'none', cursor: 'pointer',
-          boxShadow: '0 0 40px rgba(99,102,241,0.4)',
+          boxShadow: '0 0 40px rgba(16,185,129,0.4)',
         }}>
           🚀 Launch the Dashboard
         </button>

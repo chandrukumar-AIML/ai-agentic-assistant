@@ -24,12 +24,12 @@ export default function CompliancePage() {
             {Object.entries(SAMPLES).map(([key, val]) => (
               <button key={key} onClick={() => setContent(val)} style={{
                 display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', marginBottom: 5,
-                background: content === val ? 'rgba(99,102,241,0.1)' : 'none',
-                border: `1px solid ${content === val ? '#6366f1' : '#1e2535'}`,
+                background: content === val ? 'rgba(16,185,129,0.1)' : 'none',
+                border: `1px solid ${content === val ? '#10b981' : '#1e2535'}`,
                 borderRadius: 7, cursor: 'pointer',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                  <span style={{ color: content === val ? '#a5b4fc' : '#e2e8f0', fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>{key}</span>
+                  <span style={{ color: content === val ? '#5eead4' : '#e2e8f0', fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>{key}</span>
                   <Badge
                     text={key === 'safe' ? '✓ SAFE' : 'RISK'}
                     color={key === 'safe' ? 'green' : 'red'}
@@ -43,8 +43,8 @@ export default function CompliancePage() {
           <Card>
             <SectionHead title="Frameworks Covered" />
             {[
-              { name: 'HIPAA 18 Safe Harbor', color: '#6366f1', desc: 'PHI detection & masking' },
-              { name: 'GDPR Art.6/17/44-49', color: '#8b5cf6', desc: 'EU data protection' },
+              { name: 'HIPAA 18 Safe Harbor', color: '#10b981', desc: 'PHI detection & masking' },
+              { name: 'GDPR Art.6/17/44-49', color: '#06b6d4', desc: 'EU data protection' },
               { name: 'SOC2 Type II', color: '#06b6d4', desc: 'Security audit logging' },
               { name: 'EU AI Act', color: '#ec4899', desc: 'AI risk classification' },
             ].map(f => (
@@ -82,9 +82,9 @@ export default function CompliancePage() {
                 />
               </div>
               {api.data.risk_tier && (
-                <div style={{ marginBottom: 10, padding: '6px 10px', background: 'rgba(99,102,241,0.08)', borderRadius: 6 }}>
+                <div style={{ marginBottom: 10, padding: '6px 10px', background: 'rgba(16,185,129,0.08)', borderRadius: 6 }}>
                   <span style={{ color: '#6b7280', fontSize: 11 }}>Risk Tier: </span>
-                  <span style={{ color: '#a5b4fc', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{api.data.risk_tier}</span>
+                  <span style={{ color: '#5eead4', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{api.data.risk_tier}</span>
                   {api.data.frameworks && (
                     <span style={{ color: '#6b7280', fontSize: 10, marginLeft: 10 }}>
                       Frameworks: {api.data.frameworks.join(', ')}

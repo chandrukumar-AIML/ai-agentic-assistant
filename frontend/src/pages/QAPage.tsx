@@ -204,10 +204,10 @@ export default function QAPage() {
               rows={4}
             />
             <div style={{
-              padding: 12, background: 'rgba(99,102,241,0.08)', borderRadius: 8,
-              marginBottom: 14, border: '1px solid rgba(99,102,241,0.2)',
+              padding: 12, background: 'rgba(16,185,129,0.08)', borderRadius: 8,
+              marginBottom: 14, border: '1px solid rgba(16,185,129,0.2)',
             }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4, fontWeight: 600 }}>Format reminder</div>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4, fontWeight: 600 }}>Format reminder</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>
                 "As a [persona], I want [goal] so that [benefit]"
               </div>
@@ -231,7 +231,7 @@ export default function QAPage() {
                 { keyword: 'And / But', desc: 'Additional steps in same clause' },
               ].map(({ keyword, desc }) => (
                 <div key={keyword} style={{ display: 'flex', gap: 10, marginBottom: 6, alignItems: 'flex-start' }}>
-                  <code style={{ color: '#a5b4fc', fontSize: 11, minWidth: 90, fontFamily: 'monospace' }}>{keyword}</code>
+                  <code style={{ color: '#5eead4', fontSize: 11, minWidth: 90, fontFamily: 'monospace' }}>{keyword}</code>
                   <span style={{ color: '#6b7280', fontSize: 11 }}>{desc}</span>
                 </div>
               ))}

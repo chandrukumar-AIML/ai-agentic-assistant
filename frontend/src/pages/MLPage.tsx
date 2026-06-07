@@ -256,8 +256,8 @@ export default function MLPage() {
               onChange={setPromptText}
               rows={7}
             />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', fontWeight: 600, marginBottom: 4 }}>Tip</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', fontWeight: 600, marginBottom: 4 }}>Tip</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>
                 Use {'{variable}'} placeholders for dynamic parts. The evaluator will assess clarity,
                 specificity, failure modes, and suggest Chain-of-Thought enhancements.

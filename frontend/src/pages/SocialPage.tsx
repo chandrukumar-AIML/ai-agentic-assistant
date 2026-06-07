@@ -58,8 +58,8 @@ export default function SocialPage() {
               {TOPICS.map(t => (
                 <button key={t} onClick={() => setTopic(t)} style={{
                   display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', marginBottom: 4,
-                  background: topic === t ? 'rgba(99,102,241,0.1)' : 'none', border: `1px solid ${topic === t ? '#6366f1' : '#1e2535'}`,
-                  borderRadius: 6, color: topic === t ? '#a5b4fc' : '#6b7280', fontSize: 12, cursor: 'pointer',
+                  background: topic === t ? 'rgba(16,185,129,0.1)' : 'none', border: `1px solid ${topic === t ? '#10b981' : '#1e2535'}`,
+                  borderRadius: 6, color: topic === t ? '#5eead4' : '#6b7280', fontSize: 12, cursor: 'pointer',
                 }}>{t}</button>
               ))}
             </div>
@@ -90,7 +90,7 @@ export default function SocialPage() {
                   {hashtags.length > 0 && (
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                       {hashtags.slice(0, 8).map((h: string) => (
-                        <span key={h} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: 'rgba(99,102,241,0.15)', color: '#a5b4fc' }}>
+                        <span key={h} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: 'rgba(16,185,129,0.15)', color: '#5eead4' }}>
                           {h.startsWith('#') ? h : `#${h}`}
                         </span>
                       ))}
@@ -122,9 +122,9 @@ export default function SocialPage() {
                   {hashApi.data.hashtags.map((h: string, i: number) => (
                     <span key={i} style={{
                       fontSize: 12, padding: '4px 10px', borderRadius: 20, cursor: 'pointer',
-                      background: i < 5 ? 'rgba(99,102,241,0.2)' : 'rgba(34,197,94,0.1)',
-                      color: i < 5 ? '#a5b4fc' : '#86efac',
-                      border: `1px solid ${i < 5 ? 'rgba(99,102,241,0.3)' : 'rgba(34,197,94,0.2)'}`,
+                      background: i < 5 ? 'rgba(16,185,129,0.2)' : 'rgba(34,197,94,0.1)',
+                      color: i < 5 ? '#5eead4' : '#86efac',
+                      border: `1px solid ${i < 5 ? 'rgba(16,185,129,0.3)' : 'rgba(34,197,94,0.2)'}`,
                     }}>
                       {h.startsWith('#') ? h : `#${h}`}
                     </span>
@@ -178,8 +178,8 @@ export default function SocialPage() {
             <Input label="Competitor Sites"       value={seoCompetitors} onChange={setSeoCompetitors} />
             <Input label="Page Content (optional, helps with analysis)" value={seoContent} onChange={setSeoContent} rows={5}
               placeholder="Paste page content or meta description..." />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4 }}>🔍 Audit covers</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4 }}>🔍 Audit covers</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>Technical SEO checklist (20 items) • On-page score • Content gaps • Core Web Vitals • Meta tag templates • 30-60-90 day roadmap</div>
             </div>
             <Btn

@@ -72,8 +72,8 @@ export default function AgriPage() {
               {SAMPLE_QUERIES.map(q => (
                 <button key={q} onClick={() => setQuery(q)} style={{
                   display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', marginBottom: 4,
-                  background: query === q ? 'rgba(99,102,241,0.15)' : '#0f1117', border: '1px solid #1e2535',
-                  borderRadius: 6, color: query === q ? '#a5b4fc' : '#9ca3af', fontSize: 12, cursor: 'pointer',
+                  background: query === q ? 'rgba(16,185,129,0.15)' : '#0f1117', border: '1px solid #1e2535',
+                  borderRadius: 6, color: query === q ? '#5eead4' : '#9ca3af', fontSize: 12, cursor: 'pointer',
                 }}>{q}</button>
               ))}
             </div>

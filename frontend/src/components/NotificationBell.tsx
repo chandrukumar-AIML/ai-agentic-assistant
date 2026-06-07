@@ -20,7 +20,7 @@ const TYPE_ICON: Record<string, string> = {
 }
 
 const TYPE_COLOR: Record<string, string> = {
-  info:    '#6366f1',
+  info:    '#10b981',
   success: '#22c55e',
   warning: '#f59e0b',
   error:   '#ef4444',
@@ -141,7 +141,7 @@ export default function NotificationBell() {
             {unread > 0 && (
               <button onClick={markAllRead} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: '#6366f1', fontSize: 11, fontWeight: 600,
+                color: '#10b981', fontSize: 11, fontWeight: 600,
               }}>Mark all read</button>
             )}
           </div>
@@ -161,7 +161,7 @@ export default function NotificationBell() {
                 <div key={n.id} style={{
                   padding: '10px 14px',
                   borderBottom: '1px solid #0f1117',
-                  background: n.read ? 'transparent' : 'rgba(99,102,241,0.05)',
+                  background: n.read ? 'transparent' : 'rgba(16,185,129,0.05)',
                   display: 'flex', gap: 10, alignItems: 'flex-start',
                 }}>
                   <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>
@@ -187,8 +187,8 @@ export default function NotificationBell() {
                       <span style={{
                         fontSize: 9, fontWeight: 600, padding: '1px 6px',
                         borderRadius: 10,
-                        background: `${TYPE_COLOR[n.type] || '#6366f1'}22`,
-                        color: TYPE_COLOR[n.type] || '#6366f1',
+                        background: `${TYPE_COLOR[n.type] || '#10b981'}22`,
+                        color: TYPE_COLOR[n.type] || '#10b981',
                       }}>{n.source}</span>
                       <span style={{ fontSize: 10, color: '#374151' }}>{timeAgo(n.created_at)}</span>
                     </div>

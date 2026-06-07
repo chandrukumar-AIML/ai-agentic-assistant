@@ -296,7 +296,7 @@ slow_queries_per_min: 12`)
                 { metric: 'p99_query_time',         target: '< 500ms', unit: '' },
               ].map(({ metric, target }) => (
                 <div key={metric} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #1e2535' }}>
-                  <code style={{ color: '#a5b4fc', fontSize: 11 }}>{metric}</code>
+                  <code style={{ color: '#5eead4', fontSize: 11 }}>{metric}</code>
                   <span style={{ color: '#6b7280', fontSize: 11 }}>Target: {target}</span>
                 </div>
               ))}

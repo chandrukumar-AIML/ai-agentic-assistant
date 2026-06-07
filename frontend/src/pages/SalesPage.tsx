@@ -115,14 +115,14 @@ export default function SalesPage() {
                         <div style={{ color: '#e2e8f0', fontSize: 16, fontWeight: 700 }}>{v as number}</div>
                         <div style={{ color: '#6b7280', fontSize: 10, textTransform: 'capitalize' }}>{k}</div>
                         <div style={{ height: 3, background: '#1e2535', borderRadius: 2, marginTop: 6 }}>
-                          <div style={{ height: '100%', background: '#6366f1', borderRadius: 2, width: `${((v as number)/25)*100}%` }} />
+                          <div style={{ height: '100%', background: '#10b981', borderRadius: 2, width: `${((v as number)/25)*100}%` }} />
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
                 {(scoreApi.data.next_action || scoreApi.data.recommended_action) && (
-                  <div style={{ background: 'rgba(99,102,241,0.1)', borderRadius: 8, padding: 12, fontSize: 12, color: '#a5b4fc' }}>
+                  <div style={{ background: 'rgba(16,185,129,0.1)', borderRadius: 8, padding: 12, fontSize: 12, color: '#5eead4' }}>
                     💡 {scoreApi.data.next_action || scoreApi.data.recommended_action}
                   </div>
                 )}
@@ -143,9 +143,9 @@ export default function SalesPage() {
               {OBJECTIONS.map(o => (
                 <button key={o} onClick={() => setObjection(o)} style={{
                   display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', marginBottom: 5,
-                  background: objection === o ? 'rgba(99,102,241,0.1)' : 'none',
-                  border: `1px solid ${objection === o ? '#6366f1' : '#1e2535'}`,
-                  borderRadius: 7, color: objection === o ? '#a5b4fc' : '#6b7280', fontSize: 12, cursor: 'pointer',
+                  background: objection === o ? 'rgba(16,185,129,0.1)' : 'none',
+                  border: `1px solid ${objection === o ? '#10b981' : '#1e2535'}`,
+                  borderRadius: 7, color: objection === o ? '#5eead4' : '#6b7280', fontSize: 12, cursor: 'pointer',
                 }}>{o}</button>
               ))}
             </div>
@@ -168,8 +168,8 @@ export default function SalesPage() {
             <Input label="Company Name"   value={emailCompany}  onChange={setEmailCompany} />
             <Input label="Product / Service" value={emailProduct} onChange={setEmailProduct} />
             <Input label="Pain Point to Address" value={emailPain} onChange={setEmailPain} rows={2} />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4 }}>📧 Each email includes</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4 }}>📧 Each email includes</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>Subject line • Preview text • Personalized body • CTA • Timing (Day X)</div>
             </div>
             <Btn
@@ -203,8 +203,8 @@ export default function SalesPage() {
             <Input label="Company Name"    value={meetingCompany}    onChange={setMeetingCo} />
             <Input label="Attendees & Roles" value={meetingAttendees} onChange={setMeetingAtt} rows={2} />
             <Input label="Product / Plan" value={meetingProduct} onChange={setMeetingProd} />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4 }}>📋 Brief includes</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4 }}>📋 Brief includes</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>Research checklist • SPIN questions • Objection responses • Demo flow • Success metrics • Next steps</div>
             </div>
             <Btn

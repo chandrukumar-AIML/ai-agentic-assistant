@@ -92,8 +92,8 @@ export default function AdminPage() {
               onClick={() => selectClient(c)}
               style={{
                 padding: '10px 12px', marginBottom: 6, borderRadius: 8, cursor: 'pointer',
-                background: selected === c.email ? 'rgba(99,102,241,0.15)' : '#0f1117',
-                border: `1px solid ${selected === c.email ? '#6366f1' : '#1e2535'}`,
+                background: selected === c.email ? 'rgba(16,185,129,0.15)' : '#0f1117',
+                border: `1px solid ${selected === c.email ? '#10b981' : '#1e2535'}`,
               }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{c.full_name || c.email}</span>
@@ -145,11 +145,11 @@ export default function AdminPage() {
                     return (
                       <label key={t.id} style={{
                         display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, cursor: 'pointer',
-                        background: on ? 'rgba(99,102,241,0.1)' : '#0f1117',
-                        border: `1px solid ${on ? 'rgba(99,102,241,0.3)' : '#1e2535'}`,
+                        background: on ? 'rgba(16,185,129,0.1)' : '#0f1117',
+                        border: `1px solid ${on ? 'rgba(16,185,129,0.3)' : '#1e2535'}`,
                       }}>
-                        <input type="checkbox" checked={on} onChange={() => toggleTool(t.id)} style={{ accentColor: '#6366f1' }} />
-                        <span style={{ fontSize: 12, color: on ? '#a5b4fc' : '#9ca3af' }}>{t.label}</span>
+                        <input type="checkbox" checked={on} onChange={() => toggleTool(t.id)} style={{ accentColor: '#10b981' }} />
+                        <span style={{ fontSize: 12, color: on ? '#5eead4' : '#9ca3af' }}>{t.label}</span>
                       </label>
                     )
                   })}

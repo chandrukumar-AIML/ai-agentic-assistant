@@ -26,7 +26,7 @@ export default function ChatPage() {
   const { send, sendRaw } = useWebSocket(sessionId)
 
   const statusColor = {
-    connected: '#22c55e', streaming: '#6366f1', connecting: '#eab308',
+    connected: '#22c55e', streaming: '#10b981', connecting: '#eab308',
     error: '#ef4444', idle: '#6b7280',
   }[status] || '#6b7280'
 
@@ -63,11 +63,11 @@ export default function ChatPage() {
             <span style={{ fontSize: 11, color: '#6b7280', textTransform: 'capitalize' }}>{status}</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {isVoiceMode && <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, background: 'rgba(99,102,241,0.15)', color: '#a5b4fc' }}>🎙️ Voice</span>}
+            {isVoiceMode && <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, background: 'rgba(16,185,129,0.15)', color: '#5eead4' }}>🎙️ Voice</span>}
             <button onClick={() => setMemoryOpen(o => !o)} style={{
               fontSize: 12, padding: '5px 10px', borderRadius: 20, cursor: 'pointer', border: 'none',
-              background: memoryOpen ? 'rgba(99,102,241,0.2)' : '#1e2535',
-              color: memoryOpen ? '#a5b4fc' : '#6b7280',
+              background: memoryOpen ? 'rgba(16,185,129,0.2)' : '#1e2535',
+              color: memoryOpen ? '#5eead4' : '#6b7280',
             }}>🧠 Memory</button>
             <button onClick={handleClear} style={{
               fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: '5px 8px',

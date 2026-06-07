@@ -33,7 +33,7 @@ export default function IntegrationsPage() {
 
       {err && <div style={{ padding: '10px 14px', marginBottom: 14, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: '#fca5a5', fontSize: 13 }}>⚠ {err}</div>}
 
-      <div style={{ padding: '10px 14px', marginBottom: 18, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 8, fontSize: 12, color: '#a5b4fc' }}>
+      <div style={{ padding: '10px 14px', marginBottom: 18, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 8, fontSize: 12, color: '#5eead4' }}>
         🟢 <b>Live</b> = real integration active now. ⚙️ <b>Setup</b> = code is wired and ready — add the listed environment variable on the server to switch it on. No code changes needed.
       </div>
 
@@ -61,7 +61,7 @@ export default function IntegrationsPage() {
                 {!it.configured && it.env_vars.length > 0 && (
                   <div style={{ fontSize: 10, color: '#6b7280' }}>
                     Add: {it.env_vars.map(v => (
-                      <code key={v} style={{ color: '#a5b4fc', background: '#161b27', padding: '1px 5px', borderRadius: 4, marginRight: 4 }}>{v}</code>
+                      <code key={v} style={{ color: '#5eead4', background: '#161b27', padding: '1px 5px', borderRadius: 4, marginRight: 4 }}>{v}</code>
                     ))}
                   </div>
                 )}

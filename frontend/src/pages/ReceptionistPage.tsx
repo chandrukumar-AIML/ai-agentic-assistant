@@ -77,7 +77,7 @@ export default function ReceptionistPage() {
                 )}
                 {chat.map((m, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 8 }}>
-                    <div style={{ maxWidth: '80%', padding: '8px 12px', borderRadius: 10, background: m.role === 'user' ? '#6366f1' : '#1e2535', color: '#e2e8f0', fontSize: 13, lineHeight: 1.4 }}>
+                    <div style={{ maxWidth: '80%', padding: '8px 12px', borderRadius: 10, background: m.role === 'user' ? '#10b981' : '#1e2535', color: '#e2e8f0', fontSize: 13, lineHeight: 1.4 }}>
                       {m.content}
                     </div>
                   </div>
@@ -138,8 +138,8 @@ export default function ReceptionistPage() {
             <Input label="Business Name"    value={faqBusiness}  onChange={setFaqBiz} />
             <Input label="Service / Product" value={faqService}  onChange={setFaqService} />
             <Input label="Common Customer Questions (one per line)" value={faqQuestions} onChange={setFaqQs} rows={8} />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4 }}>❓ FAQ categories</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4 }}>❓ FAQ categories</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>Getting Started • Account & Billing • Features & Usage • Troubleshooting • Integrations • Security & Privacy • Policies</div>
             </div>
             <Btn
@@ -165,8 +165,8 @@ export default function ReceptionistPage() {
             <Input label="Company Name"    value={slaCompany}  onChange={setSlaCompany} />
             <Input label="Service Type"    value={slaService}  onChange={setSlaService} />
             <Input label="Support Tiers (one per line)" value={slaTiers} onChange={setSlaTiers} rows={3} />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4 }}>📋 SLA document includes</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4 }}>📋 SLA document includes</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>Response times by severity × tier • Resolution targets • Uptime guarantee (99.9–99.99%) • Maintenance windows • Credit policy • Support channels • Business hours definition</div>
             </div>
             <Btn
@@ -192,8 +192,8 @@ export default function ReceptionistPage() {
             <Input label="Company Name"     value={escCompany}   onChange={setEscCompany} />
             <Input label="Support Team Size" value={escTeamSize} onChange={setEscTeamSize} />
             <Input label="Escalation Levels (one per line)" value={escLevels} onChange={setEscLevels} rows={5} />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4 }}>🔺 Matrix includes</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4 }}>🔺 Matrix includes</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>Decision tree • RACI per level • Escalation triggers by issue type • Communication templates • VIP handling • SLA clock management</div>
             </div>
             <Btn

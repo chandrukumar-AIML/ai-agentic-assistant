@@ -64,9 +64,9 @@ export default function AnalystPage() {
               {SAMPLE_QUERIES.map(q => (
                 <button key={q} onClick={() => setQuery(q)} style={{
                   display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', marginBottom: 4,
-                  background: query === q ? 'rgba(99,102,241,0.1)' : 'none',
-                  border: `1px solid ${query === q ? '#6366f1' : '#1e2535'}`,
-                  borderRadius: 7, color: query === q ? '#a5b4fc' : '#6b7280', fontSize: 12, cursor: 'pointer',
+                  background: query === q ? 'rgba(16,185,129,0.1)' : 'none',
+                  border: `1px solid ${query === q ? '#10b981' : '#1e2535'}`,
+                  borderRadius: 7, color: query === q ? '#5eead4' : '#6b7280', fontSize: 12, cursor: 'pointer',
                 }}>{q}</button>
               ))}
             </div>
@@ -103,7 +103,7 @@ export default function AnalystPage() {
                 {data.metadata.sql_query && (
                   <div>
                     <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>SQL Query Generated</div>
-                    <pre style={{ background: '#0f1117', borderRadius: 8, padding: '10px 12px', fontSize: 11, color: '#a5b4fc', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0 }}>
+                    <pre style={{ background: '#0f1117', borderRadius: 8, padding: '10px 12px', fontSize: 11, color: '#5eead4', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0 }}>
                       {data.metadata.sql_query}
                     </pre>
                   </div>
@@ -128,8 +128,8 @@ export default function AnalystPage() {
             </div>
             <Input label="Business Context"   value={storyContext}  onChange={setStoryCtx}  rows={3} />
             <Input label="Key Data Insights (one per line)" value={storyInsights} onChange={setStoryIns} rows={6} />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4 }}>📖 Story structure</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', marginBottom: 4 }}>📖 Story structure</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>Hook → Context → Data journey → Key finding → Implication → Recommendation → Call to action</div>
             </div>
             <Btn
@@ -220,7 +220,7 @@ export default function AnalystPage() {
             <SectionHead title="Available Tables" sub="Agent auto-discovers schema on every query" />
             <div style={{ background: '#0f1117', borderRadius: 8, padding: 14 }}>
               {['users','sessions','messages','tool_results','audit_logs','hitl_requests','billing_subscriptions','ab_experiments','scheduler_tasks'].map(t => (
-                <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid #1e2535', fontSize: 12, color: '#a5b4fc' }}>
+                <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid #1e2535', fontSize: 12, color: '#5eead4' }}>
                   <span style={{ color: '#4b5563' }}>▸</span>
                   <code>{t}</code>
                 </div>

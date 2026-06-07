@@ -196,7 +196,7 @@ export default function CybersecPage() {
                 { id: 'A10', label: 'Server-Side Request Forgery' },
               ].map(({ id, label }) => (
                 <div key={id} style={{ display: 'flex', gap: 8, padding: '4px 0', borderBottom: '1px solid #1e2535', alignItems: 'center' }}>
-                  <code style={{ color: '#6366f1', fontSize: 11, minWidth: 32 }}>{id}</code>
+                  <code style={{ color: '#10b981', fontSize: 11, minWidth: 32 }}>{id}</code>
                   <span style={{ color: '#9ca3af', fontSize: 12 }}>{label}</span>
                 </div>
               ))}
@@ -213,8 +213,8 @@ export default function CybersecPage() {
             {['What is OWASP Top 10?','How to implement zero-trust architecture?','Best practices for JWT security?','How to prevent SQL injection?'].map(q => (
               <button key={q} onClick={() => setQuery(q)} style={{
                 display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', marginBottom: 5,
-                background: query === q ? 'rgba(99,102,241,0.1)' : 'none', border: '1px solid ' + (query === q ? '#6366f1' : '#1e2535'),
-                borderRadius: 7, color: query === q ? '#a5b4fc' : '#6b7280', fontSize: 12, cursor: 'pointer',
+                background: query === q ? 'rgba(16,185,129,0.1)' : 'none', border: '1px solid ' + (query === q ? '#10b981' : '#1e2535'),
+                borderRadius: 7, color: query === q ? '#5eead4' : '#6b7280', fontSize: 12, cursor: 'pointer',
               }}>{q}</button>
             ))}
             <Input label="Custom Query" value={query} onChange={setQuery} rows={3} />

@@ -51,7 +51,7 @@ export default function LoginPage({ onLogin }: Props) {
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <div style={{
             width: 56, height: 56, borderRadius: 16, margin: '0 auto 16px',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            background: 'linear-gradient(135deg, #10b981, #06b6d4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 26, fontWeight: 800, color: '#fff',
           }}>A</div>
@@ -120,7 +120,7 @@ export default function LoginPage({ onLogin }: Props) {
 
             <button type="submit" disabled={loading} style={{
               width: '100%', padding: '11px 0', borderRadius: 8, border: 'none',
-              background: loading ? '#4338ca' : 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+              background: loading ? '#047857' : 'linear-gradient(90deg, #10b981, #06b6d4)',
               color: '#fff', fontSize: 14, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
             }}>
               {loading ? (isSignup ? 'Creating…' : 'Signing in…') : (isSignup ? 'Create Account →' : 'Sign In →')}
@@ -133,7 +133,7 @@ export default function LoginPage({ onLogin }: Props) {
             <button
               type="button"
               onClick={() => { setMode(isSignup ? 'login' : 'signup'); setError('') }}
-              style={{ background: 'none', border: 'none', color: '#a5b4fc', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              style={{ background: 'none', border: 'none', color: '#5eead4', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
             >
               {isSignup ? 'Sign in' : 'Sign up free'}
             </button>
@@ -146,8 +146,8 @@ export default function LoginPage({ onLogin }: Props) {
               borderRadius: 8, border: '1px solid #1e2535',
             }}>
               <div style={{ color: '#6b7280', fontSize: 11, fontWeight: 600, marginBottom: 6 }}>DEMO CREDENTIALS</div>
-              <div style={{ color: '#9ca3af', fontSize: 12 }}>Admin: <code style={{ color: '#a5b4fc' }}>admin@agentic.local</code> / <code style={{ color: '#a5b4fc' }}>admin123</code></div>
-              <div style={{ color: '#9ca3af', fontSize: 12 }}>Client: <code style={{ color: '#a5b4fc' }}>demo@agentic.local</code> / <code style={{ color: '#a5b4fc' }}>demo123</code></div>
+              <div style={{ color: '#9ca3af', fontSize: 12 }}>Admin: <code style={{ color: '#5eead4' }}>admin@agentic.local</code> / <code style={{ color: '#5eead4' }}>admin123</code></div>
+              <div style={{ color: '#9ca3af', fontSize: 12 }}>Client: <code style={{ color: '#5eead4' }}>demo@agentic.local</code> / <code style={{ color: '#5eead4' }}>demo123</code></div>
             </div>
           )}
         </div>

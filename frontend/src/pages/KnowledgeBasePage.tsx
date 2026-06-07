@@ -82,8 +82,8 @@ export default function KnowledgeBasePage() {
 
   const TAB_STYLE = (active: boolean): React.CSSProperties => ({
     padding: '7px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-    background: active ? 'rgba(99,102,241,0.2)' : 'none',
-    color: active ? '#a5b4fc' : '#6b7280',
+    background: active ? 'rgba(16,185,129,0.2)' : 'none',
+    color: active ? '#5eead4' : '#6b7280',
   })
 
   return (
@@ -93,10 +93,10 @@ export default function KnowledgeBasePage() {
       {stats && (
         <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
           {[
-            { label: 'Total Vectors',    value: stats.total_vectors.toLocaleString(), color: '#6366f1' },
+            { label: 'Total Vectors',    value: stats.total_vectors.toLocaleString(), color: '#10b981' },
             { label: 'Documents',        value: stats.total_documents.toString(),      color: '#22c55e' },
             { label: 'Index Size',       value: fmt(stats.index_size_bytes),           color: '#f59e0b' },
-            { label: 'Embedding Model',  value: stats.embedding_model,                 color: '#8b5cf6' },
+            { label: 'Embedding Model',  value: stats.embedding_model,                 color: '#06b6d4' },
             { label: 'Chunk Size',       value: `${stats.chunk_size} tokens`,          color: '#06b6d4' },
           ].map(s => (
             <div key={s.label} style={{
@@ -176,7 +176,7 @@ export default function KnowledgeBasePage() {
                 border: '2px dashed #1e2535', borderRadius: 12, padding: '40px 20px',
                 textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.2s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = '#6366f1')}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = '#10b981')}
               onMouseLeave={e => (e.currentTarget.style.borderColor = '#1e2535')}
             >
               <div style={{ fontSize: 36, marginBottom: 12 }}>📤</div>

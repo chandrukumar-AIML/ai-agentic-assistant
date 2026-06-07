@@ -42,7 +42,7 @@ export function Btn({ children, onClick, loading, variant = 'primary', disabled,
   style?: React.CSSProperties
 }) {
   const bg = {
-    primary:   loading || disabled ? '#3730a3' : '#6366f1',
+    primary:   loading || disabled ? '#3730a3' : '#10b981',
     secondary: '#1e2535',
     danger:    '#dc2626',
     success:   '#16a34a',
@@ -145,7 +145,7 @@ export function ResultBox({ data, loading, error, title }: {
 // ── Badge ─────────────────────────────────────────────────────────────────────
 export function Badge({ text, color = 'blue' }: { text: string; color?: 'blue' | 'green' | 'red' | 'yellow' | 'purple' }) {
   const colors = {
-    blue:   { bg: 'rgba(99,102,241,0.15)', color: '#a5b4fc' },
+    blue:   { bg: 'rgba(16,185,129,0.15)', color: '#5eead4' },
     green:  { bg: 'rgba(34,197,94,0.15)',  color: '#86efac' },
     red:    { bg: 'rgba(239,68,68,0.15)',   color: '#fca5a5' },
     yellow: { bg: 'rgba(234,179,8,0.15)',   color: '#fde047' },
@@ -190,7 +190,7 @@ export function Tabs({ tabs, active, onChange }: {
         <button key={t.id} onClick={() => onChange(t.id)} style={{
           padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 500,
           border: 'none', cursor: 'pointer',
-          background: active === t.id ? '#6366f1' : 'none',
+          background: active === t.id ? '#10b981' : 'none',
           color: active === t.id ? '#fff' : '#6b7280',
           display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s',
         }}>

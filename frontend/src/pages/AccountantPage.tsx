@@ -76,7 +76,7 @@ export default function AccountantPage() {
                   {[
                     { label: 'Base Amount', value: `₹${(gstApi.data.taxable_value ?? gstApi.data.base_amount)?.toLocaleString()}`, color: '#e2e8f0' },
                     { label: 'Total GST',   value: `₹${(gstApi.data.total_tax ?? gstApi.data.total_gst)?.toLocaleString()}`,   color: '#f59e0b' },
-                    { label: gstApi.data.cgst ? 'CGST' : 'IGST', value: `₹${(gstApi.data.cgst || gstApi.data.igst)?.toLocaleString()}`, color: '#a5b4fc' },
+                    { label: gstApi.data.cgst ? 'CGST' : 'IGST', value: `₹${(gstApi.data.cgst || gstApi.data.igst)?.toLocaleString()}`, color: '#5eead4' },
                     { label: gstApi.data.sgst ? 'SGST' : 'IGST Rate', value: gstApi.data.sgst ? `₹${gstApi.data.sgst?.toLocaleString()}` : `${gstRate}%`, color: '#86efac' },
                     { label: 'Invoice Total', value: `₹${(gstApi.data.invoice_total ?? gstApi.data.total_with_gst)?.toLocaleString()}`, color: '#22c55e' },
                   ].map(s => (
@@ -129,7 +129,7 @@ export default function AccountantPage() {
                     </div>
                   ))}
                 </div>
-                <div style={{ marginTop: 10, padding: 10, background: 'rgba(99,102,241,0.1)', borderRadius: 8, fontSize: 12, color: '#a5b4fc' }}>
+                <div style={{ marginTop: 10, padding: 10, background: 'rgba(16,185,129,0.1)', borderRadius: 8, fontSize: 12, color: '#5eead4' }}>
                   Section: {tdsApi.data.section} | Challan: {tdsApi.data.challan ?? tdsApi.data.challan_code}
                 </div>
               </Card>
@@ -146,8 +146,8 @@ export default function AccountantPage() {
             {['How to file GSTR-3B?','What is reverse charge mechanism?','How to calculate advance tax?','What is TAN and how to apply?'].map(q => (
               <button key={q} onClick={() => setQuery(q)} style={{
                 display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', marginBottom: 5,
-                background: query === q ? 'rgba(99,102,241,0.1)' : 'none', border: `1px solid ${query === q ? '#6366f1' : '#1e2535'}`,
-                borderRadius: 7, color: query === q ? '#a5b4fc' : '#6b7280', fontSize: 12, cursor: 'pointer',
+                background: query === q ? 'rgba(16,185,129,0.1)' : 'none', border: `1px solid ${query === q ? '#10b981' : '#1e2535'}`,
+                borderRadius: 7, color: query === q ? '#5eead4' : '#6b7280', fontSize: 12, cursor: 'pointer',
               }}>{q}</button>
             ))}
             <Input label="Custom Query" value={query} onChange={setQuery} rows={3} />

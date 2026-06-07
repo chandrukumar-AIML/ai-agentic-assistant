@@ -97,8 +97,8 @@ export default function ProjectPage() {
                 options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
               />
             </div>
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', fontWeight: 600, marginBottom: 4 }}>INVEST Criteria</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', fontWeight: 600, marginBottom: 4 }}>INVEST Criteria</div>
               {['Independent', 'Negotiable', 'Valuable', 'Estimable', 'Small', 'Testable'].map(i => (
                 <span key={i} style={{ fontSize: 10, color: '#6b7280', marginRight: 8 }}>✓ {i}</span>
               ))}
@@ -237,8 +237,8 @@ export default function ProjectPage() {
                 { value: 't_shirt_sizing', label: 'T-Shirt Sizing' },
               ]}
             />
-            <div style={{ padding: 10, background: 'rgba(99,102,241,0.08)', borderRadius: 8, marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', fontWeight: 600, marginBottom: 4 }}>Fibonacci Scale</div>
+            <div style={{ padding: 10, background: 'rgba(16,185,129,0.08)', borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#5eead4', fontWeight: 600, marginBottom: 4 }}>Fibonacci Scale</div>
               {[1, 2, 3, 5, 8, 13, 21].map(n => (
                 <span key={n} style={{
                   display: 'inline-block', marginRight: 6, padding: '2px 8px',

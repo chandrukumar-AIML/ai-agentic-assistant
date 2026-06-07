@@ -99,9 +99,9 @@ export default function CodePage() {
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center',
                     padding: '10px 16px', borderRadius: 8, cursor: 'pointer',
-                    background: action === m.id ? 'rgba(99,102,241,0.15)' : '#0f1117',
-                    border: `1px solid ${action === m.id ? '#6366f1' : '#1e2535'}`,
-                    color: action === m.id ? '#a5b4fc' : '#6b7280',
+                    background: action === m.id ? 'rgba(16,185,129,0.15)' : '#0f1117',
+                    border: `1px solid ${action === m.id ? '#10b981' : '#1e2535'}`,
+                    color: action === m.id ? '#5eead4' : '#6b7280',
                     transition: 'all 0.15s', minWidth: 90,
                   }}
                 >

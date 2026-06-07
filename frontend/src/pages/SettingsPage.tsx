@@ -45,8 +45,8 @@ export default function SettingsPage() {
 
   const TAB = (id: typeof tab, label: string): React.CSSProperties => ({
     padding: '7px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-    background: tab === id ? 'rgba(99,102,241,0.2)' : 'none',
-    color: tab === id ? '#a5b4fc' : '#6b7280',
+    background: tab === id ? 'rgba(16,185,129,0.2)' : 'none',
+    color: tab === id ? '#5eead4' : '#6b7280',
   })
 
   const StatusDot = ({ ok }: { ok: boolean }) => (
@@ -95,7 +95,7 @@ export default function SettingsPage() {
                 <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 4 }}>Current Token (truncated)</div>
                 <code style={{
                   display: 'block', background: '#0f1117', borderRadius: 6, padding: '8px 12px',
-                  color: '#6366f1', fontSize: 11, wordBreak: 'break-all',
+                  color: '#10b981', fontSize: 11, wordBreak: 'break-all',
                 }}>
                   {token ? `${token.substring(0, 40)}…` : 'No token'}
                 </code>
@@ -185,10 +185,10 @@ export default function SettingsPage() {
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {[
                   { label: 'Total Cost',       value: `$${costs.total_cost_usd.toFixed(4)}`, color: '#f59e0b' },
-                  { label: 'Total Queries',    value: costs.total_queries.toLocaleString(),   color: '#6366f1' },
+                  { label: 'Total Queries',    value: costs.total_queries.toLocaleString(),   color: '#10b981' },
                   { label: 'Cache Hits',       value: costs.cache_hits.toLocaleString(),      color: '#22c55e' },
                   { label: 'Cache Hit Rate',   value: `${(costs.cache_hit_rate * 100).toFixed(1)}%`, color: '#06b6d4' },
-                  { label: 'Avg Cost/Query',   value: `$${costs.avg_cost_per_query.toFixed(5)}`,  color: '#8b5cf6' },
+                  { label: 'Avg Cost/Query',   value: `$${costs.avg_cost_per_query.toFixed(5)}`,  color: '#06b6d4' },
                 ].map(s => (
                   <div key={s.label} style={{
                     background: '#161b27', border: '1px solid #1e2535',
@@ -208,7 +208,7 @@ export default function SettingsPage() {
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       background: '#0f1117', borderRadius: 8, padding: '10px 14px', marginBottom: 6,
                     }}>
-                      <code style={{ color: '#a5b4fc', fontSize: 12 }}>{model}</code>
+                      <code style={{ color: '#5eead4', fontSize: 12 }}>{model}</code>
                       <span style={{ color: '#f59e0b', fontWeight: 600, fontSize: 13 }}>${Number(cost).toFixed(5)}</span>
                     </div>
                   ))}
