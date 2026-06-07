@@ -11,13 +11,26 @@ local **Ollama** model — **zero OpenAI cost**.
 ## Run
 
 ```bash
-python demo.py --quick    # ~10s  — auth + platform + deterministic engines (no LLM)
-python demo.py            # ~3min — everything above + 3 real Ollama calls (default "smoke")
-python demo.py --full     # ~30min — every LLM vertical live via Ollama
+python demo.py --mock     # ~15s  — INSTANT showcase: ALL 43 agents/features with output
+                          #          (deterministic run real; LLM/external show canned output)
+python demo.py --quick    # ~10s  — real backend, deterministic + platform only (no LLM)
+python demo.py            # ~4min — everything + 3 real Ollama calls (default "smoke")
+python demo.py --full     # ~40min — every LLM vertical live via Ollama
+python demo.py --show     # add output previews to any live run
 python demo.py --base https://your-backend.onrender.com/api   # against a deployed instance
 ```
 
 Exit code is `0` when all executed checks pass, `1` otherwise (CI-friendly).
+
+**43 checks** cover every agent and feature: infra, auth/tenancy, F1 Guardian,
+F4 Scheduler, F6 HITL, F7 Output-gen, F8 Billing, F12 A/B, RAG, all deterministic
+engines (GST/TDS/HSN/BANT/validation/HR-match), every LLM vertical (Agri, Legal,
+Receptionist, Accountant, HR, Social, Healthcare, Real Estate, EdTech, Sales),
+every dev role (Analyst, DevOps, QA, PM, Code, ML, DBA, Tech Lead, Cybersec), and
+external integrations (Email, Social auto-post).
+
+> `--mock` is the best way to **see what every feature outputs in 15 seconds** —
+> ideal for a screen-recorded walkthrough or a quick sanity pass before going deep.
 
 ## What it verifies
 
