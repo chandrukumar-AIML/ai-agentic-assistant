@@ -105,6 +105,11 @@ class LLMRouter:
         stream:      bool  = False,
         force_model: str | None = None,
     ) -> tuple[str | AsyncGenerator, str]:
+        # DEMO MODE: instant canned responses, no Ollama/OpenAI call (zero cost).
+        if getattr(settings, "demo_mode", False) and not stream:
+            from backend.llm.demo_responder import demo_complete
+            return demo_complete(messages)
+
         if force_model == "ollama":
             return await self._call_ollama(messages, temperature, max_tokens, stream)
         if force_model == "openai":

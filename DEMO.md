@@ -47,3 +47,21 @@ external integrations (Email, Social auto-post).
 - **`--quick` is always green in seconds** — ideal for a live walkthrough or CI smoke gate.
 - LLM checks that exceed their timeout are marked `SKIP` (Ollama is slow on CPU), never `FAIL`.
 - Demo login: `admin@agentic.local` / `admin123` (seeded automatically).
+
+---
+
+## 🎭 Live Demo Mode (deployed app)
+
+Set **`DEMO_MODE=true`** on the server and the *running web app* returns instant,
+realistic sample output for every AI feature — **no Ollama, no OpenAI cost**.
+Perfect for a shareable public link (e.g. on Render free tier).
+
+- Every LLM call short-circuits to a feature-aware canned response (`backend/llm/demo_responder.py`).
+- **Deterministic engines still run for real** (GST/TDS/scoring/validation) — those are free + instant anyway.
+- The UI shows a yellow **🎭 DEMO MODE** banner so it's transparent.
+- Flip `DEMO_MODE=false` (and add `OPENAI_API_KEY`, or run Ollama) to switch on real generation.
+
+`render.yaml` ships with `DEMO_MODE=true` so the first deploy is demo-ready out of the box.
+
+**Share:** send the deployed URL + login `admin@agentic.local` / `admin123`. Every
+feature is clickable and produces output instantly.

@@ -456,7 +456,7 @@ export async function login(email: string, password: string) {
 export async function signup(email: string, password: string, fullName = '') {
   return apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, full_name: fullName }) })
 }
-export async function getMe(): Promise<{ profile: UserProfile; always_allowed: string[]; is_admin: boolean }> {
+export async function getMe(): Promise<{ profile: UserProfile; always_allowed: string[]; is_admin: boolean; demo_mode?: boolean }> {
   return apiFetch('/auth/me')
 }
 export async function getToolsCatalog(): Promise<{ catalog: { id: string; label: string; category: string }[]; always_allowed: string[] }> {

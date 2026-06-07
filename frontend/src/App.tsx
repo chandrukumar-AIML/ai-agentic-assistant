@@ -101,13 +101,19 @@ export default function App() {
   const [page,      setPage]      = useState<PageId>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [profile,   setProfile]   = useState<UserProfile | null>(readCachedProfile())
+  const [demoMode,  setDemoMode]  = useState(false)
 
   // After auth, fetch the authoritative profile + entitlements from the backend
   useEffect(() => {
     if (!authed) return
     let active = true
     getMe()
-      .then(res => { if (active) { setProfile(res.profile); sessionStorage.setItem('aaa_profile', JSON.stringify(res.profile)) } })
+      .then(res => {
+        if (!active) return
+        setProfile(res.profile)
+        setDemoMode(!!res.demo_mode)
+        sessionStorage.setItem('aaa_profile', JSON.stringify(res.profile))
+      })
       .catch(() => { /* keep cached profile / dev fallback */ })
     return () => { active = false }
   }, [authed])
@@ -157,6 +163,15 @@ export default function App() {
         onLogout={handleLogout}
       />
       <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {demoMode && (
+          <div style={{
+            flexShrink: 0, padding: '7px 16px', textAlign: 'center', fontSize: 12, fontWeight: 600,
+            color: '#0f1117', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)',
+            letterSpacing: '0.02em',
+          }}>
+            🎭 DEMO MODE — AI responses are instant sample data (no live model cost). Add an API key to switch on real generation.
+          </div>
+        )}
         {PAGE_MAP[activePage]}
       </main>
     </div>

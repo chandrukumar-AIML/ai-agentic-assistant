@@ -126,6 +126,16 @@ async def me(request: Request):
         "profile":        profile,
         "always_allowed": user_store.ALWAYS_ALLOWED,
         "is_admin":       profile.get("role") == "admin",
+        "demo_mode":      bool(getattr(settings, "demo_mode", False)),
+    }
+
+
+@router.get("/config", summary="Public runtime config (demo flag, env)")
+async def public_config():
+    """Public — lets the login screen show a demo banner before auth."""
+    return {
+        "demo_mode": bool(getattr(settings, "demo_mode", False)),
+        "app_env":   settings.app_env,
     }
 
 

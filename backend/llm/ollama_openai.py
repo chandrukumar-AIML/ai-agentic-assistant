@@ -66,6 +66,16 @@ async def ollama_chat_completion(
     Simple wrapper — returns the text content string directly.
     Handles errors gracefully, returns empty string on failure.
     """
+    # DEMO MODE: instant canned response, no Ollama call (zero cost / works on Render).
+    try:
+        from backend.config import get_settings
+        if getattr(get_settings(), "demo_mode", False):
+            from backend.llm.demo_responder import demo_complete
+            msgs = ([{"role": "system", "content": system}] if system else []) + list(messages)
+            return demo_complete(msgs)[0]
+    except Exception:
+        pass
+
     client = get_client()
 
     if system and (not messages or messages[0].get("role") != "system"):

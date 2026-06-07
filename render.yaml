@@ -19,6 +19,10 @@ services:
         value: production
       - key: LOG_LEVEL
         value: INFO
+      # DEMO_MODE: instant canned AI responses — zero LLM cost on the public link.
+      # Flip to "false" once you add OPENAI_API_KEY and want real generation.
+      - key: DEMO_MODE
+        value: "true"
       - key: MLFLOW_TRACKING_URI
         value: /app/data/mlflow_runs
       - key: OLLAMA_BASE_URL

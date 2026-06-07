@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     # ── App ───────────────────────────────────────────────────────────────────
     app_env: str = "development"
     log_level: str = "INFO"
+    # Demo mode: short-circuit all LLM calls to instant canned responses.
+    # Lets a public Render link work with no Ollama and zero OpenAI cost.
+    demo_mode: bool = False
 
     # ── Feature 6 — HITL notifications ───────────────────────────────────────
     sendgrid_api_key:      Optional[str] = None
