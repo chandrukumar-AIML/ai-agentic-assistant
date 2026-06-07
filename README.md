@@ -1,6 +1,6 @@
-# AI Agentic Assistant V2
+# AI Agentic
 
-> Production enterprise multi-agent AI platform — built for developers, deployed for businesses.
+> A multi-tenant AI SaaS platform — 24+ ready-to-use AI assistants for finance, legal, HR, sales, healthcare, agriculture and more, with per-client access control, billing, and a zero-cost live demo mode. Built on LangGraph + FastAPI + React.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -15,29 +15,38 @@
 
 ## 🎬 Demo
 
-> 📸 *[Add dashboard screenshot or Loom recording here — record with OBS/Loom]*
+> 📸 *[Add a dashboard screenshot or 2-min Loom walkthrough here]*
 
 | | |
 |---|---|
 | **Live Demo** | [ai-agentic-assistant.vercel.app](https://ai-agentic-assistant.vercel.app) |
-| **API Docs** | [your-backend.onrender.com/docs](https://your-backend.onrender.com/docs) |
-| **Demo Login** | `admin@agentic.local` / `admin123` |
+| **Demo Login** | `admin@agentic.local` / `admin123` (admin) · `demo@agentic.local` / `demo123` (client) |
 | **GitHub** | [chandrukumar-AIML/ai-agentic-assistant](https://github.com/chandrukumar-AIML/ai-agentic-assistant) |
+
+**🎭 Demo Mode** — set `DEMO_MODE=true` and every AI feature returns instant, realistic sample output (no Ollama, **zero OpenAI cost**) — perfect for a public, shareable demo link. Deterministic engines (GST/TDS/scoring/validation) still run for real.
+
+**One-command smoke test** — `python demo.py --mock` exercises **all 43 agents/features** end-to-end with predefined data (see [`DEMO.md`](DEMO.md)).
 
 ---
 
 ## ✨ Key Features
 
+**Product / SaaS layer**
+- **24+ AI assistants** across 14 business & engineering domains — finance, legal, HR, sales, marketing, healthcare, real estate, education, agriculture, support, plus a full software-dev team (DevOps, QA, Code, ML, DBA, Tech Lead, Data Analyst)
+- **Multi-tenant access control** — per-client tool entitlements; an **Admin Panel** to assign exactly which tools each client sees, on Free / Pro / Enterprise plans
+- **Billing** — Stripe (global) + **Razorpay (India · UPI / NetBanking)** with self-serve signup and plan gating
+- **Demo Mode** — `DEMO_MODE=true` serves instant canned AI output for every feature with **zero LLM cost** — ideal for a public demo link
+- **Integration status** — a live page showing which of 19 external integrations are active vs need an API key
+
+**AI / platform engineering**
 - **LangGraph Multi-Agent Graph** — Supervisor → Planner → Workers → Reflection loop with self-critique and auto-rewrite on quality failure
-- **Dual RAG Engine** — FAISS + ChromaDB vector stores with HyDE query expansion, FlashRank cross-encoder reranking, and semantic caching
-- **Voice Pipeline** — Whisper STT → Agent reasoning → Coqui TTS over WebSocket in real time
-- **Enterprise Guardrails** — PII/PHI detection (HIPAA 18 Safe Harbor), prompt injection blocking, NeMo Guardrails, full audit logging
-- **12 Domain Verticals** — AgriTech, Legal Research, Cybersecurity, HR, Sales CRM, Accountant, Social Media, DevOps and 4 more
-- **Human-in-the-Loop (HITL)** — LangGraph interrupt-based approval queue with 30-min auto-reject and Slack/SendGrid notifications
-- **Full Observability** — LangSmith tracing, MLflow experiment tracking, Prometheus metrics, per-query cost tracking with budget enforcement
-- **MCP + A2A Protocols** — 7-tool Model Context Protocol server + Agent-to-Agent communication (Google open specification)
-- **Webhook Manager** — Register Slack/Discord/Zapier/n8n endpoints for 8 event types with HMAC-SHA256 signing
-- **Production-Tested** — 50 concurrent users · p95 REST latency 280ms · p95 WebSocket 4.2s · 0.3% error rate
+- **Ollama-first LLM routing** — local llama3 primary with circuit-breaker fallback to OpenAI (controls cost)
+- **Dual RAG Engine** — FAISS + ChromaDB with HyDE query expansion, FlashRank reranking, and semantic caching
+- **Enterprise Guardrails** — PII/PHI detection (HIPAA Safe Harbor), prompt-injection blocking, full audit logging
+- **Human-in-the-Loop (HITL)** — interrupt-based approval queue for sensitive actions (send email, offer letters)
+- **Real integrations wired** — Gmail/Outlook, HubSpot/Salesforce, Twilio, OpenWeather + Agmarknet (live mandi prices), IndianKanoon, LinkedIn/Twitter/Buffer, DocuSign
+- **Full observability** — LangSmith tracing, MLflow, Prometheus metrics, per-query cost tracking
+- **MCP server** — 7-tool Model Context Protocol server for Claude Desktop / Cursor
 
 ---
 
@@ -63,10 +72,11 @@
 | Voice TTS | Coqui TTS | Text-to-speech synthesis |
 | Browser | Playwright | Web automation agent tool |
 | Document Parse | pypdf + unstructured | PDF, DOCX, MD ingestion |
-| Frontend | React 18 + TypeScript + Vite | SPA dashboard (25 pages) |
+| Frontend | React 18 + TypeScript + Vite | SPA dashboard (34 pages) |
 | State Management | Zustand | Client-side chat state |
-| Auth | JWT + RBAC | Workspace isolation, plan tiers |
-| Deploy | Render + Vercel + Neon + Upstash | Full stack · **$0/month** |
+| Auth | JWT + per-client tool entitlements | Multi-tenant, plan tiers, Admin Panel |
+| Billing | Stripe + Razorpay | Global + India (UPI / NetBanking) |
+| Deploy | Render + Vercel + Neon + Upstash | Full stack · **$0/month** (DEMO_MODE = $0 LLM) |
 
 ---
 
@@ -75,8 +85,8 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │           React 18 + TypeScript Frontend (Vercel)               │
-│  Landing · Login · Dashboard · Chat · 12 Verticals              │
-│  Knowledge Base · Webhooks · Settings · Notifications           │
+│  Landing · Login · Dashboard · Chat · 24+ Tool Pages            │
+│  Admin Panel · Integrations · Billing · Knowledge Base · etc.   │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ WebSocket + REST (HTTPS)
 ┌──────────────────────────▼──────────────────────────────────────┐
@@ -156,7 +166,7 @@ ai-agentic-assistant/
 │   ├── audit/           # Audit logger — every action logged with user + timestamp
 │   └── tests/           # 81 unit tests (pytest)
 ├── frontend/
-│   ├── src/pages/       # 25 pages (Landing, Login, Dashboard, 12 verticals...)
+│   ├── src/pages/       # 34 pages (Landing, Login, Dashboard, 24+ tools, Admin...)
 │   ├── src/components/  # 20 components (ChatWindow, Sidebar, NotificationBell...)
 │   ├── src/hooks/       # useSession, useVoice, useWebSocket
 │   ├── src/store/       # Zustand chat state
@@ -183,8 +193,9 @@ git clone https://github.com/chandrukumar-AIML/ai-agentic-assistant.git
 cd ai-agentic-assistant
 cp .env.example .env
 
-# 2. Edit .env with your API keys (minimum required):
-#    OPENAI_API_KEY, JWT_SECRET, TAVILY_API_KEY, LANGCHAIN_API_KEY
+# 2. Edit .env. Minimum to boot: JWT_SECRET.
+#    For a zero-cost demo: DEMO_MODE=true (no OpenAI key needed).
+#    For real AI: OPENAI_API_KEY (+ optional TAVILY/LANGCHAIN), or run Ollama.
 
 # 3. Start full stack
 make dev
@@ -224,7 +235,7 @@ npm run dev
 | Redis | Upstash | Cache + sessions | Free (10K ops/day) |
 | **Total** | | | **$0/month** |
 
-See [`deploy/free_deploy_guide.md`](deploy/free_deploy_guide.md) for the full 7-phase step-by-step guide.
+**Deploy notes:** Render deploys from the **`master`** branch (enable Auto-Deploy). For a public demo, set `DEMO_MODE=true` + `JWT_SECRET` + `CORS_ORIGINS` — no OpenAI/DB required to boot. See [`deploy/free_deploy_guide.md`](deploy/free_deploy_guide.md) for the full step-by-step guide.
 
 ---
 
@@ -234,6 +245,15 @@ See [`deploy/free_deploy_guide.md`](deploy/free_deploy_guide.md) for the full 7-
 |---|---|---|
 | GET | `/api/health` | Service health + Redis + OpenAI + circuit state |
 | POST | `/api/auth/login` | JSON body JWT login |
+| POST | `/api/auth/signup` | Self-serve client signup |
+| GET | `/api/auth/me` | Current user profile + tool entitlements |
+| GET | `/api/config` | Public runtime config (demo mode flag) |
+| GET | `/api/clients` | [admin] List clients |
+| POST | `/api/clients/{email}/tools` | [admin] Set a client's allowed tools |
+| GET | `/api/tools/catalog` | Catalog of gateable tools |
+| GET | `/api/integrations/status` | Which integrations are live vs need keys |
+| POST | `/api/verticals/{name}/action` | Vertical agent action (healthcare/realestate/edtech/...) |
+| POST | `/api/billing/checkout/razorpay` | Razorpay subscription (India) |
 | POST | `/api/query` | Main agent query (streaming JSON) |
 | WS | `/ws/{session_id}` | WebSocket token-by-token streaming chat |
 | POST | `/api/ingest` | Upload document to RAG (PDF/TXT/DOCX/MD/CSV) |
@@ -264,22 +284,42 @@ See [`deploy/free_deploy_guide.md`](deploy/free_deploy_guide.md) for the full 7-
 
 ---
 
-## 🌐 12 Domain Verticals
+## 🌐 24+ AI Tools (across 14 domains)
 
-| Vertical | Key Capabilities |
+Each tool is a full-stack vertical (specialized backend agent + dedicated UI). Admins assign exactly which tools each client can access.
+
+**Business verticals**
+
+| Tool | Key Capabilities |
 |---|---|
-| 🌾 **AgriTech** | Tamil/Hindi/English crop advisory, Mandi price lookup, weather integration, Govt schemes |
-| ⚖️ **Legal Research** | IndianKanoon + IPC/CrPC/IT Act Bare Acts RAG, case search, legal advice |
-| 🔐 **Cybersecurity** | SSH/SQL/XSS log anomaly detection, NVD CVE lookup, incident reports, Slack alerts |
-| ☎️ **Receptionist** | Twilio Voice IVR, WhatsApp Business API, Calendly booking, embeddable JS widget |
-| 📋 **Form Reader** | GPT-4V OCR for PAN/Aadhaar/GSTIN/Passport, Verhoeff check, structured JSON output |
-| 📧 **Email Manager** | Gmail API + Microsoft Graph (Outlook), AI draft generation, HITL before send |
-| 💼 **Sales & CRM** | BANT lead scoring (100pts), HubSpot CRM, Salesforce, Clearbit enrichment |
-| 🧮 **Accountant** | GST/TDS calculator, CGST+SGST/IGST split, GSTR-1/3B export, India tax rules |
-| 👥 **HR Assistant** | Resume screening (0–100 score), JD generation, offer letter, BGV checklist |
-| 📱 **Social Media** | LinkedIn/Twitter/Instagram content, DALL-E 3 image generation, Buffer scheduling |
-| 📊 **Data Analyst** | Natural language → SQL → run → Plotly charts (powered by connected database) |
-| ⚙️ **DevOps Engineer** | GitHub CI/CD, Docker log analysis, Prometheus metrics, Jira ticket creation |
+| 🌾 **AgriTech** | Tamil/Hindi/English crop advisory, **live mandi prices** (Agmarknet), weather, schemes, yield prediction |
+| ⚖️ **Legal** | IndianKanoon case search, IPC/CrPC RAG, **contract review, NDA generator** |
+| 🧮 **Accountant** | GST/TDS engine (CGST/SGST/IGST), GSTR-1/3B JSON, invoice PDF, **P&L analysis, budgeting** |
+| 👥 **HR Assistant** | **Deterministic resume↔JD skill match**, JD generation, offer letters, onboarding, performance reviews |
+| 💼 **Sales & CRM** | BANT lead scoring, HubSpot/Salesforce/Clearbit, **email sequences, meeting prep** |
+| 📱 **Social & Marketing** | LinkedIn/Twitter content, DALL-E images, Buffer, **SEO audit, campaign briefs** |
+| 🏥 **Healthcare** | Patient intake, lab report summaries, Rx notes, insurance claims, symptom triage |
+| 🏘️ **Real Estate** | Listings, lease drafts, investment ROI, lead qualification, market analysis |
+| 📚 **EdTech** | Course outlines, quiz generation, lesson plans, progress reports, doubt solving |
+| ☎️ **Receptionist** | Twilio Voice/WhatsApp, Calendly, embeddable widget, **FAQ/SLA/escalation builders** |
+| 📋 **Form Reader** | OCR for PAN/Aadhaar/GSTIN/Passport with checksum validation → structured JSON |
+| 📧 **Email Manager** | Gmail + Outlook, AI drafts, summaries, HITL before send |
+| 🔐 **Cybersecurity** | Log anomaly detection, CVE lookup, **OWASP review, security policy, pen-test reports** |
+| 📊 **Data Analyst** | Natural language → SQL → charts, **data storytelling, anomaly detection** |
+
+**Software-dev team** (technical audience)
+
+| Tool | Key Capabilities |
+|---|---|
+| ⚙️ **DevOps** | CI/CD, Docker/log analysis, Prometheus, Jira, **IaC generation** (Dockerfile/K8s/Terraform) |
+| 🧪 **QA Engineer** | Test-case generation, bug analysis, test plans, Gherkin acceptance criteria |
+| 💻 **Code Assistant** | Generate, debug, review, test, explain code |
+| 🗂️ **Project Manager** | User stories, sprint plans, retrospectives, roadmaps, estimation |
+| 🤖 **ML Engineer** | Experiment design, model eval, feature engineering, drift analysis |
+| 🗄️ **DBA** | Query optimization, schema design, index recommendations, migrations |
+| 🏗️ **Tech Lead** | ADRs, tech-debt analysis, API design, architecture review, **vendor eval / build-vs-buy** |
+
+Plus platform tools: **Guardian** (compliance), **HITL Approvals**, **Output Generator** (PDF/Excel/PPTX), **A/B Testing**, **Task Scheduler**, **Knowledge Base** (RAG), **Webhooks**, **Admin Panel**, **Integrations**, **Billing**.
 
 ---
 
@@ -316,10 +356,21 @@ See [`deploy/free_deploy_guide.md`](deploy/free_deploy_guide.md) for the full 7-
 
 ```env
 # ── Required ───────────────────────────────────────────
-OPENAI_API_KEY=sk-...           # OpenAI API key
-JWT_SECRET=your-32-char-secret  # Min 32 characters
-TAVILY_API_KEY=tvly-...         # Web search
-LANGCHAIN_API_KEY=ls__...       # LangSmith tracing
+JWT_SECRET=your-32-char-secret  # Min 32 chars (openssl rand -hex 32) — only hard requirement
+
+# ── Demo deploy (zero-cost public link) ─────────────────
+DEMO_MODE=true                  # instant canned AI output, no Ollama/OpenAI cost
+# With DEMO_MODE=true you do NOT need OPENAI_API_KEY for the app to boot.
+
+# ── Real AI (when DEMO_MODE=false) ──────────────────────
+OPENAI_API_KEY=sk-...           # OpenAI (fallback; Ollama is primary)
+TAVILY_API_KEY=tvly-...         # Web search (optional)
+LANGCHAIN_API_KEY=ls__...       # LangSmith tracing (optional)
+
+# ── Billing (optional) ──────────────────────────────────
+RAZORPAY_KEY_ID=rzp_...         # India — UPI / NetBanking / cards
+RAZORPAY_KEY_SECRET=...
+STRIPE_SECRET_KEY=sk_...         # Global
 
 # ── Database ────────────────────────────────────────────
 DATABASE_URL=postgresql://user:pass@host:5432/agentic_v2
@@ -377,6 +428,11 @@ Load test: 50 concurrent users · 5-minute sustained run · Locust
 | M | Advanced LLMOps (drift, canary, MLflow) | ✅ |
 | N | 12 Domain Verticals | ✅ |
 | O | Production Hardening (Docker, deploy configs, tests) | ✅ |
+| P | +12 verticals (Healthcare, Real Estate, EdTech, QA, PM, Code, ML, DBA, Tech Lead, Data Analyst) | ✅ |
+| Q | Multi-tenant tool entitlements + Admin Panel + self-serve signup | ✅ |
+| R | Billing wiring (Stripe + Razorpay) + Integration status | ✅ |
+| S | Demo Mode (zero-cost canned output) + `demo.py` 43-check runner | ✅ |
+| T | 10/10 client-facing UI polish across all 34 pages | ✅ |
 
 ---
 
@@ -398,15 +454,14 @@ Load test: 50 concurrent users · 5-minute sustained run · Locust
 ## 🧪 Running Tests
 
 ```bash
-# Unit tests only (no backend needed)
-PYTHONPATH=$(pwd) pytest backend/tests/ \
-  --ignore=backend/tests/test_integration.py \
-  --ignore=backend/tests/test_rag.py \
-  --ignore=backend/tests/test_load.py \
-  -v
+# Full-project demo / smoke test — every agent & feature, predefined data
+python demo.py --mock     # instant showcase of all 43 checks (no Ollama/keys)
+python demo.py --quick    # real backend, deterministic + platform only
+python demo.py --full     # every LLM vertical live via Ollama
+#  → see DEMO.md for details
 
-# All tests (requires running backend + services)
-PYTHONPATH=$(pwd) pytest backend/tests/ -v
+# Unit tests
+PYTHONPATH=$(pwd) pytest tests/ -v
 
 # Frontend type check + build
 cd frontend && npm run build
@@ -417,15 +472,14 @@ cd frontend && npm run build
 ## 📁 Project Stats
 
 ```
-Backend Python files:     182 modules
-Frontend TypeScript files: 48 files (25 pages + 20 components + hooks/lib)
-API Endpoints:             133 routes (72 POST · 50 GET · 7 DELETE · 4 PATCH)
-Enterprise Features:       24
-Domain Verticals:          12
-Build Phases:              15
-Unit Tests:                81 passing
-Total lines of code:       ~39,000
-Deploy cost:               $0/month
+AI tools / verticals:      24+ (across 14 domains)
+Frontend pages:            34 (all client-facing polished)
+API Endpoints:             190+ routes across 18 router modules
+Multi-tenant:              per-client tool entitlements + Admin Panel
+Billing:                   Stripe + Razorpay (UPI)
+Demo runner:               demo.py — 43 checks, all agents/features
+Deploy:                    Render (backend, branch `master`) + Vercel (frontend)
+Deploy cost:               $0/month (free tier; DEMO_MODE = zero LLM cost)
 ```
 
 ---
@@ -438,9 +492,9 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-**Built with LangGraph · FastAPI · React 18 · TypeScript**
+**AI Agentic** — multi-tenant AI SaaS · Built with LangGraph · FastAPI · React 18 · TypeScript
 
-*Production-ready · $0/month free tier · Deploy in 30 minutes*
+*Production-ready · $0/month free tier · Demo Mode for a zero-cost public link*
 
 [⭐ Star this repo](https://github.com/chandrukumar-AIML/ai-agentic-assistant) · [🐛 Report Bug](https://github.com/chandrukumar-AIML/ai-agentic-assistant/issues) · [💡 Request Feature](https://github.com/chandrukumar-AIML/ai-agentic-assistant/issues)
 
