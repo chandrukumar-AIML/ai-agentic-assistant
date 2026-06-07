@@ -66,3 +66,20 @@ body {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+
+/* ── Responsive layout (mobile / tablet) ─────────────────────────────── */
+.aaa-twocol   { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+.aaa-statgrid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.aaa-page-head { padding: 16px 24px; }
+.aaa-page-body { padding: 20px 24px; }
+.aaa-md table { display: block; overflow-x: auto; white-space: nowrap; }
+
+@media (max-width: 860px) {
+  .aaa-twocol    { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .aaa-statgrid  { grid-template-columns: repeat(2, 1fr) !important; }
+  .aaa-page-head { padding: 12px 14px !important; }
+  .aaa-page-body { padding: 14px 12px !important; }
+}
+@media (max-width: 440px) {
+  .aaa-statgrid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+}

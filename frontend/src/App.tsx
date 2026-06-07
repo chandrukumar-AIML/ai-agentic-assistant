@@ -99,7 +99,15 @@ export default function App() {
   const [authed,    setAuthed]    = useState(!!sessionStorage.getItem('aaa_token'))
   const [showLogin, setShowLogin] = useState(false)
   const [page,      setPage]      = useState<PageId>('dashboard')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== 'undefined' && window.innerWidth < 860)
+
+  // Auto-collapse the sidebar to an icon rail on small screens
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth < 860) setSidebarCollapsed(true) }
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
   const [profile,   setProfile]   = useState<UserProfile | null>(readCachedProfile())
   const [demoMode,  setDemoMode]  = useState(false)
 

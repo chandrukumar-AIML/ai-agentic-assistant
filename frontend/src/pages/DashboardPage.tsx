@@ -53,7 +53,7 @@ export default function DashboardPage() {
 
       <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px' }}>
         {/* Value stats — client-meaningful, not dev metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+        <div className="aaa-statgrid" style={{ gap: 14, marginBottom: 24 }}>
           <StatCard label="AI Tools"      value="24+"   icon="🧰" trend="Ready to use" />
           <StatCard label="Languages"     value="3"     icon="🌐" trend="EN · தமிழ் · हिन्दी" />
           <StatCard label="Availability"  value="24/7"  icon="☁️" trend="Cloud-hosted" />

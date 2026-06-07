@@ -1,5 +1,7 @@
 // frontend/src/components/ui.tsx — Shared UI primitives
-import { ReactNode, useState } from 'react'
+import { Fragment, ReactNode, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 // ── Page Shell ────────────────────────────────────────────────────────────────
 export function PageShell({ title, subtitle, icon, children }: {
@@ -7,8 +9,8 @@ export function PageShell({ title, subtitle, icon, children }: {
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0f1117', overflow: 'hidden' }}>
-      <div style={{
-        padding: '16px 24px', borderBottom: '1px solid #1e2535',
+      <div className="aaa-page-head" style={{
+        borderBottom: '1px solid #1e2535',
         background: '#161b27', flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 12,
       }}>
@@ -18,7 +20,7 @@ export function PageShell({ title, subtitle, icon, children }: {
           {subtitle && <div style={{ color: '#4b5563', fontSize: 12, marginTop: 1 }}>{subtitle}</div>}
         </div>
       </div>
-      <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
+      <div className="aaa-page-body" style={{ flex: 1, overflow: 'auto' }}>
         {children}
       </div>
     </div>
@@ -129,17 +131,120 @@ export function ResultBox({ data, loading, error, title }: {
           <span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{title}</span>
         </div>
       )}
-      <pre style={{
-        margin: 0, padding: 16, color: '#93c5fd',
-        fontSize: 12, lineHeight: 1.6,
-        overflowX: 'auto', maxHeight: 400, overflowY: 'auto',
-        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-        fontFamily: 'Monaco, Consolas, monospace',
-      }}>
-        {typeof data === 'string' ? data : JSON.stringify(data, null, 2)}
-      </pre>
+      <div style={{ padding: 16, maxHeight: 460, overflowY: 'auto', overflowX: 'auto' }}>
+        {renderResult(data)}
+      </div>
     </div>
   )
+}
+
+// Smart renderer: markdown for text, a table for arrays of records, a clean
+// key/value list for flat objects, and JSON only as a last resort.
+function renderResult(data: any): ReactNode {
+  if (typeof data === 'string') return <Markdown text={data} />
+
+  if (Array.isArray(data)) {
+    if (data.length && typeof data[0] === 'object') return <DataTable rows={data} />
+    return <Markdown text={data.map(String).join('\n')} />
+  }
+
+  if (data && typeof data === 'object') {
+    const keys = Object.keys(data)
+    // 1) single string field (e.g. { result: "## markdown ..." }) → render markdown
+    if (keys.length === 1 && typeof data[keys[0]] === 'string') return <Markdown text={data[keys[0]]} />
+    // 2) any field that is an array of records → table (+ scalar fields as context)
+    const arrKey = keys.find(k => Array.isArray(data[k]) && data[k].length && typeof data[k][0] === 'object')
+    if (arrKey) {
+      const meta = keys.filter(k => k !== arrKey && typeof data[k] !== 'object')
+      return (
+        <div>
+          {meta.length > 0 && (
+            <div style={{ marginBottom: 10, fontSize: 12, color: '#9ca3af' }}>
+              {meta.map(k => <span key={k} style={{ marginRight: 14 }}><b style={{ color: '#e2e8f0' }}>{prettyKey(k)}:</b> {String(data[k])}</span>)}
+            </div>
+          )}
+          <DataTable rows={data[arrKey]} />
+        </div>
+      )
+    }
+    // 3) a longer markdown field mixed with scalars → render the longest string as markdown
+    const strKeys = keys.filter(k => typeof data[k] === 'string')
+    const longest = strKeys.sort((a, b) => (data[b].length - data[a].length))[0]
+    if (longest && data[longest].length > 60) return <Markdown text={data[longest]} />
+    // 4) flat scalar object → key/value list
+    if (keys.every(k => typeof data[k] !== 'object')) return <KeyValueList obj={data} />
+  }
+
+  return (
+    <pre style={{ margin: 0, color: '#93c5fd', fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'Monaco, Consolas, monospace' }}>
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  )
+}
+
+function prettyKey(k: string): string {
+  return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function Markdown({ text }: { text: string }) {
+  return (
+    <div style={{ color: '#dbeafe', fontSize: 13.5, lineHeight: 1.65 }} className="aaa-md">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          table: ({ node, ...p }) => <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: 12.5 }} {...p} />,
+          th:    ({ node, ...p }) => <th style={{ border: '1px solid #1e3a5f', padding: '6px 10px', background: '#0d1b2e', color: '#93c5fd', textAlign: 'left' }} {...p} />,
+          td:    ({ node, ...p }) => <td style={{ border: '1px solid #1e3a5f', padding: '6px 10px', color: '#cbd5e1' }} {...p} />,
+          code:  ({ node, ...p }) => <code style={{ background: '#0d1b2e', padding: '1px 5px', borderRadius: 4, color: '#5eead4', fontSize: 12 }} {...p} />,
+          pre:   ({ node, ...p }) => <pre style={{ background: '#0d1b2e', padding: 12, borderRadius: 8, overflowX: 'auto', fontSize: 12 }} {...p} />,
+          a:     ({ node, ...p }) => <a style={{ color: '#5eead4' }} target="_blank" rel="noreferrer" {...p} />,
+          h1:    ({ node, ...p }) => <h3 style={{ color: '#e2e8f0', fontSize: 16, margin: '10px 0 6px' }} {...p} />,
+          h2:    ({ node, ...p }) => <h4 style={{ color: '#e2e8f0', fontSize: 14, margin: '10px 0 6px' }} {...p} />,
+          h3:    ({ node, ...p }) => <h5 style={{ color: '#e2e8f0', fontSize: 13, margin: '8px 0 4px' }} {...p} />,
+          strong:({ node, ...p }) => <strong style={{ color: '#fff' }} {...p} />,
+        }}
+      >{text}</ReactMarkdown>
+    </div>
+  )
+}
+
+function DataTable({ rows }: { rows: any[] }) {
+  const cols = Array.from(rows.reduce((s: Set<string>, r: any) => { Object.keys(r || {}).forEach(k => s.add(k)); return s }, new Set<string>()))
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12.5 }}>
+        <thead>
+          <tr>{cols.map(c => <th key={c} style={{ border: '1px solid #1e3a5f', padding: '7px 10px', background: '#0d1b2e', color: '#93c5fd', textAlign: 'left', whiteSpace: 'nowrap' }}>{prettyKey(c)}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i}>{cols.map(c => <td key={c} style={{ border: '1px solid #1e3a5f', padding: '7px 10px', color: '#cbd5e1' }}>{fmtCell(r?.[c])}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function KeyValueList({ obj }: { obj: Record<string, any> }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 16px', fontSize: 13 }}>
+      {Object.entries(obj).map(([k, v]) => (
+        <Fragment key={k}>
+          <div style={{ color: '#9ca3af', whiteSpace: 'nowrap' }}>{prettyKey(k)}</div>
+          <div style={{ color: '#e2e8f0', fontWeight: 500, wordBreak: 'break-word' }}>{fmtCell(v)}</div>
+        </Fragment>
+      ))}
+    </div>
+  )
+}
+
+function fmtCell(v: any): string {
+  if (v === null || v === undefined) return '—'
+  if (typeof v === 'boolean') return v ? '✓ Yes' : '✗ No'
+  if (Array.isArray(v)) return v.join(', ')
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
 }
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
@@ -205,7 +310,7 @@ export function Tabs({ tabs, active, onChange }: {
 // ── Two columns ───────────────────────────────────────────────────────────────
 export function TwoCol({ children, gap = 20 }: { children: ReactNode; gap?: number }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap, alignItems: 'start' }}>
+    <div className="aaa-twocol" style={{ gap }}>
       {children}
     </div>
   )
