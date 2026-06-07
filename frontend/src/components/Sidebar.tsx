@@ -194,11 +194,10 @@ export default function Sidebar({
               )}
             </div>
           )}
-          <div style={{ color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+          <div style={{ color: '#22c55e', display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-            Backend: port 8000
+            All systems operational
           </div>
-          <div style={{ color: '#6b7280' }}>Ollama: llama3.2 active</div>
         </div>
       )}
     </aside>
