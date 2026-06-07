@@ -11,7 +11,9 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     # ── Core LLM ──────────────────────────────────────────────────────────────
-    openai_api_key: str
+    # Empty default so the app boots without an OpenAI key (e.g. DEMO_MODE on
+    # Render, or Ollama-only local). Real OpenAI calls need a valid sk- key.
+    openai_api_key: str = ""
     openai_model: str = "gpt-4o"
     openai_embedding_model: str = "text-embedding-3-small"
     openai_cost_per_1k_tokens: float = 0.0025
