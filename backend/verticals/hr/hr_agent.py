@@ -29,6 +29,102 @@ logger   = logging.getLogger(__name__)
 settings = get_settings()
 
 
+# ── Deterministic skill matching (no LLM — verifiable, fast, free) ─────────────
+
+# Common skill aliases so "JS" matches "JavaScript", "k8s" matches "Kubernetes", etc.
+_SKILL_ALIASES: dict[str, list[str]] = {
+    "javascript":          ["js", "ecmascript", "node", "nodejs", "node.js"],
+    "typescript":          ["ts"],
+    "python":              ["py", "python3"],
+    "react":               ["reactjs", "react.js"],
+    "react native":        ["reactnative"],
+    "postgresql":          ["postgres", "psql", "postgre"],
+    "mysql":               ["my sql"],
+    "mongodb":             ["mongo"],
+    "kubernetes":          ["k8s"],
+    "docker":              ["containerization", "containers"],
+    "amazon web services": ["aws"],
+    "google cloud":        ["gcp", "google cloud platform"],
+    "microsoft azure":     ["azure"],
+    "machine learning":    ["ml"],
+    "deep learning":       ["dl", "neural networks"],
+    "natural language processing": ["nlp"],
+    "ci/cd":               ["cicd", "continuous integration", "continuous deployment"],
+    "rest api":            ["restful", "rest apis", "restful api"],
+    "graphql":             ["graph ql"],
+    "c++":                 ["cpp", "cplusplus"],
+    "c#":                  ["csharp", "c sharp", "dotnet", ".net"],
+    "tailwind css":        ["tailwind", "tailwindcss"],
+    "github actions":      ["gh actions"],
+}
+
+
+def _normalize_text(text: str) -> str:
+    """Lowercase and collapse non-skill chars to spaces (keep + # . for c++, c#, .net)."""
+    return re.sub(r"[^a-z0-9+#.]+", " ", (text or "").lower())
+
+
+def _skill_present(skill: str, text_norm: str) -> bool:
+    """Word-boundary-aware presence check including known aliases."""
+    s = skill.lower().strip()
+    if not s:
+        return False
+    variants = [s] + _SKILL_ALIASES.get(s, [])
+    # also allow alias→canonical lookups (e.g. user passes "aws")
+    for canon, aliases in _SKILL_ALIASES.items():
+        if s in aliases and canon not in variants:
+            variants.append(canon)
+    for v in variants:
+        if re.search(rf"(?<![a-z0-9]){re.escape(v)}(?![a-z0-9])", text_norm):
+            return True
+    return False
+
+
+def _detect_years_experience(resume_text: str) -> int:
+    """Best-effort years-of-experience extraction from common phrasings."""
+    patterns = [
+        r"(\d+)\+?\s*years?\s*(?:of\s+)?(?:experience|exp)",
+        r"experience\s*(?:of\s+)?(\d+)\+?\s*years?",
+        r"(\d+)\+?\s*yrs?",
+    ]
+    best = 0
+    for p in patterns:
+        for m in re.finditer(p, resume_text or "", re.IGNORECASE):
+            best = max(best, int(m.group(1)))
+    return best
+
+
+def compute_skill_match(
+    resume_text: str,
+    required_skills: list[str],
+    nice_to_have: list[str] | None = None,
+) -> dict:
+    """
+    Deterministic resume↔requirement scoring. No LLM, no external API.
+    Required skills weighted 85%, nice-to-have 15%.
+    """
+    nice_to_have = nice_to_have or []
+    text_norm    = _normalize_text(resume_text)
+
+    matched_req  = [s for s in required_skills if _skill_present(s, text_norm)]
+    missing_req  = [s for s in required_skills if s not in matched_req]
+    matched_nice = [s for s in nice_to_have   if _skill_present(s, text_norm)]
+
+    req_pct  = round(len(matched_req) / len(required_skills) * 100) if required_skills else 100
+    nice_pct = round(len(matched_nice) / len(nice_to_have) * 100) if nice_to_have else 0
+    score    = round(req_pct * 0.85 + nice_pct * 0.15) if nice_to_have else req_pct
+
+    return {
+        "skills_match_score":    score,
+        "required_coverage_pct": req_pct,
+        "required_matched":      matched_req,
+        "required_missing":      missing_req,
+        "nice_matched":          matched_nice,
+        "detected_years":        _detect_years_experience(resume_text),
+        "method":                "deterministic",
+    }
+
+
 # ── Resume screening ──────────────────────────────────────────────────────────
 
 async def screen_resume(
@@ -48,9 +144,9 @@ async def screen_resume(
     required_skills = required_skills or []
     nice_to_have    = nice_to_have or []
 
-    # Quick regex checks for years of experience
-    exp_match = re.search(r'(\d+)\+?\s*years?\s*(?:of\s+)?experience', resume_text, re.IGNORECASE)
-    detected_years = int(exp_match.group(1)) if exp_match else 0
+    # Deterministic skill match FIRST — verifiable ground truth, independent of the LLM
+    det = compute_skill_match(resume_text, required_skills, nice_to_have)
+    detected_years = det["detected_years"]
 
     system = """You are an expert HR talent screener. Analyze the resume against the JD.
 Return JSON with this exact structure:
@@ -75,6 +171,12 @@ Return JSON with this exact structure:
         f"Required skills: {', '.join(required_skills)}\n"
         f"Nice-to-have: {', '.join(nice_to_have)}\n"
         f"Min years experience: {min_years_exp}\n\n"
+        # Verified deterministic findings — treat these as ground truth, do not contradict
+        f"VERIFIED skill scan (keyword-matched, authoritative):\n"
+        f"  - Required matched: {', '.join(det['required_matched']) or 'none'}\n"
+        f"  - Required missing: {', '.join(det['required_missing']) or 'none'}\n"
+        f"  - Deterministic skills_match: {det['skills_match_score']}\n"
+        f"  - Detected years: {detected_years}\n\n"
         f"Resume:\n{resume_text[:3000]}"
     )
 
@@ -100,13 +202,25 @@ Return JSON with this exact structure:
         result["meets_min_exp"]   = result["detected_years"] >= min_years_exp
         result["screened_at"]     = datetime.now(timezone.utc).isoformat()
         result["model"]           = f"ollama/{OLLAMA_MODEL}"
+        # Attach the verifiable deterministic breakdown alongside the LLM judgment
+        result["deterministic"]   = det
         return result
     except Exception as e:
-        logger.error("HR resume screening failed: %s", e)
+        logger.error("HR resume screening failed: %s — falling back to deterministic score", e)
+        # Graceful fallback: the deterministic engine still gives a real, usable result
         return {
-            "error":           "Resume screening temporarily unavailable.",
-            "overall_score":   0,
-            "recommendation":  "maybe",
+            "overall_score":            det["skills_match_score"],
+            "skills_match":             det["skills_match_score"],
+            "matched_required_skills":  det["required_matched"],
+            "missing_required_skills":  det["required_missing"],
+            "matched_nice_to_have":     det["nice_matched"],
+            "detected_years":           detected_years,
+            "meets_min_exp":            detected_years >= min_years_exp,
+            "recommendation":           "yes" if det["skills_match_score"] >= 70 else "maybe" if det["skills_match_score"] >= 45 else "no",
+            "summary":                  f"Deterministic screen: {det['required_coverage_pct']}% of required skills matched "
+                                        f"({len(det['required_matched'])}/{len(required_skills)}). LLM analysis unavailable.",
+            "deterministic":            det,
+            "model":                    "deterministic-fallback",
         }
 
 

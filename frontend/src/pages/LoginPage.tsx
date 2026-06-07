@@ -6,23 +6,33 @@ interface Props { onLogin: () => void }
 const API = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api')
 
 export default function LoginPage({ onLogin }: Props) {
+  const [mode,     setMode]     = useState<'login' | 'signup'>('login')
   const [email,    setEmail]    = useState('admin@agentic.local')
+  const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
   const [loading,  setLoading]  = useState(false)
+
+  const isSignup = mode === 'signup'
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(''); setLoading(true)
     try {
-      const res = await fetch(`${API}/auth/login`, {
+      const path = isSignup ? '/auth/signup' : '/auth/login'
+      const body = isSignup
+        ? { email, password, full_name: fullName }
+        : { email, password }
+      const res = await fetch(`${API}${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || data.message || 'Login failed')
+      if (!res.ok) throw new Error(data.detail || data.message || `${isSignup ? 'Signup' : 'Login'} failed`)
       sessionStorage.setItem('aaa_token', data.access_token)
+      // Cache profile so the app can gate tools immediately (App also re-fetches /auth/me)
+      if (data.profile) sessionStorage.setItem('aaa_profile', JSON.stringify(data.profile))
       onLogin()
     } catch (err: any) {
       setError(err.message || 'Connection error')
@@ -54,7 +64,9 @@ export default function LoginPage({ onLogin }: Props) {
           background: '#161b27', border: '1px solid #1e2535',
           borderRadius: 16, padding: 32,
         }}>
-          <h2 style={{ color: '#e2e8f0', fontSize: 17, fontWeight: 600, margin: '0 0 24px' }}>Sign in to your workspace</h2>
+          <h2 style={{ color: '#e2e8f0', fontSize: 17, fontWeight: 600, margin: '0 0 24px' }}>
+            {isSignup ? 'Create your account' : 'Sign in to your workspace'}
+          </h2>
 
           <form onSubmit={handleSubmit}>
             <label style={{ display: 'block', marginBottom: 16 }}>
@@ -70,11 +82,27 @@ export default function LoginPage({ onLogin }: Props) {
               />
             </label>
 
+            {isSignup && (
+              <label style={{ display: 'block', marginBottom: 16 }}>
+                <span style={{ color: '#9ca3af', fontSize: 12, fontWeight: 500 }}>Full name</span>
+                <input
+                  type="text" value={fullName} onChange={e => setFullName(e.target.value)}
+                  placeholder="e.g. Acme Corp"
+                  style={{
+                    display: 'block', width: '100%', marginTop: 6, padding: '10px 12px',
+                    background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8,
+                    color: '#e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </label>
+            )}
+
             <label style={{ display: 'block', marginBottom: 20 }}>
               <span style={{ color: '#9ca3af', fontSize: 12, fontWeight: 500 }}>Password</span>
               <input
                 type="password" value={password} onChange={e => setPassword(e.target.value)}
-                required placeholder="Enter password"
+                required placeholder={isSignup ? 'Min 8 characters' : 'Enter password'}
+                minLength={isSignup ? 8 : undefined}
                 style={{
                   display: 'block', width: '100%', marginTop: 6, padding: '10px 12px',
                   background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8,
@@ -95,19 +123,33 @@ export default function LoginPage({ onLogin }: Props) {
               background: loading ? '#4338ca' : 'linear-gradient(90deg, #6366f1, #8b5cf6)',
               color: '#fff', fontSize: 14, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
             }}>
-              {loading ? 'Signing in…' : 'Sign In →'}
+              {loading ? (isSignup ? 'Creating…' : 'Signing in…') : (isSignup ? 'Create Account →' : 'Sign In →')}
             </button>
           </form>
 
-          {/* Demo credentials hint */}
-          <div style={{
-            marginTop: 20, padding: '12px 14px', background: '#0f1117',
-            borderRadius: 8, border: '1px solid #1e2535',
-          }}>
-            <div style={{ color: '#6b7280', fontSize: 11, fontWeight: 600, marginBottom: 6 }}>DEMO CREDENTIALS</div>
-            <div style={{ color: '#9ca3af', fontSize: 12 }}>Email: <code style={{ color: '#a5b4fc' }}>admin@agentic.local</code></div>
-            <div style={{ color: '#9ca3af', fontSize: 12 }}>Password: <code style={{ color: '#a5b4fc' }}>admin123</code></div>
+          {/* Mode toggle */}
+          <div style={{ textAlign: 'center', marginTop: 18, fontSize: 13, color: '#6b7280' }}>
+            {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              type="button"
+              onClick={() => { setMode(isSignup ? 'login' : 'signup'); setError('') }}
+              style={{ background: 'none', border: 'none', color: '#a5b4fc', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+            >
+              {isSignup ? 'Sign in' : 'Sign up free'}
+            </button>
           </div>
+
+          {/* Demo credentials hint */}
+          {!isSignup && (
+            <div style={{
+              marginTop: 18, padding: '12px 14px', background: '#0f1117',
+              borderRadius: 8, border: '1px solid #1e2535',
+            }}>
+              <div style={{ color: '#6b7280', fontSize: 11, fontWeight: 600, marginBottom: 6 }}>DEMO CREDENTIALS</div>
+              <div style={{ color: '#9ca3af', fontSize: 12 }}>Admin: <code style={{ color: '#a5b4fc' }}>admin@agentic.local</code> / <code style={{ color: '#a5b4fc' }}>admin123</code></div>
+              <div style={{ color: '#9ca3af', fontSize: 12 }}>Client: <code style={{ color: '#a5b4fc' }}>demo@agentic.local</code> / <code style={{ color: '#a5b4fc' }}>demo123</code></div>
+            </div>
+          )}
         </div>
 
         <p style={{ textAlign: 'center', color: '#374151', fontSize: 11, marginTop: 20 }}>

@@ -8,7 +8,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, R
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from backend.api.auth    import verify_token, limiter, create_access_token  # FIXED: from api.auth → from backend.api.auth
+from backend.api.auth    import verify_token, limiter, create_access_token, verify_password, hash_password  # FIXED: from api.auth → from backend.api.auth
 from backend.api.schema import (  # FIXED: from api.schema → from backend.api.schema
     HealthResponse, IngestResponse, HistoryResponse, MessageRecord,
     RAGStatsResponse, FeedbackRequest, FeedbackResponse, IngestURLRequest,
@@ -81,32 +81,79 @@ class LoginRequest(BaseModel):
     password: str
 
 
-# Demo users — in production replace with DB lookup + bcrypt verify
-_DEMO_USERS = {
-    "admin@agentic.local": {"password": "admin123",  "role": "admin",  "plan": "enterprise"},
-    "demo@agentic.local":  {"password": "demo123",   "role": "viewer", "plan": "free"},
-}
+# Demo users with bcrypt-hashed passwords — hashed at startup, not hardcoded plaintext
+def _build_demo_users() -> dict:
+    return {
+        "admin@agentic.local": {
+            "password_hash": hash_password("admin123"),
+            "role": "admin",
+            "plan": "enterprise",
+        },
+        "demo@agentic.local": {
+            "password_hash": hash_password("demo123"),
+            "role": "viewer",
+            "plan": "free",
+        },
+    }
+
+_DEMO_USERS = _build_demo_users()
 
 
 @router.post("/auth/login")
 async def login(body: LoginRequest):
     """
-    JSON login endpoint — works in all environments.
+    JSON login endpoint — works in all environments. Validates against the
+    file-backed user store (seeded with the demo accounts below).
     Demo credentials: admin@agentic.local / admin123
     """
-    from backend.api.auth import UserRole
-    user = _DEMO_USERS.get(body.email.lower().strip())
-    if not user or user["password"] != body.password:
+    from backend.api.auth      import UserRole
+    from backend.auth          import user_store
+
+    rec = user_store.authenticate(body.email, body.password)
+    if not rec:
         raise HTTPException(401, "Invalid email or password")
-    role_map  = {"admin": UserRole.ADMIN, "viewer": UserRole.VIEWER, "editor": UserRole.ADMIN}
-    plan_map  = {"enterprise": PlanTier.ENTERPRISE, "pro": PlanTier.PRO, "free": PlanTier.FREE}
+
+    role_map = {"admin": UserRole.ADMIN, "viewer": UserRole.VIEWER, "user": UserRole.USER}
+    plan_map = {"enterprise": PlanTier.ENTERPRISE, "pro": PlanTier.PRO, "free": PlanTier.FREE}
     token_resp = create_access_token(
-        user_id        = body.email,
-        email          = body.email,
+        user_id        = rec["email"],
+        email          = rec["email"],
         workspace_id   = "ws-default",
         workspace_slug = "default",
-        role           = role_map.get(user["role"], UserRole.VIEWER),
-        plan_tier      = plan_map.get(user["plan"], PlanTier.FREE),
+        role           = role_map.get(rec["role"], UserRole.USER),
+        plan_tier      = plan_map.get(rec["plan_tier"], PlanTier.FREE),
+    )
+    return {
+        "access_token": token_resp.access_token,
+        "token_type":   "bearer",
+        "expires_in":   86400,
+        "profile":      user_store._public(rec),  # noqa: SLF001
+    }
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+@router.post("/auth/refresh")
+async def refresh_token_endpoint(body: RefreshRequest):
+    """Re-issue an access token from a valid (non-expired) JWT."""
+    from backend.api.auth import decode_token, UserRole
+    try:
+        payload = decode_token(body.refresh_token)
+    except Exception:
+        raise HTTPException(401, "Invalid or expired refresh token")
+
+    role_map = {"admin": UserRole.ADMIN, "viewer": UserRole.VIEWER, "user": UserRole.USER}
+    plan_map = {"enterprise": PlanTier.ENTERPRISE, "pro": PlanTier.PRO, "free": PlanTier.FREE}
+
+    token_resp = create_access_token(
+        user_id        = payload["sub"],
+        email          = payload["email"],
+        workspace_id   = payload.get("workspace_id", "ws-default"),
+        workspace_slug = payload.get("workspace_slug", "default"),
+        role           = role_map.get(payload.get("role", "viewer"), UserRole.VIEWER),
+        plan_tier      = plan_map.get(payload.get("plan_tier", "free"), PlanTier.FREE),
     )
     return {"access_token": token_resp.access_token, "token_type": "bearer", "expires_in": 86400}
 

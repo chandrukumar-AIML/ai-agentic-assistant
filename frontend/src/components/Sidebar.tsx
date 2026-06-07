@@ -1,5 +1,6 @@
 // frontend/src/components/Sidebar.tsx
 import { PageId } from '../App'
+import { UserProfile } from '../lib/api'
 import NotificationBell from './NotificationBell'
 
 interface NavItem {
@@ -8,6 +9,7 @@ interface NavItem {
   icon: string
   badge?: string
   group?: string
+  adminOnly?: boolean
 }
 
 const NAV: NavItem[] = [
@@ -30,9 +32,20 @@ const NAV: NavItem[] = [
   { id: 'social',       label: 'Social Media',     icon: '📱', badge: 'F19', group: 'Verticals' },
   { id: 'analyst',      label: 'Data Analyst',     icon: '📊', badge: 'V1',  group: 'Verticals' },
   { id: 'devops',       label: 'DevOps Engineer',  icon: '⚙️', badge: 'V2',  group: 'Verticals' },
+  { id: 'qa',           label: 'QA Engineer',      icon: '🧪', badge: 'V3',  group: 'Verticals' },
+  { id: 'project',      label: 'Project Manager',  icon: '📋', badge: 'V4',  group: 'Verticals' },
+  { id: 'code',         label: 'Code Assistant',   icon: '💻', badge: 'V5',  group: 'Verticals' },
+  { id: 'ml',           label: 'ML Engineer',      icon: '🤖', badge: 'V6',  group: 'Verticals' },
+  { id: 'dba',          label: 'DBA',              icon: '🗄️', badge: 'V7',  group: 'Verticals' },
+  { id: 'techlead',     label: 'Tech Lead',        icon: '🏗️', badge: 'V8',  group: 'Verticals' },
+  { id: 'healthcare',   label: 'Healthcare',       icon: '🏥', badge: 'V9',  group: 'Verticals' },
+  { id: 'realestate',   label: 'Real Estate',      icon: '🏘️', badge: 'V10', group: 'Verticals' },
+  { id: 'edtech',       label: 'EdTech',           icon: '📚', badge: 'V11', group: 'Verticals' },
   { id: 'billing',        label: 'Billing & Plans',  icon: '💳', badge: 'F8',  group: 'Settings' },
   { id: 'knowledge-base', label: 'Knowledge Base',   icon: '🧠', badge: 'RAG', group: 'Settings' },
-  { id: 'webhooks',       label: 'Webhooks',         icon: '🔌', badge: 'NEW', group: 'Settings' },
+  { id: 'integrations',   label: 'Integrations',     icon: '🔌', badge: 'LIVE', group: 'Settings' },
+  { id: 'webhooks',       label: 'Webhooks',         icon: '🪝', badge: 'NEW', group: 'Settings' },
+  { id: 'admin',          label: 'Admin Panel',      icon: '🛡️', badge: 'ADM', group: 'Settings', adminOnly: true },
   { id: 'settings',       label: 'Settings',         icon: '⚙️',              group: 'Settings' },
 ]
 
@@ -41,10 +54,24 @@ interface Props {
   onNavigate: (id: PageId) => void
   collapsed: boolean
   onToggle: () => void
+  isAdmin?: boolean
+  allowedTools?: string[]
+  alwaysAllowed?: PageId[]
+  profile?: UserProfile | null
+  onLogout?: () => void
 }
 
-export default function Sidebar({ current, onNavigate, collapsed, onToggle }: Props) {
-  const groups = Array.from(new Set(NAV.map(n => n.group)))
+export default function Sidebar({
+  current, onNavigate, collapsed, onToggle,
+  isAdmin = false, allowedTools = [], alwaysAllowed = [], profile = null, onLogout,
+}: Props) {
+  const canSee = (item: NavItem): boolean => {
+    if (item.adminOnly) return isAdmin
+    if (isAdmin) return true
+    return alwaysAllowed.includes(item.id) || allowedTools.includes(item.id)
+  }
+  const visible = NAV.filter(canSee)
+  const groups  = Array.from(new Set(visible.map(n => n.group)))
 
   return (
     <aside style={{
@@ -76,7 +103,7 @@ export default function Sidebar({ current, onNavigate, collapsed, onToggle }: Pr
             </div>
             <div>
               <div style={{ color: '#fff', fontSize: 12, fontWeight: 600, lineHeight: 1.2 }}>AI Agentic</div>
-              <div style={{ color: '#6366f1', fontSize: 10 }}>v2.0 • 24 Features</div>
+              <div style={{ color: '#6366f1', fontSize: 10 }}>v2.0 • 27 Features</div>
             </div>
           </div>
         )}
@@ -109,7 +136,7 @@ export default function Sidebar({ current, onNavigate, collapsed, onToggle }: Pr
                 color: '#374151', textTransform: 'uppercase',
               }}>{group}</div>
             )}
-            {NAV.filter(n => n.group === group).map(item => {
+            {visible.filter(n => n.group === group).map(item => {
               const active = current === item.id
               return (
                 <button key={item.id} onClick={() => onNavigate(item.id)} style={{
@@ -146,15 +173,32 @@ export default function Sidebar({ current, onNavigate, collapsed, onToggle }: Pr
 
       {/* Footer */}
       {!collapsed && (
-        <div style={{
-          padding: '10px 14px', borderTop: '1px solid #1e2535',
-          fontSize: 10, color: '#374151',
-        }}>
+        <div style={{ padding: '10px 14px', borderTop: '1px solid #1e2535', fontSize: 10, color: '#374151' }}>
+          {profile && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {profile.full_name || profile.email}
+                </span>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
+                  background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', textTransform: 'uppercase',
+                }}>{profile.plan_tier}</span>
+              </div>
+              <div style={{ color: '#6b7280', fontSize: 10, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.email}</div>
+              {onLogout && (
+                <button onClick={onLogout} style={{
+                  marginTop: 6, width: '100%', padding: '5px 0', borderRadius: 6, cursor: 'pointer',
+                  background: '#1e2535', border: '1px solid #374151', color: '#9ca3af', fontSize: 11,
+                }}>Sign out</button>
+              )}
+            </div>
+          )}
           <div style={{ color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
             Backend: port 8000
           </div>
-          <div style={{ color: '#6b7280' }}>Ollama: llama3 active</div>
+          <div style={{ color: '#6b7280' }}>Ollama: llama3.2 active</div>
         </div>
       )}
     </aside>

@@ -24,6 +24,7 @@ from backend.api.commerce_routes     import router as commerce_router
 from backend.api.vertical_routes     import router as vertical_router
 from backend.api.ab_routes           import router as ab_router
 from backend.api.webhook_routes      import router as webhook_router
+from backend.api.client_routes       import router as client_router
 from backend.api.websocket       import websocket_endpoint
 from backend.mcp.server          import router as mcp_router
 from backend.observability.langsmith_tracer import configure_tracing
@@ -266,6 +267,7 @@ app.include_router(commerce_router,    prefix="/api")
 app.include_router(vertical_router,    prefix="/api")
 app.include_router(ab_router,          prefix="/api")
 app.include_router(webhook_router,     prefix="/api")
+app.include_router(client_router,      prefix="/api")
 app.include_router(well_known_router)   # /.well-known/agent.json (no prefix)
 app.include_router(mcp_router)
 

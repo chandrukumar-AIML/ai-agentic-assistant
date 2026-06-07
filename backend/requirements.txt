@@ -89,6 +89,7 @@ numpy==1.26.4
 
 # Phase H: Auth + RBAC
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1   # pin: passlib 1.7.4 self-test breaks on bcrypt>=4.1 (ValueError 72-byte)
 # python-jose already listed above (line 55) — duplicate removed
 
 # ── Phase N: Guardian Agent (Compliance) ─────────────────────────────────────

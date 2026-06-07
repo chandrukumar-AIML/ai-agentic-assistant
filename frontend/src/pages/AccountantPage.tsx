@@ -1,7 +1,9 @@
 // frontend/src/pages/AccountantPage.tsx — Feature 17
 import { useState } from 'react'
 import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead } from '../components/ui'
-import { calcGST, calcTDS, accountantQuery } from '../lib/api'
+import { calcGST, calcTDS, accountantQuery, acctEnhance } from '../lib/api'
+
+const BUSINESS_TYPES = ['SaaS','E-commerce','Manufacturing','Services','Consulting','Retail','Healthcare','Education','Logistics']
 
 export default function AccountantPage() {
   const [tab, setTab]           = useState('gst')
@@ -17,13 +19,30 @@ export default function AccountantPage() {
   const tdsApi  = useApi()
   const qApi    = useApi()
 
+  // P&L Analysis tab
+  const [plBusiness, setPlBiz]    = useState('SaaS')
+  const [plPeriod, setPlPeriod]   = useState('FY 2025 (Apr 2024 – Mar 2025)')
+  const [plRevenue, setPlRev]     = useState('MRR: ₹42L/month\nARR: ₹5.04Cr\nGrowth: +35% YoY\nTop products: AI Platform (60%), API (25%), Consulting (15%)')
+  const [plExpenses, setPlExp]    = useState('Engineering: ₹1.2Cr\nSales & Marketing: ₹80L\nCloud infra (AWS): ₹35L\nOffice & admin: ₹25L\nR&D: ₹40L\nTotal: ₹2.8Cr')
+  const plApi = useApi()
+
+  // Budget Forecast tab
+  const [budgetDept, setBudgetDept]     = useState('Engineering')
+  const [budgetPeriod, setBudgetPeriod] = useState('FY 2026 (Apr 2025 – Mar 2026)')
+  const [budgetSpend, setBudgetSpend]   = useState('FY2025 actual: ₹1.2Cr\nHeadcount: 12 engineers (8 senior, 4 junior)\nTools & licences: ₹18L\nCloud infra: ₹35L\nTraining: ₹5L')
+  const [budgetGoals, setBudgetGoals]   = useState('Hire 4 more engineers (2 senior, 2 junior)\nLaunch mobile app by Q2\nAchieve SOC2 certification by Q3\nReduce cloud cost by 15%')
+  const [budgetGrowth, setBudgetGrowth] = useState('25%')
+  const budgetApi = useApi()
+
   return (
-    <PageShell icon="🧮" title="AI Accountant Assistant" subtitle="Feature 17 — GST/TDS calc, GSTR-1/3B export, India-specific tax rules">
+    <PageShell icon="🧮" title="AI Accountant Assistant" subtitle="Feature 17 — GST/TDS calc, GSTR-1/3B, P&L analysis, Budget forecasting">
       <Tabs
         tabs={[
-          { id: 'gst',   label: 'GST Calculator', icon: '💰' },
-          { id: 'tds',   label: 'TDS Calculator',  icon: '📋' },
-          { id: 'query', label: 'Tax Query',        icon: '🤖' },
+          { id: 'gst',    label: 'GST Calculator', icon: '💰' },
+          { id: 'tds',    label: 'TDS Calculator',  icon: '📋' },
+          { id: 'query',  label: 'Tax Query',        icon: '🤖' },
+          { id: 'pl',     label: 'P&L Analysis',    icon: '📊' },
+          { id: 'budget', label: 'Budget Forecast',  icon: '📈' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -135,6 +154,75 @@ export default function AccountantPage() {
             <Btn onClick={() => qApi.call(() => accountantQuery(query))} loading={qApi.loading}>🧮 Ask AI Accountant</Btn>
           </Card>
           <ResultBox data={qApi.data} loading={qApi.loading} error={qApi.error} title="Tax Advisory" />
+        </TwoCol>
+      )}
+
+      {/* ── P&L Analysis ── */}
+      {tab === 'pl' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="P&L Analysis" sub="Revenue + expenses → profitability insights, ratios, recommendations" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Select label="Business Type" value={plBusiness} onChange={setPlBiz}
+                options={BUSINESS_TYPES.map(b => ({ label: b, value: b }))} />
+              <Input label="Period" value={plPeriod} onChange={setPlPeriod} />
+            </div>
+            <Input label="Revenue Data" value={plRevenue} onChange={setPlRev} rows={4} />
+            <Input label="Expense Data" value={plExpenses} onChange={setPlExp} rows={5} />
+            <Btn
+              onClick={() => plApi.call(() => acctEnhance('pl_analysis', {
+                business_type: plBusiness,
+                period:        plPeriod,
+                revenue_data:  plRevenue,
+                expense_data:  plExpenses,
+              }))}
+              loading={plApi.loading}
+            >
+              📊 Analyse P&L
+            </Btn>
+          </Card>
+          <div>
+            <Card style={{ marginBottom: 12 }}>
+              <SectionHead title="Analysis Includes" sub="" />
+              {['Executive summary','Gross margin & EBITDA','Expense breakdown by category','Key financial ratios','YoY comparison','Industry benchmark comparison','3 improvement recommendations'].map(i => (
+                <div key={i} style={{ display: 'flex', gap: 8, padding: '4px 0', borderBottom: '1px solid #1e2535' }}>
+                  <span style={{ color: '#22c55e', fontSize: 12 }}>✓</span>
+                  <span style={{ color: '#9ca3af', fontSize: 12 }}>{i}</span>
+                </div>
+              ))}
+            </Card>
+            <ResultBox data={plApi.data ? { analysis: (plApi.data as any).result } : null} loading={plApi.loading} error={plApi.error} title="P&L Analysis Report" />
+          </div>
+        </TwoCol>
+      )}
+
+      {/* ── Budget Forecast ── */}
+      {tab === 'budget' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Budget Forecasting" sub="Department budget with Bear/Base/Bull scenarios and ROI projections" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Select label="Department" value={budgetDept} onChange={setBudgetDept}
+                options={['Engineering','Product','Marketing','Sales','HR','Finance','Operations','R&D'].map(d => ({ label: d, value: d }))} />
+              <Input label="Growth Rate Assumption" value={budgetGrowth} onChange={setBudgetGrowth} />
+            </div>
+            <Input label="Forecast Period" value={budgetPeriod} onChange={setBudgetPeriod} />
+            <Input label="Current Spend Baseline" value={budgetSpend} onChange={setBudgetSpend} rows={4} />
+            <Input label="Strategic Goals" value={budgetGoals} onChange={setBudgetGoals} rows={4} />
+            <Btn
+              onClick={() => budgetApi.call(() => acctEnhance('budget_forecast', {
+                department:      budgetDept,
+                forecast_period: budgetPeriod,
+                current_spend:   budgetSpend,
+                goals:           budgetGoals,
+                growth_rate:     budgetGrowth,
+              }))}
+              loading={budgetApi.loading}
+            >
+              📈 Generate Budget Forecast
+            </Btn>
+          </Card>
+          <ResultBox data={budgetApi.data ? { forecast: (budgetApi.data as any).result } : null} loading={budgetApi.loading} error={budgetApi.error} title="Budget Forecast" />
         </TwoCol>
       )}
     </PageShell>

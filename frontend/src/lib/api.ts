@@ -136,6 +136,9 @@ export async function getUsageStats() { return apiFetch('/billing/usage') }
 export async function upgradePlan(plan: string) {
   return apiFetch('/billing/checkout/stripe', { method: 'POST', body: JSON.stringify({ plan_tier: plan, success_url: window.location.href, cancel_url: window.location.href }) })
 }
+export async function upgradePlanRazorpay(plan: string, phone = '') {
+  return apiFetch('/billing/checkout/razorpay', { method: 'POST', body: JSON.stringify({ plan_tier: plan, phone }) })
+}
 
 // ── Feature 9: AgriTech — all non-query are GET with query params ─────────────
 export async function agriQuery(query: string, language = 'en', district?: string, state = 'Tamil Nadu') {
@@ -386,6 +389,130 @@ export async function socialGenerateAll(topic: string, tone = 'professional', br
   const params = new URLSearchParams({ topic, tone, brand })
   return apiFetch(`/verticals/social/generate-all?${params}`, {}, 360_000)
 }
+
+// ── QA Engineer Vertical ──────────────────────────────────────────────────────
+export async function qaAction(action: string, payload: object) {
+  return apiFetch('/verticals/qa/action', {
+    method: 'POST',
+    body: JSON.stringify({ action, payload }),
+  }, 360_000)
+}
+
+// ── Project Manager Vertical ──────────────────────────────────────────────────
+export async function pmAction(action: string, payload: object) {
+  return apiFetch('/verticals/pm/action', {
+    method: 'POST',
+    body: JSON.stringify({ action, payload }),
+  }, 360_000)
+}
+
+// ── Code Assistant Vertical ───────────────────────────────────────────────────
+export async function codeAction(action: string, code: string, prompt: string, language = 'python') {
+  return apiFetch('/verticals/code/action', {
+    method: 'POST',
+    body: JSON.stringify({ action, code, prompt, language }),
+  }, 360_000)
+}
+
+// ── ML Engineer Vertical ──────────────────────────────────────────────────────
+export async function mlAction(action: string, payload: object) {
+  return apiFetch('/verticals/ml/action', {
+    method: 'POST',
+    body: JSON.stringify({ action, payload }),
+  }, 360_000)
+}
+
+// ── DBA Vertical ──────────────────────────────────────────────────────────────
+export async function dbaAction(action: string, payload: object) {
+  return apiFetch('/verticals/dba/action', {
+    method: 'POST',
+    body: JSON.stringify({ action, payload }),
+  }, 360_000)
+}
+
+// ── Tech Lead Vertical ────────────────────────────────────────────────────────
+export async function techLeadAction(action: string, payload: object) {
+  return apiFetch('/verticals/techlead/action', {
+    method: 'POST',
+    body: JSON.stringify({ action, payload }),
+  }, 360_000)
+}
+
+// ── Auth + Entitlements (Phase 1) ─────────────────────────────────────────────
+export interface UserProfile {
+  email: string
+  full_name: string
+  role: string            // 'admin' | 'user' | 'viewer'
+  plan_tier: string       // 'free' | 'pro' | 'enterprise'
+  allowed_tools: string[]
+  is_active: boolean
+  total_queries?: number
+  daily_query_count?: number
+}
+
+export async function login(email: string, password: string) {
+  return apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+}
+export async function signup(email: string, password: string, fullName = '') {
+  return apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, full_name: fullName }) })
+}
+export async function getMe(): Promise<{ profile: UserProfile; always_allowed: string[]; is_admin: boolean }> {
+  return apiFetch('/auth/me')
+}
+export async function getToolsCatalog(): Promise<{ catalog: { id: string; label: string; category: string }[]; always_allowed: string[] }> {
+  return apiFetch('/tools/catalog')
+}
+export interface Integration {
+  id: string; name: string; vertical: string; unlocks: string
+  configured: boolean; always_on: boolean; env_vars: string[]
+}
+export async function getIntegrationsStatus(): Promise<{ integrations: Integration[]; live: number; total: number }> {
+  return apiFetch('/integrations/status')
+}
+export async function listClients(): Promise<{ clients: UserProfile[]; total: number }> {
+  return apiFetch('/clients')
+}
+export async function setClientTools(email: string, tools: string[]) {
+  return apiFetch(`/clients/${encodeURIComponent(email)}/tools`, { method: 'POST', body: JSON.stringify({ tools }) })
+}
+export async function setClientPlan(email: string, planTier: string) {
+  return apiFetch(`/clients/${encodeURIComponent(email)}/plan`, { method: 'POST', body: JSON.stringify({ plan_tier: planTier }) })
+}
+export async function setClientActive(email: string, isActive: boolean) {
+  return apiFetch(`/clients/${encodeURIComponent(email)}/active`, { method: 'POST', body: JSON.stringify({ is_active: isActive }) })
+}
+
+// ── Auth: Refresh Token ───────────────────────────────────────────────────────
+export async function refreshToken(token: string) {
+  return apiFetch('/auth/refresh', {
+    method: 'POST',
+    body: JSON.stringify({ refresh_token: token }),
+  })
+}
+
+// ── Enhancement API helpers (new tabs across all verticals) ──────────────────
+const enhanceAction = (path: string, action: string, payload: object, lang = 'en') =>
+  apiFetch(path, { method: 'POST', body: JSON.stringify({ action, payload, language: lang }) }, 360_000)
+
+export const devopsIac     = (action: string, p: object) => enhanceAction('/verticals/devops/iac', action, p)
+export const cybersecOwasp = (action: string, p: object) => enhanceAction('/verticals/cybersec/owasp', action, p)
+export const salesEnhance  = (action: string, p: object) => enhanceAction('/verticals/sales/enhance', action, p)
+export const hrEnhance     = (action: string, p: object) => enhanceAction('/verticals/hr/enhance', action, p)
+export const acctEnhance   = (action: string, p: object) => enhanceAction('/verticals/accountant/enhance', action, p)
+export const legalEnhance  = (action: string, p: object) => enhanceAction('/verticals/legal/enhance', action, p)
+export const socialEnhance = (action: string, p: object) => enhanceAction('/verticals/social/enhance', action, p)
+export const rcptEnhance   = (action: string, p: object) => enhanceAction('/verticals/receptionist/enhance', action, p)
+export const analystEnhance= (action: string, p: object) => enhanceAction('/verticals/analyst/enhance', action, p)
+export const agriEnhance   = (action: string, p: object, lang = 'en') => enhanceAction('/verticals/agri/enhance', action, p, lang)
+export const tlEnhance     = (action: string, p: object) => enhanceAction('/verticals/techlead/enhance', action, p)
+
+// ── New Verticals: Healthcare, Real Estate, EdTech ───────────────────────────
+export const healthcareAction = (action: string, payload: object) =>
+  apiFetch('/verticals/healthcare/action', { method: 'POST', body: JSON.stringify({ action, payload }) }, 360_000)
+export const realestateAction = (action: string, payload: object) =>
+  apiFetch('/verticals/realestate/action', { method: 'POST', body: JSON.stringify({ action, payload }) }, 360_000)
+export const edtechAction = (action: string, payload: object) =>
+  apiFetch('/verticals/edtech/action', { method: 'POST', body: JSON.stringify({ action, payload }) }, 360_000)
 
 // ── Analyst Vertical — POST /vertical/analyst?query=... ───────────────────────
 export async function analystQuery(query: string, contextJson = '{}') {

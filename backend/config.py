@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -142,6 +142,15 @@ class Settings(BaseSettings):
     twitter_access_token_secret: Optional[str] = None
     linkedin_author_urn:         Optional[str] = None   # urn:li:person:xxxx
     buffer_access_token:         Optional[str] = None
+
+    @model_validator(mode="after")
+    def build_database_url(self) -> "Settings":
+        if not self.database_url:
+            self.database_url = (
+                f"postgresql://{self.postgres_user}:{self.postgres_password}"
+                f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            )
+        return self
 
     @field_validator("openai_api_key")
     @classmethod
