@@ -44,7 +44,7 @@ export default function KnowledgeBasePage() {
   }
 
   async function uploadFile(file: File) {
-    setStatus('uploading'); setMessage(`Ingesting ${file.name}…`)
+    setStatus('uploading'); setMessage(`Uploading ${file.name}…`)
     const form = new FormData()
     form.append('file', file)
     try {
@@ -113,7 +113,7 @@ export default function KnowledgeBasePage() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
         <button style={TAB_STYLE(tab === 'docs')}   onClick={() => setTab('docs')}>📑 Documents ({docs.length})</button>
-        <button style={TAB_STYLE(tab === 'upload')} onClick={() => setTab('upload')}>⬆️ Ingest New</button>
+        <button style={TAB_STYLE(tab === 'upload')} onClick={() => setTab('upload')}>⬆️ Upload New</button>
       </div>
 
       {/* Documents tab */}
@@ -125,7 +125,7 @@ export default function KnowledgeBasePage() {
               <div style={{ fontSize: 32, marginBottom: 12 }}>📂</div>
               <div>No documents ingested yet.</div>
               <div style={{ fontSize: 12, marginTop: 6 }}>Upload files or paste a URL to get started.</div>
-              <Btn variant="primary" style={{ marginTop: 16 }} onClick={() => setTab('upload')}>Ingest First Document →</Btn>
+              <Btn variant="primary" style={{ marginTop: 16 }} onClick={() => setTab('upload')}>Upload First Document →</Btn>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -155,7 +155,7 @@ export default function KnowledgeBasePage() {
           {docs.length > 0 && (
             <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
               <Btn variant="secondary" onClick={loadAll}>↻ Refresh</Btn>
-              <Btn variant="primary" onClick={() => setTab('upload')}>+ Ingest More</Btn>
+              <Btn variant="primary" onClick={() => setTab('upload')}>+ Upload More</Btn>
             </div>
           )}
         </Card>
@@ -202,7 +202,7 @@ export default function KnowledgeBasePage() {
                 }}
               />
               <Btn variant="primary" onClick={ingestUrl} disabled={status === 'uploading' || !url.trim()}>
-                {status === 'uploading' ? '…' : 'Ingest'}
+                {status === 'uploading' ? '…' : 'Upload'}
               </Btn>
             </div>
           </Card>
