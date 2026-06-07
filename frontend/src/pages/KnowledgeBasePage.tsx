@@ -87,7 +87,7 @@ export default function KnowledgeBasePage() {
   })
 
   return (
-    <PageShell icon="🧠" title="Knowledge Base" subtitle="RAG Document Management — Ingest, manage and search your documents">
+    <PageShell icon="🧠" title="Knowledge Base" subtitle="Upload, manage and search your documents">
 
       {/* Stats bar */}
       {stats && (
@@ -119,7 +119,7 @@ export default function KnowledgeBasePage() {
       {/* Documents tab */}
       {tab === 'docs' && (
         <Card>
-          <SectionHead title="Ingested Documents" sub="All documents currently in the vector store" />
+          <SectionHead title="Your Documents" sub="All documents available to search" />
           {docs.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#6b7280' }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>📂</div>
@@ -189,7 +189,7 @@ export default function KnowledgeBasePage() {
 
           {/* URL ingestion */}
           <Card>
-            <SectionHead title="Ingest from URL" sub="Scrape and ingest any webpage or article" />
+            <SectionHead title="Add from URL" sub="Add any webpage or article to your knowledge base" />
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 value={url} onChange={e => setUrl(e.target.value)}
