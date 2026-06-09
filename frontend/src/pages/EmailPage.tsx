@@ -1,6 +1,6 @@
 // frontend/src/pages/EmailPage.tsx — Feature 15
 import { useEffect, useState } from 'react'
-import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
+import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead } from '../components/ui'
 import { listEmails, draftEmail } from '../lib/api'
 
 export default function EmailPage() {

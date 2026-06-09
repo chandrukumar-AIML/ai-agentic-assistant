@@ -290,8 +290,8 @@ export default function TechLeadPage() {
               {[
                 { label: 'Vendor Scorecard', value: 'vendor_eval' },
                 { label: 'Build vs Buy', value: 'build_vs_buy' },
-              ].map(({ label, value }) => {
-                const currentAction = value === 'vendor_eval' ? 'vendor_eval' : 'build_vs_buy'
+              ].map(({ label: _label, value }) => {
+
                 return (
                   <div key={value} />
                 )

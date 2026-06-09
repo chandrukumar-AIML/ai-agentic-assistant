@@ -11,7 +11,6 @@ const pmAction = (action: string, payload: object) =>
 
 const PERSONAS   = ['user', 'admin', 'manager', 'developer', 'customer', 'analyst']
 const PRIORITIES = ['high', 'medium', 'low']
-const TECHNIQUES = ['planning_poker', 'pert', 't_shirt_sizing']
 
 export default function ProjectPage() {
   const [tab, setTab] = useState('stories')

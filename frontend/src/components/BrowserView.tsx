@@ -3,7 +3,7 @@
  * Displays browser screenshots streamed from the Playwright agent.
  * Shows as a side panel when the browser agent is active.
  */
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 
 interface Screenshot {
   data:        string   // base64 PNG
@@ -20,7 +20,7 @@ interface Props {
 export default function BrowserView({ screenshots, isActive, finalUrl }: Props) {
   const [currentIdx, setCurrentIdx] = useState(0)
   const [isExpanded, setIsExpanded] = useState(true)
-  const latestRef = useRef<HTMLDivElement>(null)
+
 
   // Auto-scroll to latest screenshot
   useEffect(() => {

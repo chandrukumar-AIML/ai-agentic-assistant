@@ -2,7 +2,7 @@
 import React, { useState, useRef, useCallback, KeyboardEvent, ChangeEvent } from 'react'
 import { UploadedImage } from '../types'
 import VoiceButton       from './VoiceButton'
-import { useVoice, VoiceState } from '../hooks/useVoice'
+import { useVoice } from '../hooks/useVoice'
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
@@ -35,7 +35,7 @@ export default function InputBar({
     audioLevel,
     startRecording,
     stopRecording,
-    enqueueAudioChunk,
+
     handleTranscript: handleVoiceTranscript,
     reset:       resetVoice,
   } = useVoice({

@@ -77,7 +77,7 @@ function MetricCard({
   )
 }
 
-function BudgetBar({ pct, alert }: { pct: number; alert: boolean }) {
+function BudgetBar({ pct, alert: _alert }: { pct: number; alert: boolean }) {
   const color = pct >= 1.0 ? '#dc2626' : pct >= 0.8 ? '#f59e0b' : '#22c55e'
   return (
     <div>

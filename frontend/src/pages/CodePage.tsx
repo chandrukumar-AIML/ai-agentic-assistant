@@ -1,6 +1,6 @@
 // frontend/src/pages/CodePage.tsx — Code Assistant Vertical
 import { useState } from 'react'
-import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
+import { PageShell, Card, Btn, Input, Select, ResultBox, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
 import { apiFetch } from '../lib/api'
 
 const codeAction = (action: string, code: string, prompt: string, language: string) =>

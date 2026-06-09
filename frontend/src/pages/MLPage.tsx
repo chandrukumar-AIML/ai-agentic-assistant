@@ -1,13 +1,12 @@
 // frontend/src/pages/MLPage.tsx — ML Engineer Vertical
 import { useState } from 'react'
-import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
+import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead } from '../components/ui'
 import { apiFetch } from '../lib/api'
 
 const mlAction = (action: string, payload: object) =>
   apiFetch('/verticals/ml/action', { method: 'POST', body: JSON.stringify({ action, payload }) }, 360_000)
 
 const TASK_TYPES  = ['classification', 'regression', 'clustering', 'nlp', 'computer_vision', 'time_series', 'ranking']
-const COMPUTE_OPT = ['GPU single', 'GPU multi', 'CPU only', 'TPU', 'A100 cluster']
 
 export default function MLPage() {
   const [tab, setTab] = useState('experiment')

@@ -16,7 +16,7 @@ const WORKER_COLORS: Record<string, { bg: string; text: string; icon: string }> 
   planning_agent: { bg: '#c4e8a0', text: '#2a5200', icon: '📋' },
 }
 
-export default function WorkerStatusBar({ workers, isStreaming, activeStep }: Props) {
+export default function WorkerStatusBar({ workers, isStreaming, activeStep: _activeStep }: Props) {
   if (workers.length === 0 && !isStreaming) return null
 
   return (

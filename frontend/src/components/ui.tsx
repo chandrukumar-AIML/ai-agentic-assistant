@@ -192,16 +192,16 @@ function Markdown({ text }: { text: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          table: ({ node, ...p }) => <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: 12.5 }} {...p} />,
-          th:    ({ node, ...p }) => <th style={{ border: '1px solid #1e3a5f', padding: '6px 10px', background: '#0d1b2e', color: '#93c5fd', textAlign: 'left' }} {...p} />,
-          td:    ({ node, ...p }) => <td style={{ border: '1px solid #1e3a5f', padding: '6px 10px', color: '#cbd5e1' }} {...p} />,
-          code:  ({ node, ...p }) => <code style={{ background: '#0d1b2e', padding: '1px 5px', borderRadius: 4, color: '#5eead4', fontSize: 12 }} {...p} />,
-          pre:   ({ node, ...p }) => <pre style={{ background: '#0d1b2e', padding: 12, borderRadius: 8, overflowX: 'auto', fontSize: 12 }} {...p} />,
-          a:     ({ node, ...p }) => <a style={{ color: '#5eead4' }} target="_blank" rel="noreferrer" {...p} />,
-          h1:    ({ node, ...p }) => <h3 style={{ color: '#e2e8f0', fontSize: 16, margin: '10px 0 6px' }} {...p} />,
-          h2:    ({ node, ...p }) => <h4 style={{ color: '#e2e8f0', fontSize: 14, margin: '10px 0 6px' }} {...p} />,
-          h3:    ({ node, ...p }) => <h5 style={{ color: '#e2e8f0', fontSize: 13, margin: '8px 0 4px' }} {...p} />,
-          strong:({ node, ...p }) => <strong style={{ color: '#fff' }} {...p} />,
+          table: ({ node: _node, ...p }) => <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: 12.5 }} {...p} />,
+          th:    ({ node: _node, ...p }) => <th style={{ border: '1px solid #1e3a5f', padding: '6px 10px', background: '#0d1b2e', color: '#93c5fd', textAlign: 'left' }} {...p} />,
+          td:    ({ node: _node, ...p }) => <td style={{ border: '1px solid #1e3a5f', padding: '6px 10px', color: '#cbd5e1' }} {...p} />,
+          code:  ({ node: _node, ...p }) => <code style={{ background: '#0d1b2e', padding: '1px 5px', borderRadius: 4, color: '#5eead4', fontSize: 12 }} {...p} />,
+          pre:   ({ node: _node, ...p }) => <pre style={{ background: '#0d1b2e', padding: 12, borderRadius: 8, overflowX: 'auto', fontSize: 12 }} {...p} />,
+          a:     ({ node: _node, ...p }) => <a style={{ color: '#5eead4' }} target="_blank" rel="noreferrer" {...p} />,
+          h1:    ({ node: _node, ...p }) => <h3 style={{ color: '#e2e8f0', fontSize: 16, margin: '10px 0 6px' }} {...p} />,
+          h2:    ({ node: _node, ...p }) => <h4 style={{ color: '#e2e8f0', fontSize: 14, margin: '10px 0 6px' }} {...p} />,
+          h3:    ({ node: _node, ...p }) => <h5 style={{ color: '#e2e8f0', fontSize: 13, margin: '8px 0 4px' }} {...p} />,
+          strong:({ node: _node, ...p }) => <strong style={{ color: '#fff' }} {...p} />,
         }}
       >{text}</ReactMarkdown>
     </div>

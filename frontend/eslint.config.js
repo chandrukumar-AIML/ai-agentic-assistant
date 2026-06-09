@@ -27,6 +27,8 @@ export default [
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'react-refresh/only-export-components': 'off',
+      // Advisory only — several effects are intentional mount-only data loads
+      'react-hooks/exhaustive-deps': 'off',
     },
   },
 ]

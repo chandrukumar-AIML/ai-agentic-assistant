@@ -49,7 +49,7 @@ registerProcessor('pcm-capture', PCMCapture)
 
 export function useVoice({
   onSendAudio,
-  onAudioChunk,
+  onAudioChunk: _onAudioChunk,
   onTranscript,
   onTTSDone,
   maxDurationMs = MAX_DURATION,

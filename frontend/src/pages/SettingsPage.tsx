@@ -43,7 +43,7 @@ export default function SettingsPage() {
     window.location.reload()
   }
 
-  const TAB = (id: typeof tab, label: string): React.CSSProperties => ({
+  const TAB = (id: typeof tab, _label: string): React.CSSProperties => ({
     padding: '7px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
     background: tab === id ? 'rgba(16,185,129,0.2)' : 'none',
     color: tab === id ? '#5eead4' : '#6b7280',

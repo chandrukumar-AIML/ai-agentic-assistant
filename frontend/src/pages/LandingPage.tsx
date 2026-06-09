@@ -198,6 +198,51 @@ export default function LandingPage({ onSignIn }: Props) {
             ⭐ View on GitHub
           </a>
         </div>
+
+        {/* Product preview — stylised in-app mock */}
+        <div style={{
+          maxWidth: 880, margin: '52px auto 0', borderRadius: 14, overflow: 'hidden',
+          border: '1px solid #1e2535', background: '#0b0e16',
+          boxShadow: '0 30px 80px rgba(16,185,129,0.18), 0 0 0 1px rgba(16,185,129,0.08)',
+        }}>
+          {/* browser chrome */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', background: '#11151f', borderBottom: '1px solid #1e2535' }}>
+            <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#ef4444' }} />
+            <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#f59e0b' }} />
+            <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#22c55e' }} />
+            <span style={{ marginLeft: 12, fontSize: 11, color: '#4b5563' }}>app.aiagentic — Dashboard</span>
+          </div>
+          <div style={{ display: 'flex', minHeight: 230, textAlign: 'left' }}>
+            {/* mini sidebar */}
+            <div style={{ width: 150, background: '#0f1117', borderRight: '1px solid #1e2535', padding: '14px 10px', display: 'none' }} className="aaa-mock-side">
+              {['Dashboard','AgriTech','Accountant','HR Assistant','Sales & CRM','Healthcare'].map((n, i) => (
+                <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6, marginBottom: 2, background: i === 0 ? 'rgba(16,185,129,0.15)' : 'transparent' }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: i === 0 ? '#10b981' : '#374151' }} />
+                  <span style={{ fontSize: 11, color: i === 0 ? '#5eead4' : '#9ca3af' }}>{n}</span>
+                </div>
+              ))}
+            </div>
+            {/* mini content */}
+            <div style={{ flex: 1, padding: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 2 }}>Your AI Tools</div>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 14 }}>Pick a tool to get started — every assistant is ready to use.</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+                {[
+                  { i: '🧮', n: 'Accountant', d: 'GST, TDS & invoices', c: '#10b981' },
+                  { i: '🌾', n: 'AgriTech', d: 'Mandi prices & advisory', c: '#84cc16' },
+                  { i: '👥', n: 'HR Assistant', d: 'Resume screening & JDs', c: '#a855f7' },
+                  { i: '📱', n: 'Social', d: 'Posts, SEO & campaigns', c: '#06b6d4' },
+                ].map(t => (
+                  <div key={t.n} style={{ background: '#161b27', border: '1px solid #1e2535', borderLeft: `3px solid ${t.c}`, borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 16, marginBottom: 4 }}>{t.i}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{t.n}</div>
+                    <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>{t.d}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* ── Stats ───────────────────────────────────────────────────── */}

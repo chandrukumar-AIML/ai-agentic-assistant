@@ -83,3 +83,8 @@ body {
 @media (max-width: 440px) {
   .aaa-statgrid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
 }
+
+/* Landing hero product-mock sidebar — show on wider screens only */
+@media (min-width: 640px) {
+  .aaa-mock-side { display: block !important; }
+}

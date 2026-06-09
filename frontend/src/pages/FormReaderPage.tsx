@@ -22,7 +22,7 @@ export default function FormReaderPage() {
     setImageFile(file)
     const reader = new FileReader()
     reader.onload = ev => {
-      const b64 = (ev.target?.result as string).split(',')[1]
+
       setPreview(ev.target?.result as string)
     }
     reader.readAsDataURL(file)

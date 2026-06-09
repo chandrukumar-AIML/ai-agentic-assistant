@@ -78,7 +78,7 @@ export default function MemoryPanel({ userId, isOpen, onClose }: Props) {
       })
       setMemories({ episodic: [], semantic: [], procedural: [] })
       setShowClear(false)
-    } catch (e) {
+    } catch {
       setError('Failed to clear memories')
     } finally {
       setLoading(false)

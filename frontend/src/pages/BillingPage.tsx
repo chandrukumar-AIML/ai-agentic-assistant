@@ -20,7 +20,7 @@ export default function BillingPage() {
   useEffect(() => {
     statusApi.call(() => getBillingStatus())
     usageApi.call(() => getUsageStats())
-  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])   
 
   const choose = async (planId: string) => {
     setMsg(''); setErr('')

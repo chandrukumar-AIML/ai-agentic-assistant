@@ -1,6 +1,6 @@
 // frontend/src/pages/CompliancePage.tsx — Feature 1: Guardian
 import { useState } from 'react'
-import { PageShell, Card, Btn, Input, ResultBox, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
+import { PageShell, Card, Btn, Input, ResultBox, useApi, SectionHead, Badge } from '../components/ui'
 import { checkCompliance } from '../lib/api'
 
 const SAMPLES = {

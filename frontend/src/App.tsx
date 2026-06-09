@@ -135,7 +135,7 @@ export default function App() {
   // Guard: if the active page is no longer permitted, fall back to dashboard
   useEffect(() => {
     if (authed && profile && page !== 'admin' && !canAccess(page)) setPage('dashboard')
-  }, [authed, profile, page])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authed, profile, page])   
 
   const handleLogout = () => {
     sessionStorage.removeItem('aaa_token')

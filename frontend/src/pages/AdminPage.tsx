@@ -33,7 +33,7 @@ export default function AdminPage() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [])   
 
   const selectClient = (c: UserProfile) => {
     setSelected(c.email)

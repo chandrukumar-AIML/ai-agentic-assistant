@@ -1,5 +1,5 @@
 // frontend/src/pages/ChatPage.tsx — Full chat with WebSocket
-import { useCallback, useState, useRef } from 'react'
+import { useCallback, useState } from 'react'
 import { useChatStore }        from '../store/chatStore'
 import { useWebSocket }        from '../hooks/useWebSocket'
 import { useSession }          from '../hooks/useSession'
@@ -7,7 +7,7 @@ import ChatWindow              from '../components/ChatWindow'
 import InputBar                from '../components/InputBar'
 import MemoryPanel             from '../components/MemoryPanel'
 import { UploadedImage }       from '../types'
-import { clearHistory, submitFeedback } from '../lib/api'
+import { clearHistory } from '../lib/api'
 
 const DEV_USER_ID = 'dev-user-001'
 
@@ -15,14 +15,14 @@ export default function ChatPage() {
   const sessionId     = useSession()
   const status        = useChatStore(s => s.status)
   const wsError       = useChatStore(s => s.wsError)
-  const messages      = useChatStore(s => s.messages)
+
   const addMessage    = useChatStore(s => s.addMessage)
   const clearMessages = useChatStore(s => s.clearMessages)
-  const branchFrom    = useChatStore(s => s.branchFrom)
+
 
   const [memoryOpen, setMemoryOpen] = useState(false)
   const [isVoiceMode, setIsVoiceMode] = useState(false)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+
   const { send, sendRaw } = useWebSocket(sessionId)
 
   const statusColor = {
