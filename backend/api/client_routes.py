@@ -17,7 +17,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
-from backend.api.auth   import decode_token, create_access_token
+from backend.api.auth   import decode_token, create_access_token, limiter
 from backend.auth.models import UserRole, PlanTier
 from backend.config     import get_settings
 from backend.auth       import user_store
@@ -92,7 +92,8 @@ class ActiveRequest(BaseModel):
 # ── auth: signup + me ──────────────────────────────────────────────────────────
 
 @router.post("/auth/signup", summary="Self-serve client signup")
-async def signup(body: SignupRequest):
+@limiter.limit("5/minute")
+async def signup(request: Request, body: SignupRequest):
     try:
         rec = user_store.create_user(
             email=body.email,

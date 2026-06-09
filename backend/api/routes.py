@@ -100,10 +100,12 @@ _DEMO_USERS = _build_demo_users()
 
 
 @router.post("/auth/login")
-async def login(body: LoginRequest):
+@limiter.limit("5/minute")
+async def login(request: Request, body: LoginRequest):
     """
     JSON login endpoint — works in all environments. Validates against the
     file-backed user store (seeded with the demo accounts below).
+    Rate-limited to 5/min per IP to blunt credential-stuffing / brute force.
     Demo credentials: admin@agentic.local / admin123
     """
     from backend.api.auth      import UserRole

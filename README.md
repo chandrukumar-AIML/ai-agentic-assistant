@@ -1,6 +1,15 @@
 # AI Agentic
 
-> A multi-tenant AI SaaS platform — 24+ ready-to-use AI assistants for finance, legal, HR, sales, healthcare, agriculture and more, with per-client access control, billing, and a zero-cost live demo mode. Built on LangGraph + FastAPI + React.
+## What is this?
+
+A small business in India needs AI for a dozen jobs — GST & invoicing, hiring, sales outreach, customer support, marketing, legal drafts — but buying a separate SaaS for each is expensive and fragmented, and most "AI tools" aren't built for Indian rules or languages.
+
+**AI Agentic puts 24+ business AI assistants behind one login.** An admin decides exactly which tools each client can use, on Free / Pro / Enterprise plans, billed in INR (UPI) or globally.
+
+- **Who it's for:** Indian SMBs, CA & legal firms, clinics, agencies, and consultants who want practical AI across finance, HR, sales, support and operations — without juggling ten subscriptions.
+- **Value in one line:** *One login, every business AI assistant your team needs — with per-client access and India-first localization (GST, Tamil/Hindi, UPI billing).*
+
+> Built on LangGraph + FastAPI + React. Try it instantly with **Demo Mode** (zero-cost sample output) — see [Demo](#-demo) below.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
