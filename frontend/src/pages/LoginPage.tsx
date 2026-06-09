@@ -10,10 +10,18 @@ export default function LoginPage({ onLogin }: Props) {
   const [email,    setEmail]    = useState('admin@agentic.local')
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
+  const [showPw,   setShowPw]   = useState(false)
   const [error,    setError]    = useState('')
   const [loading,  setLoading]  = useState(false)
 
   const isSignup = mode === 'signup'
+
+  // Password strength (signup only): 0–4
+  const pwScore = [/.{8,}/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(r => r.test(password)).length
+  const pwLabel = ['Too short', 'Weak', 'Fair', 'Good', 'Strong'][pwScore]
+  const pwColor = ['#ef4444', '#f59e0b', '#f59e0b', '#10b981', '#22c55e'][pwScore]
+  const emailValid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
+  const formValid = isSignup ? (emailValid && password.length >= 8) : (emailValid && password.length > 0)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -97,19 +105,45 @@ export default function LoginPage({ onLogin }: Props) {
               </label>
             )}
 
-            <label style={{ display: 'block', marginBottom: 20 }}>
-              <span style={{ color: '#9ca3af', fontSize: 12, fontWeight: 500 }}>Password</span>
-              <input
-                type="password" value={password} onChange={e => setPassword(e.target.value)}
-                required placeholder={isSignup ? 'Min 8 characters' : 'Enter password'}
-                minLength={isSignup ? 8 : undefined}
-                style={{
-                  display: 'block', width: '100%', marginTop: 6, padding: '10px 12px',
-                  background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8,
-                  color: '#e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box',
-                }}
-              />
+            <label style={{ display: 'block', marginBottom: isSignup ? 8 : 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ color: '#9ca3af', fontSize: 12, fontWeight: 500 }}>Password</span>
+                {!isSignup && (
+                  <span
+                    onClick={() => setError('No self-serve reset yet — contact your admin at admin@agentic.local')}
+                    style={{ color: '#5eead4', fontSize: 11, cursor: 'pointer' }}
+                  >Forgot password?</span>
+                )}
+              </div>
+              <div style={{ position: 'relative', marginTop: 6 }}>
+                <input
+                  type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                  required placeholder={isSignup ? 'Min 8 characters' : 'Enter password'}
+                  minLength={isSignup ? 8 : undefined}
+                  style={{
+                    display: 'block', width: '100%', padding: '10px 42px 10px 12px',
+                    background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8,
+                    color: '#e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+                <button type="button" onClick={() => setShowPw(s => !s)} aria-label={showPw ? 'Hide password' : 'Show password'}
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, padding: 4 }}>
+                  {showPw ? '🙈' : '👁️'}
+                </button>
+              </div>
             </label>
+
+            {/* Password strength (signup) */}
+            {isSignup && password.length > 0 && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                  {[0, 1, 2, 3].map(i => (
+                    <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < pwScore ? pwColor : '#1e2535' }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: 11, color: pwColor }}>{pwLabel}{pwScore < 4 ? ' — add uppercase, number & symbol' : ''}</span>
+              </div>
+            )}
 
             {error && (
               <div style={{
@@ -118,10 +152,11 @@ export default function LoginPage({ onLogin }: Props) {
               }}>⚠ {error}</div>
             )}
 
-            <button type="submit" disabled={loading} style={{
+            <button type="submit" disabled={loading || !formValid} style={{
               width: '100%', padding: '11px 0', borderRadius: 8, border: 'none',
-              background: loading ? '#047857' : 'linear-gradient(90deg, #10b981, #06b6d4)',
-              color: '#fff', fontSize: 14, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
+              background: (loading || !formValid) ? '#1e3a34' : 'linear-gradient(90deg, #10b981, #06b6d4)',
+              color: (loading || !formValid) ? '#6b7280' : '#fff', fontSize: 14, fontWeight: 600,
+              cursor: (loading || !formValid) ? 'not-allowed' : 'pointer',
             }}>
               {loading ? (isSignup ? 'Creating…' : 'Signing in…') : (isSignup ? 'Create Account →' : 'Sign In →')}
             </button>

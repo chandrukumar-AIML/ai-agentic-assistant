@@ -217,14 +217,35 @@ export default function LandingPage({ onSignIn }: Props) {
         ))}
       </section>
 
-      {/* ── Features Grid ───────────────────────────────────────────── */}
+      {/* ── How it works ────────────────────────────────────────────── */}
       <section style={{ padding: '64px 32px', maxWidth: 1100, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 32, fontWeight: 700, margin: '0 0 12px', color: '#fff' }}>How it works</h2>
+          <p style={{ color: '#6b7280', fontSize: 15, margin: 0 }}>Three steps. No setup, no installs.</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, marginTop: 36 }}>
+          {[
+            { icon: '🔑', title: '1 · Sign in', text: 'Log in with the demo account — or sign up free in seconds. No card, no API key.' },
+            { icon: '🧰', title: '2 · Pick a tool', text: 'Choose from 24+ AI assistants — GST, hiring, sales, support, marketing and more.' },
+            { icon: '⚡', title: '3 · Get your result', text: 'Fill a short form and get a polished, ready-to-use answer in seconds.' },
+          ].map(s => (
+            <div key={s.title} style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: '24px 22px', textAlign: 'center' }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>{s.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0', marginBottom: 8 }}>{s.title}</div>
+              <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6 }}>{s.text}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Features Grid ───────────────────────────────────────────── */}
+      <section style={{ padding: '0 32px 64px', maxWidth: 1100, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <h2 style={{ fontSize: 32, fontWeight: 700, margin: '0 0 12px', color: '#fff' }}>
-            Every Feature, Fully Integrated
+            What you get
           </h2>
           <p style={{ color: '#6b7280', fontSize: 15, margin: 0 }}>
-            Not a demo — a real platform with backend, frontend, tests, and deploy config.
+            Ready-to-use AI for your whole business — private, multilingual, no setup.
           </p>
         </div>
 
@@ -393,7 +414,7 @@ AI Agentic · Built with FastAPI + React · © 2026
         <div style={{ display: 'flex', gap: 20 }}>
           {[
             { label: 'GitHub', href: 'https://github.com/chandrukumar-AIML/ai-agentic-assistant' },
-            { label: 'API Docs', href: 'http://localhost:8000/docs' },
+            { label: 'API Docs', href: 'https://ai-agentic-backend-ywdx.onrender.com/docs' },
             { label: 'Sign In', href: '#', onClick: onSignIn },
           ].map(l => (
             <a key={l.label}
