@@ -1,6 +1,6 @@
 // frontend/src/pages/ReceptionistPage.tsx — Feature 13
 import { useState } from 'react'
-import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
+import { PageShell, Card, Btn, Input, ResultBox, Tabs, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
 import { receptionistQuery, rcptEnhance } from '../lib/api'
 
 export default function ReceptionistPage() {
@@ -8,7 +8,7 @@ export default function ReceptionistPage() {
 
   // Chat tab
   const [message, setMessage]     = useState('I would like to schedule an appointment with Dr. Sharma for next Monday')
-  const [sessionId, setSessionId] = useState('demo-session-001')
+  const [sessionId] = useState('demo-session-001')
   const [chat, setChat]           = useState<Array<{role:string;content:string}>>([])
   const [sending, setSending]     = useState(false)
 

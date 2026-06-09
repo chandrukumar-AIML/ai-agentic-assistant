@@ -1,6 +1,6 @@
 // frontend/src/pages/QAPage.tsx — QA Engineer Vertical
 import { useState } from 'react'
-import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
+import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead } from '../components/ui'
 import { apiFetch } from '../lib/api'
 
 const qaAction = (action: string, payload: object) =>
@@ -11,7 +11,6 @@ const qaAction = (action: string, payload: object) =>
 
 const TEST_TYPES = ['unit', 'integration', 'e2e', 'performance', 'security']
 const FRAMEWORKS = ['pytest', 'jest', 'junit', 'mocha', 'cypress', 'playwright']
-const SEVERITIES  = ['Critical', 'Major', 'Minor', 'Trivial']
 
 export default function QAPage() {
   const [tab, setTab] = useState('tests')

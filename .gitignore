@@ -46,6 +46,15 @@ faiss_index/
 mlflow_runs/
 mlruns/
 
+# ML model artifacts — large binaries, never commit
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.h5
+*.joblib
+models/
+
 # Node
 node_modules/
 frontend/dist/
@@ -63,6 +72,7 @@ frontend/.env.*
 *.swp
 *.swo
 .DS_Store
+Thumbs.db
 
 # Railway
 .railway/
