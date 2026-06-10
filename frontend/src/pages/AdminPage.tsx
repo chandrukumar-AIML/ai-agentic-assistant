@@ -82,7 +82,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, alignItems: 'start' }}>
+      <div className="aaa-admin-grid" style={{ gap: 16 }}>
         {/* Client list */}
         <Card>
           <SectionHead title={`Clients (${clients.length})`} sub="Select a client to manage" />

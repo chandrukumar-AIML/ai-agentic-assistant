@@ -88,3 +88,9 @@ body {
 @media (min-width: 640px) {
   .aaa-mock-side { display: block !important; }
 }
+
+/* Admin master-detail grid — stacks on mobile (fixed 320px col would clip) */
+.aaa-admin-grid { display: grid; grid-template-columns: 320px 1fr; align-items: start; }
+@media (max-width: 860px) {
+  .aaa-admin-grid { grid-template-columns: 1fr !important; }
+}
