@@ -331,6 +331,7 @@ export default function SocialPage() {
             {contentApi.data && !contentApi.loading && (() => {
               const post = contentApi.data.posts?.[platform] || contentApi.data
               const postText = post.post_text || post.content || ''
+              const postError = post.error || contentApi.data.error || ''
               const hashtags: string[] = post.hashtags || []
               return (
                 <Card style={{ marginBottom: 12 }}>
@@ -338,6 +339,11 @@ export default function SocialPage() {
                     <Badge text={platform.toUpperCase()} color="blue" />
                     <Badge text={tone} color="purple" />
                   </div>
+                  {postError && (
+                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: 12, marginBottom: 10, color: '#f87171', fontSize: 13 }}>
+                      ⚠️ {postError}
+                    </div>
+                  )}
                   {postText && (
                     <div style={{ background: '#0f1117', borderRadius: 8, padding: 16, marginBottom: 10 }}>
                       <div style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{postText}</div>

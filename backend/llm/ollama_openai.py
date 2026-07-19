@@ -100,7 +100,7 @@ async def ollama_chat_completion(
         return resp.choices[0].message.content or ""
     except Exception as e:
         logger.error("Ollama completion failed (model=%s): %s", model, e)
-        return ""
+        raise RuntimeError(f"Ollama unavailable: {e}") from e
 
 
 async def ollama_health() -> bool:

@@ -119,7 +119,7 @@ Return JSON:
             temperature=0.8,
         )
         if not text:
-            raise ValueError("Empty Ollama response")
+            raise ValueError("LLM returned empty response — Gemini may be rate-limited (429). Wait 60s and retry.")
         # Extract hashtags from text
         words = text.strip().split()
         hashtags = [w.lstrip("#") for w in words if w.startswith("#")][:cfg["hashtag_limit"]]
@@ -142,7 +142,7 @@ Return JSON:
         }
     except Exception as e:
         logger.error("Social post generation failed (%s): %s", platform, e)
-        return {"error": "Content generation failed.", "platform": platform}
+        return {"error": f"Content generation failed: {e}", "platform": platform}
 
 
 # ── DALL-E 3 image generation ─────────────────────────────────────────────────
