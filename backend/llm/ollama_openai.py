@@ -80,7 +80,15 @@ async def ollama_chat_completion(
     if system and (not messages or messages[0].get("role") != "system"):
         messages = [{"role": "system", "content": system}] + list(messages)
 
-    # GEMINI-FIRST (production): when GEMINI_API_KEY is set, use Gemini Flash.
+    # GROQ-FIRST (free, fast, 30 RPM): when GROQ_API_KEY is set, use Groq.
+    if cfg.groq_api_key:
+        try:
+            from backend.llm.groq_client import groq_chat
+            return await groq_chat(messages, temperature=temperature, max_tokens=max_tokens)
+        except Exception as e:
+            logger.warning("Groq failed, falling back to Gemini/Ollama: %s", e)
+
+    # GEMINI (production): when GEMINI_API_KEY is set, use Gemini Flash.
     if cfg.gemini_api_key:
         try:
             from backend.llm.gemini_client import gemini_chat

@@ -15,6 +15,7 @@ from typing import AsyncGenerator
 from backend.llm.openai_client  import openai_chat, openai_health_check, OpenAICallError
 from backend.llm.ollama_client  import ollama_chat, ollama_health, OllamaCallError
 from backend.llm.gemini_client  import gemini_chat, gemini_health, GeminiCallError
+from backend.llm.groq_client    import groq_chat, groq_health, GroqCallError
 from backend.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -118,11 +119,22 @@ class LLMRouter:
         if force_model == "openai":
             return await self._call_openai(messages, temperature, max_tokens, stream)
 
-        # GEMINI-FIRST (production): when GEMINI_API_KEY is set, use Gemini Flash.
-        # OLLAMA-FIRST (local dev): when no Gemini key, use local Ollama.
+        # Priority: Groq (free, fast) → Gemini → Ollama (local dev)
+        if settings.groq_api_key:
+            return await self._call_groq(messages, temperature, max_tokens, stream)
         if settings.gemini_api_key:
             return await self._call_gemini(messages, temperature, max_tokens, stream)
         return await self._call_ollama(messages, temperature, max_tokens, stream)
+
+    async def _call_groq(self, messages, temperature, max_tokens, stream) -> tuple:
+        try:
+            result = await groq_chat(messages, temperature, max_tokens)
+            return result, settings.groq_model
+        except GroqCallError as e:
+            logger.warning(f"Groq failed: {e} — falling back to Gemini/Ollama")
+            if settings.gemini_api_key:
+                return await self._call_gemini(messages, temperature, max_tokens, stream)
+            return await self._call_ollama(messages, temperature, max_tokens, stream)
 
     async def _call_gemini(self, messages, temperature, max_tokens, stream) -> tuple:
         try:
@@ -148,13 +160,20 @@ class LLMRouter:
             )
 
     async def health(self) -> dict:
-        gemini_ok, ollama_ok, openai_ok = await asyncio.gather(
+        groq_ok, gemini_ok, ollama_ok, openai_ok = await asyncio.gather(
+            groq_health(),
             gemini_health(),
             ollama_health(),
             openai_health_check(),
         )
-        active = settings.gemini_model if settings.gemini_api_key else f"ollama/{settings.ollama_model}"
+        if settings.groq_api_key:
+            active = settings.groq_model
+        elif settings.gemini_api_key:
+            active = settings.gemini_model
+        else:
+            active = f"ollama/{settings.ollama_model}"
         return {
+            "groq_healthy":   groq_ok,
             "gemini_healthy": gemini_ok,
             "ollama_healthy": ollama_ok,
             "openai_healthy": openai_ok,

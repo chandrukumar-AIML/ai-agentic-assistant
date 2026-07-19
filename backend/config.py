@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     gemini_api_key: Optional[str] = None
     gemini_model: str = "gemini-2.0-flash"
 
+    # ── Groq (fast free LLM — preferred over Gemini when set) ────────────────
+    # Get free key: https://console.groq.com — 6000 req/day, 30 RPM, no card
+    groq_api_key: Optional[str] = None
+    groq_model: str = "llama-3.1-8b-instant"
+
     # ── PostgreSQL ────────────────────────────────────────────────────────────
     postgres_host:     str = "localhost"
     postgres_port:     int = 5432
