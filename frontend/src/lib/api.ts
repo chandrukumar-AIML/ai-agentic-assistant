@@ -1,17 +1,12 @@
 // frontend/src/lib/api.ts — Complete API client for all 19 features
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
-// Dev-only: 30-day token for local testing (generated from backend JWT_SECRET)
+// Dev-only: 30-day token signed by local JWT_SECRET (regenerate with: POST /api/auth/login)
 // In production this constant is never used — getToken() returns '' and the
 // real auth flow (OAuth / login page) must populate 'aaa_token'.
 const DEV_TOKEN = import.meta.env.PROD
   ? ''
-  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
-    'eyJzdWIiOiJkZXYtdXNlci0wMDEiLCJlbWFpbCI6ImRldkBhZ2VudGljLmxvY2FsIiwid29' +
-    'ya3NwYWNlX2lkIjoid3MtZGVmYXVsdCIsIndvcmtzcGFjZV9zbHVnIjoiZGVmYXVsdCIsIn' +
-    'JvbGUiOiJhZG1pbiIsInBsYW5fdGllciI6ImVudGVycHJpc2UiLCJpYXQiOjE3Nzk1OTg5' +
-    'NDQsImV4cCI6MTc4MjE5MDk0NH0.' +
-    'fHSryNMy-rRs7NoDmrkkxhguAhHjjH_0XKO1vdw1e3s'
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbkBhZ2VudGljLmxvY2FsIiwiZW1haWwiOiJhZG1pbkBhZ2VudGljLmxvY2FsIiwid29ya3NwYWNlX2lkIjoid3MtZGVmYXVsdCIsIndvcmtzcGFjZV9zbHVnIjoiZGVmYXVsdCIsInJvbGUiOiJhZG1pbiIsInBsYW5fdGllciI6ImVudGVycHJpc2UiLCJpYXQiOjE3ODQ0NDc4MjAsImV4cCI6MTc4NzAzOTgyMH0.4ITePG9EWVuGdb4SN3CpSdbwXMT4pSYZTH4RVZU_G5g'
 
 // TODO production: replace sessionStorage JWT with httpOnly cookie for XSS protection
 function getToken(): string {

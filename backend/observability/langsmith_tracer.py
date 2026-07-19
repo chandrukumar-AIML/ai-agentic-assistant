@@ -27,8 +27,11 @@ def get_ls_client() -> Client:
 
 
 def configure_tracing():
-    """Enable LangSmith tracing. Called once at app startup."""
+    """Enable LangSmith tracing if a key is configured; no-op otherwise."""
     import os
+    if not settings.langchain_api_key:
+        logger.info("LangSmith tracing disabled — no LANGCHAIN_API_KEY set")
+        return
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
     os.environ["LANGCHAIN_API_KEY"]    = settings.langchain_api_key
     os.environ["LANGCHAIN_PROJECT"]    = settings.langchain_project

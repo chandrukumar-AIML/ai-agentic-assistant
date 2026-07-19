@@ -20,7 +20,7 @@ logger   = logging.getLogger(__name__)
 settings = get_settings()
 
 ALGORITHM    = "HS256"
-TOKEN_EXPIRE = timedelta(hours=24)
+TOKEN_EXPIRE = timedelta(days=30) if settings.app_env == "development" else timedelta(hours=24)
 
 _pwd_ctx       = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer_scheme  = HTTPBearer(auto_error=False)
