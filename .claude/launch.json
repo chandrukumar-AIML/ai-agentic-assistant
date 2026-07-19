@@ -4,7 +4,7 @@
     {
       "name": "frontend",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "cd /d C:\\Users\\kumar\\ai-agentic\\frontend && .\\node_modules\\.bin\\vite.cmd --host 0.0.0.0 --port 5173"],
+      "runtimeArgs": ["/c", "cd /d C:\\Users\\kumar\\chandLab\\ai-agentic-assistant\\frontend && .\\node_modules\\.bin\\vite.cmd --host 0.0.0.0 --port 5173"],
       "port": 5173
     }
   ]

@@ -389,6 +389,25 @@ export async function socialGenerateAll(topic: string, tone = 'professional', br
   const params = new URLSearchParams({ topic, tone, brand })
   return apiFetch(`/verticals/social/generate-all?${params}`, {}, 360_000)
 }
+export async function submitSocialForApproval(postText: string, platform: string, topic: string, reviewerEmail = '') {
+  return apiFetch('/hitl/request', {
+    method: 'POST',
+    body: JSON.stringify({
+      action_type:     'social_post_publish',
+      action_payload:  { post_text: postText, platform, topic },
+      context_summary: `Social post for ${platform.toUpperCase()} — "${topic.slice(0, 80)}" — needs team review before publishing.`,
+      session_id:      '',
+      reviewer_email:  reviewerEmail || undefined,
+    }),
+  })
+}
+
+export async function socialPro(action: string, payload: object, platform = 'linkedin', language = 'en') {
+  return apiFetch('/verticals/social/pro', {
+    method: 'POST',
+    body: JSON.stringify({ action, platform, payload, language }),
+  }, 480_000)
+}
 
 // ── QA Engineer Vertical ──────────────────────────────────────────────────────
 export async function qaAction(action: string, payload: object) {

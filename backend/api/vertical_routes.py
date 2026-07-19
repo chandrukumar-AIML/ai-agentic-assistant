@@ -957,6 +957,24 @@ async def edtech_action(req: VerticalActionRequest, token: dict = Depends(verify
     return await edtech_agent(action=req.action, payload=req.payload, language=req.language)
 
 
+@router.post("/social/pro", summary="Social Media Pro — repurpose, competitor audit, ads, influencer, crisis, YT, email, reels, report, SEO cluster")
+async def social_pro(req: SocialRequest, token: dict = Depends(verify_token)):
+    """
+    10 enterprise-depth social media features:
+    repurpose | competitor_audit | ad_copy | influencer_brief | crisis_response |
+    youtube_script | email_sequence | reel_script | monthly_report | keyword_cluster
+    """
+    from backend.verticals.social_media.social_agent import social_agent
+    return await social_agent(
+        action=req.action,
+        platform=req.platform,
+        payload=req.payload,
+        user_id=token.get("sub", ""),
+        session_id="",
+        language=req.language,
+    )
+
+
 @router.post("/social/generate-all", summary="Generate posts for all platforms at once")
 async def social_generate_all(
     topic:     str = Query(..., min_length=3),
