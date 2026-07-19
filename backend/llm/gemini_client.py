@@ -38,7 +38,7 @@ def _get_client() -> AsyncOpenAI:
             base_url=GEMINI_BASE_URL,
             api_key=settings.gemini_api_key,
             timeout=60.0,
-            max_retries=2,
+            max_retries=0,
         )
     return _client
 
@@ -68,14 +68,5 @@ async def gemini_chat(
 
 
 async def gemini_health() -> bool:
-    """Quick health check — returns True if Gemini API key is set and reachable."""
-    if not settings.gemini_api_key:
-        return False
-    try:
-        result = await gemini_chat(
-            messages=[{"role": "user", "content": "Hi"}],
-            max_tokens=5,
-        )
-        return bool(result)
-    except Exception:
-        return False
+    """Returns True if Gemini API key is configured (avoids burning rate-limit quota on health checks)."""
+    return bool(settings.gemini_api_key)
