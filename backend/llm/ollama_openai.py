@@ -66,21 +66,30 @@ async def ollama_chat_completion(
     Simple wrapper — returns the text content string directly.
     Handles errors gracefully, returns empty string on failure.
     """
-    # DEMO MODE: instant canned response, no Ollama call (zero cost / works on Render).
-    try:
-        from backend.config import get_settings
-        if getattr(get_settings(), "demo_mode", False):
+    cfg = get_settings()
+
+    # DEMO MODE: instant canned response, no LLM call.
+    if getattr(cfg, "demo_mode", False):
+        try:
             from backend.llm.demo_responder import demo_complete
             msgs = ([{"role": "system", "content": system}] if system else []) + list(messages)
             return demo_complete(msgs)[0]
-    except Exception:
-        pass
-
-    client = get_client()
+        except Exception:
+            pass
 
     if system and (not messages or messages[0].get("role") != "system"):
         messages = [{"role": "system", "content": system}] + list(messages)
 
+    # GEMINI-FIRST (production): when GEMINI_API_KEY is set, use Gemini Flash.
+    if cfg.gemini_api_key:
+        try:
+            from backend.llm.gemini_client import gemini_chat
+            return await gemini_chat(messages, temperature=temperature, max_tokens=max_tokens)
+        except Exception as e:
+            logger.warning("Gemini failed, falling back to Ollama: %s", e)
+
+    # LOCAL DEV: use Ollama.
+    client = get_client()
     try:
         resp = await client.chat.completions.create(
             model=model,

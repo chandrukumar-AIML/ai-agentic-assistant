@@ -39,9 +39,15 @@ class Settings(BaseSettings):
     # ── Web search ────────────────────────────────────────────────────────────
     tavily_api_key: Optional[str] = None   # optional — web search disabled if not set
 
-    # ── Ollama (local LLM, used for A/B testing with open-source models) ──────
+    # ── Ollama (local dev LLM) ────────────────────────────────────────────────
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
+
+    # ── Gemini (production LLM) ───────────────────────────────────────────────
+    # Get key from: https://aistudio.google.com/app/apikey
+    # When set, ALL LLM calls use Gemini instead of Ollama (production mode).
+    gemini_api_key: Optional[str] = None
+    gemini_model: str = "gemini-2.0-flash"
 
     # ── PostgreSQL ────────────────────────────────────────────────────────────
     postgres_host:     str = "localhost"

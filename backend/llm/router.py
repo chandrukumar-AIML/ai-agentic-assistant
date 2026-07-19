@@ -12,9 +12,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import AsyncGenerator
 
-from backend.llm.openai_client import openai_chat, openai_health_check, OpenAICallError  # FIXED: wrong import path — was `llm.openai_client`
-from backend.llm.ollama_client import ollama_chat, ollama_health, OllamaCallError  # FIXED: wrong import path — was `llm.ollama_client`
-from backend.config import get_settings  # FIXED: wrong import path — was `config`, must be `backend.config`
+from backend.llm.openai_client  import openai_chat, openai_health_check, OpenAICallError
+from backend.llm.ollama_client  import ollama_chat, ollama_health, OllamaCallError
+from backend.llm.gemini_client  import gemini_chat, gemini_health, GeminiCallError
+from backend.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -110,16 +111,26 @@ class LLMRouter:
             from backend.llm.demo_responder import demo_complete
             return demo_complete(messages)
 
+        if force_model == "gemini":
+            return await self._call_gemini(messages, temperature, max_tokens, stream)
         if force_model == "ollama":
             return await self._call_ollama(messages, temperature, max_tokens, stream)
         if force_model == "openai":
             return await self._call_openai(messages, temperature, max_tokens, stream)
 
-        async with self.circuit._lock:
-            attempt_primary = self.circuit.should_attempt_primary()
-
-        # OLLAMA-FIRST: Try Ollama as primary; OpenAI only if explicitly forced
+        # GEMINI-FIRST (production): when GEMINI_API_KEY is set, use Gemini Flash.
+        # OLLAMA-FIRST (local dev): when no Gemini key, use local Ollama.
+        if settings.gemini_api_key:
+            return await self._call_gemini(messages, temperature, max_tokens, stream)
         return await self._call_ollama(messages, temperature, max_tokens, stream)
+
+    async def _call_gemini(self, messages, temperature, max_tokens, stream) -> tuple:
+        try:
+            result = await gemini_chat(messages, temperature, max_tokens, stream)
+            return result, settings.gemini_model
+        except GeminiCallError as e:
+            logger.warning(f"Gemini failed: {e} — falling back to Ollama")
+            return await self._call_ollama(messages, temperature, max_tokens, stream)
 
     async def _call_openai(self, messages, temperature, max_tokens, stream) -> tuple:
         result = await openai_chat(messages, temperature, max_tokens, stream)
@@ -127,36 +138,28 @@ class LLMRouter:
 
     async def _call_ollama(self, messages, temperature, max_tokens, stream) -> tuple:
         try:
-            if stream:
-                result = await ollama_chat(messages, temperature, max_tokens, stream=True)
-                return result, f"ollama/{settings.ollama_model}"
-            else:
-                result = await ollama_chat(messages, temperature, max_tokens, stream=False)
-                return result, f"ollama/{settings.ollama_model}"
+            result = await ollama_chat(messages, temperature, max_tokens, stream=stream)
+            return result, f"ollama/{settings.ollama_model}"
         except OllamaCallError as e:
-            logger.warning(f"Ollama failed: {e} — trying OpenAI fallback")
-            # Fallback to OpenAI if key is configured
-            if settings.openai_api_key and settings.openai_api_key.startswith("sk-"):
-                try:
-                    return await self._call_openai(messages, temperature, max_tokens, stream)
-                except Exception as oe:
-                    logger.error(f"OpenAI fallback also failed: {oe}")
+            logger.warning(f"Ollama failed: {e}")
             return (
-                "I'm currently unable to process your request — "
-                "Ollama is not running locally. Start it with: ollama serve",
+                "LLM unavailable — set GEMINI_API_KEY for production or run: ollama serve",
                 "none"
             )
 
     async def health(self) -> dict:
-        openai_ok, ollama_ok = await asyncio.gather(
-            openai_health_check(),
+        gemini_ok, ollama_ok, openai_ok = await asyncio.gather(
+            gemini_health(),
             ollama_health(),
+            openai_health_check(),
         )
+        active = settings.gemini_model if settings.gemini_api_key else f"ollama/{settings.ollama_model}"
         return {
-            "openai_healthy": openai_ok,
+            "gemini_healthy": gemini_ok,
             "ollama_healthy": ollama_ok,
+            "openai_healthy": openai_ok,
             "circuit":        self.circuit.get_status(),
-            "active_model":   f"ollama/{settings.ollama_model}",   # Ollama-first
+            "active_model":   active,
         }
 
     def reset(self):
