@@ -1026,3 +1026,24 @@ async def ca_action(req: CARequest, token: dict = Depends(verify_token)):
         payload=req.payload,
         language=req.language,
     )
+
+
+class CSRequest(BaseModel):
+    action:   str  = Field(..., description="faq_bot|qualify_lead|draft_whatsapp|analyze_sentiment|handle_complaint|summarize_ticket|response_template|weekly_report|kb_answer")
+    payload:  dict = Field(default_factory=dict)
+    language: str  = Field(default="en")
+
+
+@router.post("/cs/action", summary="AI Customer Support Agent — FAQ, WhatsApp, Leads, Sentiment, Complaints")
+async def cs_action(req: CSRequest, token: dict = Depends(verify_token)):
+    """
+    9 Customer Support tools:
+    faq_bot | qualify_lead | draft_whatsapp | analyze_sentiment | handle_complaint |
+    summarize_ticket | response_template | weekly_report | kb_answer
+    """
+    from backend.verticals.customer_support.cs_agent import cs_agent
+    return await cs_agent(
+        action=req.action,
+        payload=req.payload,
+        language=req.language,
+    )

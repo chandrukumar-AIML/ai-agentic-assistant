@@ -532,6 +532,10 @@ export const edtechAction = (action: string, payload: object) =>
 export const caAction = (action: string, payload: object, language = 'en') =>
   apiFetch('/verticals/ca/action', { method: 'POST', body: JSON.stringify({ action, payload, language }) }, 360_000)
 
+// ── Customer Support Agent ─────────────────────────────────────────────────────
+export const csAction = (action: string, payload: object, language = 'en') =>
+  apiFetch('/verticals/cs/action', { method: 'POST', body: JSON.stringify({ action, payload, language }) }, 360_000)
+
 // ── Analyst Vertical — POST /vertical/analyst?query=... ───────────────────────
 export async function analystQuery(query: string, contextJson = '{}') {
   const params = new URLSearchParams({ query, context_json: contextJson })

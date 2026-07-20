@@ -33,6 +33,7 @@ import HealthcarePage from './pages/HealthcarePage'
 import RealEstatePage from './pages/RealEstatePage'
 import EdTechPage from './pages/EdTechPage'
 import CAPage from './pages/CAPage'
+import CustomerSupportPage from './pages/CustomerSupportPage'
 import AdminPage from './pages/AdminPage'
 import IntegrationsPage from './pages/IntegrationsPage'
 import KnowledgeBasePage from './pages/KnowledgeBasePage'
@@ -46,8 +47,8 @@ export type PageId =
   | 'sales' | 'accountant' | 'hr' | 'social'
   | 'hitl' | 'scheduler' | 'billing' | 'compliance' | 'output'
   | 'analyst' | 'devops' | 'qa' | 'project' | 'code' | 'ml' | 'dba' | 'techlead'
-  | 'healthcare' | 'realestate' | 'edtech' | 'ca-accounting' | 'admin' | 'integrations'
-  | 'knowledge-base' | 'settings' | 'webhooks'
+  | 'healthcare' | 'realestate' | 'edtech' | 'ca-accounting' | 'customer-support'
+  | 'admin' | 'integrations' | 'knowledge-base' | 'settings' | 'webhooks'
 
 const PAGE_MAP: Record<PageId, React.ReactNode> = {
   dashboard:       <DashboardPage />,
@@ -79,7 +80,8 @@ const PAGE_MAP: Record<PageId, React.ReactNode> = {
   healthcare:      <HealthcarePage />,
   realestate:      <RealEstatePage />,
   edtech:          <EdTechPage />,
-  'ca-accounting': <CAPage />,
+  'ca-accounting':     <CAPage />,
+  'customer-support':  <CustomerSupportPage />,
   admin:           <AdminPage />,
   integrations:    <IntegrationsPage />,
   'knowledge-base': <KnowledgeBasePage />,
@@ -88,7 +90,7 @@ const PAGE_MAP: Record<PageId, React.ReactNode> = {
 }
 
 // Pages every authenticated user can always reach (not gated by entitlements)
-const ALWAYS_ALLOWED: PageId[] = ['dashboard', 'chat', 'billing', 'settings', 'integrations', 'social', 'ca-accounting']
+const ALWAYS_ALLOWED: PageId[] = ['dashboard', 'chat', 'billing', 'settings', 'integrations', 'social', 'ca-accounting', 'customer-support']
 
 function readCachedProfile(): UserProfile | null {
   try {
