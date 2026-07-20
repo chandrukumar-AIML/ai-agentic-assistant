@@ -32,6 +32,7 @@ import TechLeadPage from './pages/TechLeadPage'
 import HealthcarePage from './pages/HealthcarePage'
 import RealEstatePage from './pages/RealEstatePage'
 import EdTechPage from './pages/EdTechPage'
+import CAPage from './pages/CAPage'
 import AdminPage from './pages/AdminPage'
 import IntegrationsPage from './pages/IntegrationsPage'
 import KnowledgeBasePage from './pages/KnowledgeBasePage'
@@ -45,7 +46,7 @@ export type PageId =
   | 'sales' | 'accountant' | 'hr' | 'social'
   | 'hitl' | 'scheduler' | 'billing' | 'compliance' | 'output'
   | 'analyst' | 'devops' | 'qa' | 'project' | 'code' | 'ml' | 'dba' | 'techlead'
-  | 'healthcare' | 'realestate' | 'edtech' | 'admin' | 'integrations'
+  | 'healthcare' | 'realestate' | 'edtech' | 'ca-accounting' | 'admin' | 'integrations'
   | 'knowledge-base' | 'settings' | 'webhooks'
 
 const PAGE_MAP: Record<PageId, React.ReactNode> = {
@@ -78,6 +79,7 @@ const PAGE_MAP: Record<PageId, React.ReactNode> = {
   healthcare:      <HealthcarePage />,
   realestate:      <RealEstatePage />,
   edtech:          <EdTechPage />,
+  'ca-accounting': <CAPage />,
   admin:           <AdminPage />,
   integrations:    <IntegrationsPage />,
   'knowledge-base': <KnowledgeBasePage />,
@@ -86,7 +88,7 @@ const PAGE_MAP: Record<PageId, React.ReactNode> = {
 }
 
 // Pages every authenticated user can always reach (not gated by entitlements)
-const ALWAYS_ALLOWED: PageId[] = ['dashboard', 'chat', 'billing', 'settings', 'integrations']
+const ALWAYS_ALLOWED: PageId[] = ['dashboard', 'chat', 'billing', 'settings', 'integrations', 'social', 'ca-accounting']
 
 function readCachedProfile(): UserProfile | null {
   try {

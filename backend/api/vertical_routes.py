@@ -1001,3 +1001,28 @@ async def social_generate_all(
         "linkedin":  linkedin,
         "instagram": instagram,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CA / ACCOUNTING AGENT — India-focused
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class CARequest(BaseModel):
+    action:   str  = Field(..., description="gst_query|client_email|deadlines|tds_calc|invoice|audit_checklist|reconciliation|itr_advice|ca_social_post|client_query")
+    payload:  dict = Field(default_factory=dict)
+    language: str  = Field(default="en")
+
+
+@router.post("/ca/action", summary="AI CA / Accounting Agent — India GST, TDS, ITR, Audit")
+async def ca_action(req: CARequest, token: dict = Depends(verify_token)):
+    """
+    10 CA workflow tools:
+    gst_query | client_email | deadlines | tds_calc | invoice |
+    audit_checklist | reconciliation | itr_advice | ca_social_post | client_query
+    """
+    from backend.verticals.ca_accounting.ca_agent import ca_agent
+    return await ca_agent(
+        action=req.action,
+        payload=req.payload,
+        language=req.language,
+    )
