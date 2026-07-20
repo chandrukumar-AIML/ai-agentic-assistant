@@ -8,47 +8,22 @@ interface NavItem {
   label: string
   icon: string
   badge?: string
-  group?: string
+  group: string
   adminOnly?: boolean
 }
 
 const NAV: NavItem[] = [
-  { id: 'dashboard',    label: 'Dashboard',        icon: '⚡', group: 'Overview' },
-  { id: 'chat',         label: 'AI Chat',           icon: '💬', group: 'Overview' },
-  { id: 'compliance',   label: 'Guardian',          icon: '🛡️', badge: 'F1', group: 'AI Core' },
-  { id: 'hitl',         label: 'HITL Approvals',   icon: '👁️', badge: 'F6', group: 'AI Core' },
-  { id: 'output',       label: 'Output Generator', icon: '📄', badge: 'F7', group: 'AI Core' },
-  { id: 'ab-test',      label: 'A/B Testing',      icon: '⚗️', badge: 'F12', group: 'AI Core' },
-  { id: 'scheduler',    label: 'Task Scheduler',   icon: '⏰', badge: 'F4', group: 'AI Core' },
-  { id: 'social',       label: 'Social Media',     icon: '📱', badge: 'NEW', group: 'Core Agents' },
-  { id: 'ca-accounting',     label: 'CA & Accounting',   icon: '📒', badge: 'NEW', group: 'Core Agents' },
-  { id: 'customer-support',  label: 'Customer Support',  icon: '🎧', badge: 'NEW', group: 'Core Agents' },
-  { id: 'agri',         label: 'AgriTech',         icon: '🌾', badge: 'F9',  group: 'Verticals' },
-  { id: 'legal',        label: 'Legal Research',   icon: '⚖️', badge: 'F10', group: 'Verticals' },
-  { id: 'cybersec',     label: 'Cybersecurity',    icon: '🔐', badge: 'F11', group: 'Verticals' },
-  { id: 'receptionist', label: 'Receptionist',     icon: '☎️', badge: 'F13', group: 'Verticals' },
-  { id: 'form-reader',  label: 'Form Reader',      icon: '📋', badge: 'F14', group: 'Verticals' },
-  { id: 'email',        label: 'Email Manager',    icon: '📧', badge: 'F15', group: 'Verticals' },
-  { id: 'sales',        label: 'Sales & CRM',      icon: '💼', badge: 'F16', group: 'Verticals' },
-  { id: 'accountant',   label: 'Accountant',       icon: '🧮', badge: 'F17', group: 'Verticals' },
-  { id: 'hr',           label: 'HR Assistant',     icon: '👥', badge: 'F18', group: 'Verticals' },
-  { id: 'analyst',      label: 'Data Analyst',     icon: '📊', badge: 'V1',  group: 'Verticals' },
-  { id: 'devops',       label: 'DevOps Engineer',  icon: '⚙️', badge: 'V2',  group: 'Verticals' },
-  { id: 'qa',           label: 'QA Engineer',      icon: '🧪', badge: 'V3',  group: 'Verticals' },
-  { id: 'project',      label: 'Project Manager',  icon: '📋', badge: 'V4',  group: 'Verticals' },
-  { id: 'code',         label: 'Code Assistant',   icon: '💻', badge: 'V5',  group: 'Verticals' },
-  { id: 'ml',           label: 'ML Engineer',      icon: '🤖', badge: 'V6',  group: 'Verticals' },
-  { id: 'dba',          label: 'DBA',              icon: '🗄️', badge: 'V7',  group: 'Verticals' },
-  { id: 'techlead',     label: 'Tech Lead',        icon: '🏗️', badge: 'V8',  group: 'Verticals' },
-  { id: 'healthcare',   label: 'Healthcare',       icon: '🏥', badge: 'V9',  group: 'Verticals' },
-  { id: 'realestate',   label: 'Real Estate',      icon: '🏘️', badge: 'V10', group: 'Verticals' },
-  { id: 'edtech',       label: 'EdTech',           icon: '📚', badge: 'V11', group: 'Verticals' },
-  { id: 'billing',        label: 'Billing & Plans',  icon: '💳', badge: 'F8',  group: 'Settings' },
-  { id: 'knowledge-base', label: 'Knowledge Base',   icon: '🧠', badge: 'RAG', group: 'Settings' },
-  { id: 'integrations',   label: 'Integrations',     icon: '🔌', badge: 'LIVE', group: 'Settings' },
-  { id: 'webhooks',       label: 'Webhooks',         icon: '🪝', badge: 'NEW', group: 'Settings' },
-  { id: 'admin',          label: 'Admin Panel',      icon: '🛡️', badge: 'ADM', group: 'Settings', adminOnly: true },
-  { id: 'settings',       label: 'Settings',         icon: '⚙️',              group: 'Settings' },
+  { id: 'dashboard',        label: 'Dashboard',         icon: 'D',  group: 'Overview' },
+  { id: 'chat',             label: 'AI Chat',            icon: 'C',  group: 'Overview' },
+  { id: 'social',           label: 'Social Media',       icon: 'SM', badge: 'NEW', group: 'Core Agents' },
+  { id: 'ca-accounting',    label: 'CA & Accounting',    icon: 'CA', badge: 'NEW', group: 'Core Agents' },
+  { id: 'customer-support', label: 'Customer Support',   icon: 'CS', badge: 'NEW', group: 'Core Agents' },
+  { id: 'billing',          label: 'Billing & Plans',    icon: 'B',  badge: 'LIVE', group: 'Settings' },
+  { id: 'knowledge-base',   label: 'Knowledge Base',     icon: 'KB', badge: 'RAG',  group: 'Settings' },
+  { id: 'integrations',     label: 'Integrations',       icon: 'I',  badge: 'LIVE', group: 'Settings' },
+  { id: 'webhooks',         label: 'Webhooks',           icon: 'WH', group: 'Settings' },
+  { id: 'admin',            label: 'Admin Panel',        icon: 'AD', badge: 'ADM',  group: 'Settings', adminOnly: true },
+  { id: 'settings',         label: 'Settings',           icon: 'S',  group: 'Settings' },
 ]
 
 interface Props {
@@ -72,8 +47,15 @@ export default function Sidebar({
     if (isAdmin) return true
     return alwaysAllowed.includes(item.id) || allowedTools.includes(item.id)
   }
+
   const visible = NAV.filter(canSee)
   const groups  = Array.from(new Set(visible.map(n => n.group)))
+
+  const AGENT_COLORS: Record<string, string> = {
+    SM: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+    CA: 'linear-gradient(135deg, #f59e0b, #d97706)',
+    CS: 'linear-gradient(135deg, #10b981, #059669)',
+  }
 
   return (
     <aside style={{
@@ -89,10 +71,10 @@ export default function Sidebar({
     }}>
       {/* Header */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between',
+        display: 'flex', alignItems: 'center',
+        justifyContent: collapsed ? 'center' : 'space-between',
         padding: collapsed ? '16px 0' : '16px 14px',
-        borderBottom: '1px solid #1e2535',
-        flexShrink: 0,
+        borderBottom: '1px solid #1e2535', flexShrink: 0,
       }}>
         {!collapsed && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -127,41 +109,62 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Nav Items */}
+      {/* Nav */}
       <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
         {groups.map(group => (
           <div key={group}>
             {!collapsed && (
               <div style={{
-                padding: '10px 14px 4px',
-                fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
-                color: '#374151', textTransform: 'uppercase',
+                padding: '10px 14px 4px', fontSize: 10, fontWeight: 600,
+                letterSpacing: '0.08em', color: '#374151', textTransform: 'uppercase',
               }}>{group}</div>
             )}
             {visible.filter(n => n.group === group).map(item => {
               const active = current === item.id
+              const isAgent = item.group === 'Core Agents'
+              const agentGradient = AGENT_COLORS[item.icon]
+
               return (
                 <button key={item.id} onClick={() => onNavigate(item.id)} style={{
                   width: '100%', display: 'flex', alignItems: 'center',
-                  gap: collapsed ? 0 : 8,
-                  padding: collapsed ? '10px 0' : '8px 14px',
+                  gap: collapsed ? 0 : 10,
+                  padding: collapsed ? '10px 0' : '9px 14px',
                   justifyContent: collapsed ? 'center' : 'flex-start',
                   background: active ? 'rgba(16,185,129,0.15)' : 'none',
-                  border: 'none', borderLeft: active ? '2px solid #10b981' : '2px solid transparent',
-                  cursor: 'pointer', color: active ? '#5eead4' : '#6b7280',
-                  fontSize: 13, borderRadius: collapsed ? '0' : '0',
-                  transition: 'all 0.15s',
-                  textAlign: 'left',
+                  border: 'none',
+                  borderLeft: active ? '2px solid #10b981' : '2px solid transparent',
+                  cursor: 'pointer',
+                  color: active ? '#5eead4' : '#6b7280',
+                  fontSize: 13, transition: 'all 0.15s', textAlign: 'left',
                 }}>
-                  <span style={{ fontSize: 15, flexShrink: 0 }}>{item.icon}</span>
+                  {isAgent ? (
+                    <div style={{
+                      width: 24, height: 24, borderRadius: 6, flexShrink: 0,
+                      background: agentGradient || '#1e2535',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 9, fontWeight: 700, color: '#fff',
+                    }}>{item.icon}</div>
+                  ) : (
+                    <div style={{
+                      width: 24, height: 24, borderRadius: 6, flexShrink: 0,
+                      background: active ? 'rgba(16,185,129,0.2)' : '#1e2535',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 9, fontWeight: 700,
+                      color: active ? '#5eead4' : '#4b5563',
+                    }}>{item.icon}</div>
+                  )}
                   {!collapsed && (
                     <>
                       <span style={{ flex: 1, fontWeight: active ? 500 : 400 }}>{item.label}</span>
-                      {item.badge && !/^[FV]\d+$/.test(item.badge) && (
+                      {item.badge && (
                         <span style={{
-                          fontSize: 9, fontWeight: 600, padding: '1px 5px',
-                          borderRadius: 4, background: active ? 'rgba(16,185,129,0.3)' : '#1e2535',
-                          color: active ? '#5eead4' : '#4b5563',
+                          fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 4,
+                          background: item.badge === 'NEW'
+                            ? (isAgent ? 'rgba(16,185,129,0.25)' : '#1e2535')
+                            : '#1e2535',
+                          color: item.badge === 'NEW'
+                            ? '#10b981'
+                            : '#4b5563',
                         }}>{item.badge}</span>
                       )}
                     </>

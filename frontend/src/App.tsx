@@ -1,96 +1,44 @@
-// frontend/src/App.tsx — Full dashboard with sidebar navigation + auth guard
+// frontend/src/App.tsx
 import { useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import ChatPage from './pages/ChatPage'
-import AgriPage from './pages/AgriPage'
-import LegalPage from './pages/LegalPage'
-import CybersecPage from './pages/CybersecPage'
-import ABTestPage from './pages/ABTestPage'
-import ReceptionistPage from './pages/ReceptionistPage'
-import FormReaderPage from './pages/FormReaderPage'
-import SalesPage from './pages/SalesPage'
-import AccountantPage from './pages/AccountantPage'
-import HRPage from './pages/HRPage'
 import SocialPage from './pages/SocialPage'
-import HITLPage from './pages/HITLPage'
-import SchedulerPage from './pages/SchedulerPage'
-import BillingPage from './pages/BillingPage'
-import CompliancePage from './pages/CompliancePage'
-import OutputPage from './pages/OutputPage'
-import EmailPage from './pages/EmailPage'
-import AnalystPage from './pages/AnalystPage'
-import DevopsPage from './pages/DevopsPage'
-import QAPage from './pages/QAPage'
-import ProjectPage from './pages/ProjectPage'
-import CodePage from './pages/CodePage'
-import MLPage from './pages/MLPage'
-import DBAPage from './pages/DBAPage'
-import TechLeadPage from './pages/TechLeadPage'
-import HealthcarePage from './pages/HealthcarePage'
-import RealEstatePage from './pages/RealEstatePage'
-import EdTechPage from './pages/EdTechPage'
 import CAPage from './pages/CAPage'
 import CustomerSupportPage from './pages/CustomerSupportPage'
-import AdminPage from './pages/AdminPage'
+import BillingPage from './pages/BillingPage'
 import IntegrationsPage from './pages/IntegrationsPage'
 import KnowledgeBasePage from './pages/KnowledgeBasePage'
 import SettingsPage from './pages/SettingsPage'
 import WebhooksPage from './pages/WebhooksPage'
+import AdminPage from './pages/AdminPage'
 import { getMe, UserProfile } from './lib/api'
 
 export type PageId =
-  | 'dashboard' | 'chat' | 'agri' | 'legal' | 'cybersec'
-  | 'ab-test' | 'receptionist' | 'form-reader' | 'email'
-  | 'sales' | 'accountant' | 'hr' | 'social'
-  | 'hitl' | 'scheduler' | 'billing' | 'compliance' | 'output'
-  | 'analyst' | 'devops' | 'qa' | 'project' | 'code' | 'ml' | 'dba' | 'techlead'
-  | 'healthcare' | 'realestate' | 'edtech' | 'ca-accounting' | 'customer-support'
-  | 'admin' | 'integrations' | 'knowledge-base' | 'settings' | 'webhooks'
+  | 'dashboard' | 'chat'
+  | 'social' | 'ca-accounting' | 'customer-support'
+  | 'billing' | 'integrations' | 'knowledge-base' | 'settings' | 'webhooks' | 'admin'
 
 const PAGE_MAP: Record<PageId, React.ReactNode> = {
-  dashboard:       <DashboardPage />,
-  chat:            <ChatPage />,
-  agri:            <AgriPage />,
-  legal:           <LegalPage />,
-  cybersec:        <CybersecPage />,
-  'ab-test':       <ABTestPage />,
-  receptionist:    <ReceptionistPage />,
-  'form-reader':   <FormReaderPage />,
-  email:           <EmailPage />,
-  sales:           <SalesPage />,
-  accountant:      <AccountantPage />,
-  hr:              <HRPage />,
-  social:          <SocialPage />,
-  hitl:            <HITLPage />,
-  scheduler:       <SchedulerPage />,
-  billing:         <BillingPage />,
-  compliance:      <CompliancePage />,
-  output:          <OutputPage />,
-  analyst:         <AnalystPage />,
-  devops:          <DevopsPage />,
-  qa:              <QAPage />,
-  project:         <ProjectPage />,
-  code:            <CodePage />,
-  ml:              <MLPage />,
-  dba:             <DBAPage />,
-  techlead:        <TechLeadPage />,
-  healthcare:      <HealthcarePage />,
-  realestate:      <RealEstatePage />,
-  edtech:          <EdTechPage />,
-  'ca-accounting':     <CAPage />,
-  'customer-support':  <CustomerSupportPage />,
-  admin:           <AdminPage />,
-  integrations:    <IntegrationsPage />,
-  'knowledge-base': <KnowledgeBasePage />,
-  settings:        <SettingsPage />,
-  webhooks:        <WebhooksPage />,
+  dashboard:          <DashboardPage />,
+  chat:               <ChatPage />,
+  social:             <SocialPage />,
+  'ca-accounting':    <CAPage />,
+  'customer-support': <CustomerSupportPage />,
+  billing:            <BillingPage />,
+  integrations:       <IntegrationsPage />,
+  'knowledge-base':   <KnowledgeBasePage />,
+  settings:           <SettingsPage />,
+  webhooks:           <WebhooksPage />,
+  admin:              <AdminPage />,
 }
 
-// Pages every authenticated user can always reach (not gated by entitlements)
-const ALWAYS_ALLOWED: PageId[] = ['dashboard', 'chat', 'billing', 'settings', 'integrations', 'social', 'ca-accounting', 'customer-support']
+const ALWAYS_ALLOWED: PageId[] = [
+  'dashboard', 'chat', 'billing', 'settings', 'integrations',
+  'social', 'ca-accounting', 'customer-support',
+]
 
 function readCachedProfile(): UserProfile | null {
   try {
@@ -100,22 +48,20 @@ function readCachedProfile(): UserProfile | null {
 }
 
 export default function App() {
-  const [authed,    setAuthed]    = useState(!!sessionStorage.getItem('aaa_token'))
-  const [showLogin, setShowLogin] = useState(false)
-  const [page,      setPage]      = useState<PageId>('dashboard')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== 'undefined' && window.innerWidth < 860)
+  const [authed,           setAuthed]           = useState(!!sessionStorage.getItem('aaa_token'))
+  const [showLogin,        setShowLogin]         = useState(false)
+  const [page,             setPage]              = useState<PageId>('dashboard')
+  const [sidebarCollapsed, setSidebarCollapsed]  = useState(() => typeof window !== 'undefined' && window.innerWidth < 860)
+  const [profile,          setProfile]           = useState<UserProfile | null>(readCachedProfile())
+  const [demoMode,         setDemoMode]          = useState(false)
 
-  // Auto-collapse the sidebar to an icon rail on small screens
   useEffect(() => {
     const onResize = () => { if (window.innerWidth < 860) setSidebarCollapsed(true) }
     onResize()
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
-  const [profile,   setProfile]   = useState<UserProfile | null>(readCachedProfile())
-  const [demoMode,  setDemoMode]  = useState(false)
 
-  // After auth, fetch the authoritative profile + entitlements from the backend
   useEffect(() => {
     if (!authed) return
     let active = true
@@ -126,20 +72,19 @@ export default function App() {
         setDemoMode(!!res.demo_mode)
         sessionStorage.setItem('aaa_profile', JSON.stringify(res.profile))
       })
-      .catch(() => { /* keep cached profile / dev fallback */ })
+      .catch(() => {})
     return () => { active = false }
   }, [authed])
 
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin      = profile?.role === 'admin'
   const allowedTools = profile?.allowed_tools ?? []
 
   const canAccess = (id: PageId): boolean =>
     isAdmin || ALWAYS_ALLOWED.includes(id) || allowedTools.includes(id)
 
-  // Guard: if the active page is no longer permitted, fall back to dashboard
   useEffect(() => {
     if (authed && profile && page !== 'admin' && !canAccess(page)) setPage('dashboard')
-  }, [authed, profile, page])   
+  }, [authed, profile, page])
 
   const handleLogout = () => {
     sessionStorage.removeItem('aaa_token')
@@ -147,15 +92,11 @@ export default function App() {
     setProfile(null); setAuthed(false); setShowLogin(true); setPage('dashboard')
   }
 
-  // Not authenticated: show Landing → then Login
   if (!authed) {
-    if (showLogin) {
-      return <LoginPage onLogin={() => setAuthed(true)} />
-    }
+    if (showLogin) return <LoginPage onLogin={() => setAuthed(true)} />
     return <LandingPage onSignIn={() => setShowLogin(true)} />
   }
 
-  // 'admin' is admin-only; everything else respects entitlements
   const activePage: PageId =
     page === 'admin' ? (isAdmin ? 'admin' : 'dashboard')
     : canAccess(page) ? page
@@ -178,10 +119,9 @@ export default function App() {
         {demoMode && (
           <div style={{
             flexShrink: 0, padding: '7px 16px', textAlign: 'center', fontSize: 12, fontWeight: 600,
-            color: '#0f1117', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)',
-            letterSpacing: '0.02em',
+            color: '#0f1117', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', letterSpacing: '0.02em',
           }}>
-            🎭 DEMO MODE — AI responses are instant sample data (no live model cost). Add an API key to switch on real generation.
+            DEMO MODE — AI responses are instant sample data. Add an API key to switch on real generation.
           </div>
         )}
         {PAGE_MAP[activePage]}

@@ -1,32 +1,44 @@
 // frontend/src/pages/DashboardPage.tsx
 import { StatCard } from '../components/ui'
 
-// Client-facing tool catalogue — friendly names + outcome-focused descriptions.
-const TOOLS = [
-  { name: 'AgriTech',        icon: '🌾', desc: 'Crop advisory, mandi prices & weather — Tamil/Hindi/English', color: '#84cc16' },
-  { name: 'Legal',           icon: '⚖️', desc: 'Contract review, NDAs & Indian case-law research',          color: '#f59e0b' },
-  { name: 'Accountant',      icon: '🧮', desc: 'GST, TDS, invoices & financial analysis',                  color: '#ec4899' },
-  { name: 'HR Assistant',    icon: '👥', desc: 'Resume screening, JDs, offers & onboarding',               color: '#a855f7' },
-  { name: 'Sales & CRM',     icon: '💼', desc: 'Lead scoring, outreach & meeting prep',                    color: '#f59e0b' },
-  { name: 'Social & Marketing', icon: '📱', desc: 'Posts, hashtags, SEO audits & campaign briefs',         color: '#06b6d4' },
-  { name: 'Healthcare',      icon: '🏥', desc: 'Patient intake, report summaries & triage',                color: '#ef4444' },
-  { name: 'Real Estate',     icon: '🏘️', desc: 'Listings, lease drafts & investment ROI',                 color: '#10b981' },
-  { name: 'EdTech',          icon: '📚', desc: 'Course outlines, quizzes & lesson plans',                  color: '#3b82f6' },
-  { name: 'Receptionist',    icon: '☎️', desc: '24/7 chat, FAQs & appointment booking',                   color: '#06b6d4' },
-  { name: 'Cybersecurity',   icon: '🔐', desc: 'Log analysis, CVE lookup & security review',               color: '#ef4444' },
-  { name: 'Data Analyst',    icon: '📊', desc: 'Ask in plain English — get charts & insights',             color: '#10b981' },
-  { name: 'Form Reader',     icon: '📋', desc: 'Extract data from PAN / Aadhaar / GST forms',              color: '#06b6d4' },
-  { name: 'Email Manager',   icon: '📧', desc: 'Draft, summarise & manage your inbox',                     color: '#22c55e' },
-  { name: 'Code Assistant',  icon: '💻', desc: 'Generate, debug & review code',                            color: '#3b82f6' },
-  { name: 'DevOps',          icon: '⚙️', desc: 'CI/CD, Docker, Kubernetes & incident debugging',           color: '#10b981' },
-  { name: 'QA Engineer',     icon: '🧪', desc: 'Test cases, bug analysis & test plans',                    color: '#a855f7' },
-  { name: 'Project Manager', icon: '🗂️', desc: 'User stories, sprint plans & roadmaps',                   color: '#f59e0b' },
-  { name: 'ML Engineer',     icon: '🤖', desc: 'Experiment design, model eval & drift analysis',           color: '#06b6d4' },
-  { name: 'Database (DBA)',  icon: '🗄️', desc: 'Query optimisation, schema design & migrations',          color: '#84cc16' },
-  { name: 'Tech Lead',       icon: '🏗️', desc: 'Architecture decisions, API design & reviews',            color: '#a855f7' },
-  { name: 'Compliance Guard',icon: '🛡️', desc: 'Automatic PII redaction & policy checks',                 color: '#10b981' },
-  { name: 'Document Export', icon: '📄', desc: 'One-click export to PDF, Excel & PowerPoint',              color: '#06b6d4' },
-  { name: 'Billing & Plans', icon: '💳', desc: 'Subscriptions via Stripe & Razorpay (UPI)',               color: '#22c55e' },
+const AGENTS = [
+  {
+    id: 'social',
+    name: 'Social Media Agent',
+    icon: 'SM',
+    gradient: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+    desc: 'Generate posts, hashtags, captions, and campaign briefs for Instagram, LinkedIn, and Twitter — in English, Tamil, and Hindi.',
+    features: ['Post Generator', 'Hashtag Research', 'Caption Writer', 'SEO Audit', 'Campaign Planner', 'Competitor Analysis'],
+    badge: 'LIVE',
+    badgeColor: '#10b981',
+  },
+  {
+    id: 'ca-accounting',
+    name: 'CA & Accounting Agent',
+    icon: 'CA',
+    gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
+    desc: 'India-focused accounting AI. GST queries, TDS calculations, invoice drafting, ITR advice, audit checklists — all in one place.',
+    features: ['GST Query Bot', 'TDS Calculator', 'Invoice Drafter', 'Compliance Deadlines', 'ITR Advisor', 'Audit Checklist'],
+    badge: 'LIVE',
+    badgeColor: '#10b981',
+  },
+  {
+    id: 'customer-support',
+    name: 'Customer Support Agent',
+    icon: 'CS',
+    gradient: 'linear-gradient(135deg, #10b981, #059669)',
+    desc: 'WhatsApp-first customer support AI. Handle FAQs, qualify leads, analyze sentiment, and generate weekly intelligence reports.',
+    features: ['FAQ Bot', 'WhatsApp Drafter', 'Sentiment Analyzer', 'Complaint Handler', 'Lead Qualifier', 'Weekly Report'],
+    badge: 'LIVE',
+    badgeColor: '#10b981',
+  },
+]
+
+const STATS = [
+  { label: 'Core Agents',   value: '3',    trend: 'Social · CA · Support' },
+  { label: 'Languages',     value: '3',    trend: 'EN · Tamil · Hindi' },
+  { label: 'Availability',  value: '24/7', trend: 'Cloud-hosted' },
+  { label: 'Data Security', value: '100%', trend: 'PII-safe & compliant' },
 ]
 
 export default function DashboardPage() {
@@ -35,77 +47,84 @@ export default function DashboardPage() {
       {/* Header */}
       <div style={{
         padding: '20px 28px', borderBottom: '1px solid #1e2535',
-        background: 'linear-gradient(135deg, #161b27 0%, #0f1117 100%)',
-        flexShrink: 0,
+        background: 'linear-gradient(135deg, #161b27 0%, #0f1117 100%)', flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 11,
             background: 'linear-gradient(135deg, #10b981, #06b6d4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
-          }}>⚡</div>
+          }}>A</div>
           <div>
             <div style={{ color: '#e2e8f0', fontSize: 21, fontWeight: 700 }}>AI Agentic</div>
-            <div style={{ color: '#6b7280', fontSize: 13 }}>Your all-in-one AI workspace for business</div>
+            <div style={{ color: '#6b7280', fontSize: 13 }}>Business AI Suite for Indian SMBs</div>
           </div>
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px' }}>
-        {/* Value stats — client-meaningful, not dev metrics */}
-        <div className="aaa-statgrid" style={{ gap: 14, marginBottom: 24 }}>
-          <StatCard label="AI Tools"      value="24+"   icon="🧰" trend="Ready to use" />
-          <StatCard label="Languages"     value="3"     icon="🌐" trend="EN · தமிழ் · हिन्दी" />
-          <StatCard label="Availability"  value="24/7"  icon="☁️" trend="Cloud-hosted" />
-          <StatCard label="Data Security" value="100%"  icon="🔒" trend="PII-safe & compliant" />
+      <div style={{ flex: 1, overflow: 'auto', padding: '24px 28px' }}>
+        {/* Stats */}
+        <div className="aaa-statgrid" style={{ gap: 14, marginBottom: 28 }}>
+          {STATS.map(s => (
+            <StatCard key={s.label} label={s.label} value={s.value} icon="" trend={s.trend} />
+          ))}
         </div>
 
-        {/* Tools — the thing clients actually care about, shown first */}
-        <div style={{ color: '#e2e8f0', fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Your AI Tools</div>
-        <div style={{ color: '#6b7280', fontSize: 12, marginBottom: 14 }}>
-          Pick a tool from the sidebar to get started — every assistant is ready to use.
+        {/* Section heading */}
+        <div style={{ color: '#e2e8f0', fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Core Agents</div>
+        <div style={{ color: '#6b7280', fontSize: 12, marginBottom: 20 }}>
+          Three AI agents built for Indian businesses — click any agent in the sidebar to get started.
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-          {TOOLS.map(t => (
-            <div key={t.name} style={{
+
+        {/* Agent cards */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {AGENTS.map(agent => (
+            <div key={agent.id} style={{
               background: '#161b27', border: '1px solid #1e2535',
-              borderRadius: 10, padding: 14, display: 'flex', gap: 12,
-              borderLeft: `3px solid ${t.color}`,
+              borderRadius: 14, padding: '20px 22px',
+              display: 'flex', gap: 20, alignItems: 'flex-start',
             }}>
-              <span style={{ fontSize: 24, flexShrink: 0 }}>{t.icon}</span>
+              {/* Icon */}
+              <div style={{
+                width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+                background: agent.gradient,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, fontWeight: 800, color: '#fff', letterSpacing: 0.5,
+              }}>{agent.icon}</div>
+
+              {/* Content */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600, marginBottom: 3 }}>{t.name}</div>
-                <div style={{ color: '#6b7280', fontSize: 11.5, lineHeight: 1.45 }}>{t.desc}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <div style={{ color: '#e2e8f0', fontSize: 15, fontWeight: 700 }}>{agent.name}</div>
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+                    background: 'rgba(16,185,129,0.15)', color: agent.badgeColor,
+                  }}>{agent.badge}</span>
+                </div>
+                <div style={{ color: '#9ca3af', fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
+                  {agent.desc}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {agent.features.map(f => (
+                    <span key={f} style={{
+                      fontSize: 11, padding: '3px 10px', borderRadius: 20,
+                      background: '#1e2535', color: '#6b7280',
+                    }}>{f}</span>
+                  ))}
+                </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Built with — credibility footer (kept subtle, below the tools) */}
-        <div style={{ marginTop: 28 }}>
-          <div style={{ color: '#4b5563', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>
-            Built with
-          </div>
-          <div style={{
-            background: 'rgba(16,185,129,0.05)', border: '1px solid #1e2535',
-            borderRadius: 12, padding: '14px 20px',
-            display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
-          }}>
-            {[
-              { label: 'FastAPI', icon: '⚡' },
-              { label: 'LangGraph', icon: '🕸️' },
-              { label: 'OpenAI GPT-4o', icon: '🤖' },
-              { label: 'Ollama (local LLM)', icon: '🦙' },
-              { label: 'FAISS + ChromaDB', icon: '🗃️' },
-              { label: 'Redis + Postgres', icon: '💾' },
-              { label: 'Presidio (PII)', icon: '🔒' },
-            ].map(tech => (
-              <div key={tech.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ fontSize: 14 }}>{tech.icon}</span>
-                <span style={{ color: '#6b7280', fontSize: 12, fontWeight: 500 }}>{tech.label}</span>
-              </div>
-            ))}
-          </div>
+        {/* Footer note */}
+        <div style={{
+          marginTop: 24, padding: '14px 18px',
+          background: 'rgba(16,185,129,0.05)', border: '1px solid #1e2535',
+          borderRadius: 10, color: '#4b5563', fontSize: 12, lineHeight: 1.6,
+        }}>
+          Powered by Groq (free tier) + Gemini fallback + Ollama for local models.
+          All responses are AI-generated — review before sending to clients.
         </div>
       </div>
     </div>
