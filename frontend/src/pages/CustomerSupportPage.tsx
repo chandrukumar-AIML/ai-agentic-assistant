@@ -53,6 +53,7 @@ const TABS = [
   { id: 'escalation', label: 'Escalation Manager' },
   { id: 'churn',      label: 'Churn Risk' },
   { id: 'onboarding', label: 'Onboarding Planner' },
+  { id: 'categorizer',label: 'Ticket Categorizer' },
 ]
 
 const WA_TYPES = [
@@ -1298,7 +1299,8 @@ export default function CustomerSupportPage() {
         {tab === 'csat'      && <CsatTab lang={lang} />}
         {tab === 'escalation' && <EscalationTab lang={lang} />}
         {tab === 'churn'      && <ChurnRiskTab lang={lang} />}
-        {tab === 'onboarding' && <OnboardingTab lang={lang} />}
+        {tab === 'onboarding'  && <OnboardingTab lang={lang} />}
+        {tab === 'categorizer' && <CategorizerTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -1717,6 +1719,131 @@ function OnboardingTab({ lang }: { lang: Lang }) {
           </div>
         ) : (
           <Empty text="Fill in customer details and click Generate Onboarding Plan →" />
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+// ── Ticket Auto-Categorizer (Round 9) ────────────────────────────────────────
+
+const DEMO_TICKETS_CAT = [
+  { id: 'T001', subject: 'Cannot login — password reset not working', description: 'I have tried resetting my password 3 times but the email never arrives. Urgent!' },
+  { id: 'T002', subject: 'Invoice shows wrong amount', description: 'I was charged Rs.5,000 but my plan is Rs.2,500. Please refund the extra charge immediately.' },
+  { id: 'T003', subject: 'API webhook not firing', description: 'Our Zapier integration broke after the latest update. Webhooks not triggering at all.' },
+  { id: 'T004', subject: 'How do I export data to Excel?', description: 'New user here — trying to figure out how to export my reports to Excel format.' },
+  { id: 'T005', subject: 'This product is absolutely terrible!', description: 'I have had 5 bugs in 3 days. This is completely unacceptable. I want a full refund or going to social media.' },
+]
+
+const URGENCY_COLOR: Record<string, string> = { critical: '#ef4444', high: '#f97316', medium: '#f59e0b', low: '#22c55e' }
+
+function CategorizerTab({ lang }: { lang: Lang }) {
+  const [catBiz, setCatBiz]     = useState('')
+  const [catJson, setCatJson]   = useState(JSON.stringify(DEMO_TICKETS_CAT, null, 2))
+  const [catRes, setCatRes]     = useState<any>(null)
+  const [catLoading, setCatLoading] = useState(false)
+  const [catErr, setCatErr]     = useState('')
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  const runCategorizer = async () => {
+    setCatLoading(true); setCatErr(''); setCatRes(null)
+    try {
+      let tickets: any[]
+      try { tickets = JSON.parse(catJson) } catch { throw new Error('Invalid JSON') }
+      setCatRes(await csAction('ticket_categorizer', { tickets, business_name: catBiz }, lang))
+    } catch (e: any) { setCatErr(e.message) }
+    setCatLoading(false)
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      <div style={{ flex: '0 0 340px' }}>
+        <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Ticket Auto-Categorizer</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>Auto-assign category, team, priority and SLA to every ticket instantly</div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Business Name</div>
+            <input value={catBiz} onChange={e => setCatBiz(e.target.value)} placeholder="e.g. Freshdesk" style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: '8px 12px', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Tickets JSON</div>
+          <textarea value={catJson} onChange={e => setCatJson(e.target.value)} rows={14}
+            style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 11, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
+          <button onClick={runCategorizer} disabled={catLoading} style={{
+            marginTop: 10, width: '100%', padding: '10px 0', background: catLoading ? '#1e2535' : '#4f8ef7',
+            color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: catLoading ? 'not-allowed' : 'pointer',
+          }}>{catLoading ? 'Categorizing…' : 'Auto-Categorize Tickets'}</button>
+          {catErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>{catErr}</div>}
+        </div>
+      </div>
+
+      <div style={{ flex: 1 }}>
+        {catRes ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Summary */}
+            <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {[
+                { label: 'Total', val: catRes.total_tickets },
+                { label: 'Critical', val: catRes.urgency_breakdown?.critical || 0, color: '#ef4444' },
+                { label: 'High', val: catRes.urgency_breakdown?.high || 0, color: '#f97316' },
+                { label: 'Categories', val: (catRes.category_breakdown || []).length },
+              ].map(k => (
+                <div key={k.label} style={{ background: '#0f1117', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: k.color || '#e2e8f0' }}>{k.val}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
+                </div>
+              ))}
+              <div style={{ flex: 1, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                {(catRes.category_breakdown || []).map((c: any) => (
+                  <div key={c.category} style={{ fontSize: 11, padding: '3px 10px', background: '#1e2535', color: '#9ca3af', borderRadius: 20 }}>
+                    {c.category} ({c.count})
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Ticket cards */}
+            <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Categorized Tickets (Priority Order)</div>
+              {(catRes.tickets || []).map((t: any) => {
+                const isOpen = expanded === t.id
+                return (
+                  <div key={t.id} onClick={() => setExpanded(isOpen ? null : t.id)}
+                    style={{ background: '#0f1117', border: `1px solid ${t.category_color || '#1e2535'}33`, borderRadius: 8, padding: 12, marginBottom: 8, cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                      <div>
+                        <span style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 13 }}>[{t.id}] {t.subject}</span>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>→ {t.team} · SLA: {t.sla_hours}h</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', background: `${t.category_color || '#6b7280'}22`, color: t.category_color || '#6b7280', borderRadius: 6, fontWeight: 600 }}>{t.category}</span>
+                        <Badge label={t.urgency.toUpperCase()} color={URGENCY_COLOR[t.urgency] || '#6b7280'} />
+                      </div>
+                    </div>
+                    {isOpen && (
+                      <>
+                        <div style={{ fontSize: 12, color: '#6b7280', margin: '8px 0 4px' }}>Resolution Steps:</div>
+                        {(t.resolution_steps || []).map((s: string, i: number) => (
+                          <div key={i} style={{ fontSize: 12, color: '#9ca3af', padding: '3px 0', display: 'flex', gap: 6 }}>
+                            <span style={{ color: '#818cf8' }}>{i + 1}.</span>{s}
+                          </div>
+                        ))}
+                        <div style={{ marginTop: 10, background: '#161b27', borderRadius: 6, padding: '8px 12px', fontSize: 12 }}>
+                          <div style={{ color: '#6b7280', marginBottom: 3 }}>Auto-reply draft:</div>
+                          <div style={{ color: '#9ca3af' }}>{t.auto_reply}</div>
+                          <span onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText(t.auto_reply) }}
+                            style={{ cursor: 'pointer', fontSize: 11, marginTop: 6, display: 'inline-block', padding: '2px 8px', background: '#374151', color: '#fff', borderRadius: 4 }}>Copy</span>
+                        </div>
+                      </>
+                    )}
+                    {!isOpen && <div style={{ fontSize: 11, color: '#4b5563', marginTop: 2 }}>Click to see steps & auto-reply</div>}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          <Empty text="Demo tickets pre-loaded — click Auto-Categorize to see results →" />
         )}
       </div>
     </div>

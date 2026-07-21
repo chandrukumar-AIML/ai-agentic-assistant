@@ -2069,6 +2069,18 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "employee_advocacy":
+        return await generate_employee_advocacy(
+            company_name=payload.get("company_name", ""),
+            news_or_achievement=payload.get("news_or_achievement", ""),
+            employee_role=payload.get("employee_role", ""),
+            industry=payload.get("industry", ""),
+            tone=payload.get("tone", "professional"),
+            platforms=payload.get("platforms", ["linkedin"]),
+            num_variants=int(payload.get("num_variants", 3) or 3),
+            language=language,
+        )
+
     elif action == "competitor_spy":
         return competitor_content_spy(
             brand_name=payload.get("brand_name", ""),
@@ -2545,6 +2557,105 @@ def calculate_social_roi(
         "worst_platform":   worst,
         "recommendations":  recommendations,
         "health":           "Excellent" if overall_roas >= 4 else ("Good" if overall_roas >= 2 else ("Needs Review" if overall_roas >= 1 else "Losing Money")),
+    }
+
+
+# ── Employee Advocacy Generator (Round 9) ────────────────────────────────────
+
+_ADVOCACY_HOOKS = {
+    "achievement": ["Proud moment 🎉", "Big news from our team!", "We did it!", "Exciting announcement →", "Something we've been working hard on..."],
+    "culture":     ["Why I love working here:", "Real talk about our culture 🙌", "This is what great teams look like", "3 months in and here's what I've learned:", "Our team just did something special —"],
+    "product":     ["Our product just leveled up 🚀", "We just shipped something I'm excited about", "If you work in [industry], you need to see this:", "This is the feature I've been waiting for →", "We built this because our customers asked for it:"],
+    "hiring":      ["We're growing! 🎯", "Want to join our team?", "Looking for someone special —", "We're hiring and here's why you should apply:", "Best role I've ever worked in — and we're adding more people:"],
+    "milestone":   ["We just hit a milestone I'll never forget:", "1 year ago vs today — the growth is real 📈", "We crossed a number that felt impossible 6 months ago:", "Grateful, proud, and just getting started —", "Some numbers we're celebrating this week:"],
+}
+
+_PERSONA_TIPS = {
+    "founder":     "Share the 'why behind the what' — your personal conviction is your brand",
+    "sales":       "Lead with customer outcome, not product features — stories sell",
+    "engineer":    "Show the problem you solved and the elegant solution — geeks love details",
+    "hr":          "Highlight people and culture — humanise the brand authentically",
+    "marketing":   "Use data + emotion combo — numbers give credibility, story gives resonance",
+    "default":     "Speak from personal experience — 'I' outperforms 'we' on personal profiles",
+}
+
+
+async def generate_employee_advocacy(
+    company_name: str,
+    news_or_achievement: str,
+    employee_role: str = "",
+    industry: str = "",
+    tone: str = "professional",
+    platforms: list | None = None,
+    num_variants: int = 3,
+    language: str = "en",
+) -> dict:
+    platforms = platforms or ["linkedin"]
+    role_key = next((k for k in _PERSONA_TIPS if k in employee_role.lower()), "default")
+    persona_tip = _PERSONA_TIPS[role_key]
+
+    # Pick hook category from content
+    content_lower = news_or_achievement.lower()
+    hook_cat = "achievement"
+    if any(w in content_lower for w in ["hire", "join", "team", "recruit"]):
+        hook_cat = "hiring"
+    elif any(w in content_lower for w in ["launch", "ship", "release", "feature", "product"]):
+        hook_cat = "product"
+    elif any(w in content_lower for w in ["culture", "value", "team", "office", "event"]):
+        hook_cat = "culture"
+    elif any(w in content_lower for w in ["milestone", "year", "growth", "revenue", "customers"]):
+        hook_cat = "milestone"
+
+    hooks = _ADVOCACY_HOOKS[hook_cat][:num_variants]
+
+    try:
+        from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+        posts_raw = await ollama_chat_completion(
+            messages=[
+                {"role": "system", "content": f"You generate {num_variants} distinct LinkedIn/social posts for employee advocacy. Language: {language}. Tone: {tone}. Each post: 3-5 sentences, starts with a hook, ends with a question or CTA. Output as JSON array with keys: hook, body, cta, hashtags (array of 3-5)."},
+                {"role": "user", "content": f"Company: {company_name}. News: {news_or_achievement}. Role: {employee_role or 'team member'}. Generate {num_variants} variants for {', '.join(platforms)}."},
+            ],
+            model=OLLAMA_MODEL, max_tokens=800,
+        )
+        import json as _json
+        start = posts_raw.find("[")
+        end = posts_raw.rfind("]") + 1
+        variants = _json.loads(posts_raw[start:end]) if start >= 0 else []
+    except Exception:
+        variants = []
+
+    if not variants:
+        variants = [
+            {
+                "hook": hooks[i % len(hooks)],
+                "body": f"{news_or_achievement}\n\nAs part of the {company_name} team, I'm incredibly proud of what we've achieved. This milestone represents months of hard work, collaboration, and customer obsession.",
+                "cta": "What's a recent win your team celebrated? Drop it in the comments 👇",
+                "hashtags": [f"#{company_name.replace(' ','')}", f"#{industry.replace(' ','') or 'Innovation'}", "#TeamWin", "#GrowthMindset", "#ProudMoment"],
+                "engagement_tip": f"Tip {i+1}: Post between 8-10 AM on weekdays for 3x more reach on LinkedIn.",
+                "persona_angle": f"As a {employee_role or 'team member'}: {persona_tip}",
+            }
+            for i in range(num_variants)
+        ]
+    else:
+        for i, v in enumerate(variants):
+            v["engagement_tip"] = f"Tip {i+1}: Tag 2-3 teammates to boost organic reach by 40%."
+            v["persona_angle"] = persona_tip
+
+    return {
+        "action":           "employee_advocacy",
+        "company_name":     company_name,
+        "news":             news_or_achievement,
+        "employee_role":    employee_role,
+        "platforms":        platforms,
+        "total_variants":   len(variants),
+        "variants":         variants,
+        "persona_tip":      persona_tip,
+        "best_practice": [
+            "Post from personal profile — personal posts get 3-8x more reach than company pages",
+            "Add your own 1-2 sentence opinion before the main content",
+            "Post same content 2 weeks apart — 90% of followers won't see it the first time",
+            "Reply to every comment in the first hour — triggers the algorithm",
+        ],
     }
 
 

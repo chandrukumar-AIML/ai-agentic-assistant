@@ -263,6 +263,34 @@ export default function SocialPage() {
   const [bridgeResult, setBridgeResult] = useState('')
   const bridgeApi = useApi()
 
+  // ── Employee Advocacy Generator (Round 9) ──
+  const ADVOCACY_TONES = [{ label: 'Professional', value: 'professional' }, { label: 'Casual & Warm', value: 'casual' }, { label: 'Excited / Celebratory', value: 'excited' }, { label: 'Humble & Grateful', value: 'humble' }]
+  const EMPLOYEE_ROLES = [{ label: 'Founder / CEO', value: 'founder' }, { label: 'Sales / BD', value: 'sales' }, { label: 'Engineer', value: 'engineer' }, { label: 'HR / People', value: 'hr' }, { label: 'Marketing', value: 'marketing' }, { label: 'Team Member', value: 'team_member' }]
+  const [advCompany, setAdvCompany]     = useState('')
+  const [advNews, setAdvNews]           = useState('')
+  const [advRole, setAdvRole]           = useState('founder')
+  const [advIndustry, setAdvIndustry]   = useState('')
+  const [advTone, setAdvTone]           = useState('professional')
+  const [advVariants, setAdvVariants]   = useState('3')
+  const [advPlatforms, setAdvPlatforms] = useState<string[]>(['linkedin'])
+  const [advRes, setAdvRes]             = useState<any>(null)
+  const [advLoading, setAdvLoading]     = useState(false)
+  const [advErr, setAdvErr]             = useState('')
+
+  const toggleAdvPlatform = (p: string) => setAdvPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+
+  const runAdvocacy = async () => {
+    setAdvLoading(true); setAdvErr(''); setAdvRes(null)
+    try {
+      setAdvRes(await socialAction('employee_advocacy', {
+        company_name: advCompany, news_or_achievement: advNews, employee_role: advRole,
+        industry: advIndustry, tone: advTone, platforms: advPlatforms,
+        num_variants: parseInt(advVariants) || 3,
+      }, advPlatforms[0] || 'linkedin'))
+    } catch (e: any) { setAdvErr(e.message) }
+    setAdvLoading(false)
+  }
+
   // ── Competitor Content Spy (Round 8) ──
   const DEMO_COMPETITORS = [
     { name: 'CompetitorA', strengths: 'Daily Reels, strong CTA', weaknesses: 'No LinkedIn, no regional content', estimated_followers: 45000, avg_engagement: 4.2, top_content: 'Product demos + customer stories' },
@@ -450,6 +478,7 @@ export default function SocialPage() {
           { id: 'mention',    label: 'Mention Responder',     icon: '📣' },
           { id: 'roi',        label: 'Social ROI',            icon: '📈' },
           { id: 'spy',        label: 'Competitor Spy',        icon: '🕵️' },
+          { id: 'advocacy',   label: 'Employee Advocacy',     icon: '📢' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1752,6 +1781,76 @@ export default function SocialPage() {
                 })}
               </div>
             ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter a topic and generate variations →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── EMPLOYEE ADVOCACY GENERATOR (Round 9) ── */}
+      {tab === 'advocacy' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Employee Advocacy Generator" sub="Turn company news into authentic personal posts — 10x organic reach" />
+            <Input label="Company Name" value={advCompany} onChange={setAdvCompany} placeholder="e.g. Freshworks, Zoho" />
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>News / Achievement to share</div>
+              <textarea value={advNews} onChange={e => setAdvNews(e.target.value)} rows={3}
+                placeholder="e.g. We just crossed 10,000 customers! Our team of 45 people built a product used across 30 countries in 3 years."
+                style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+            </div>
+            <Select label="Employee Role / Persona" value={advRole} onChange={setAdvRole} options={EMPLOYEE_ROLES} />
+            <Input label="Industry" value={advIndustry} onChange={setAdvIndustry} placeholder="e.g. SaaS, Fintech, Healthcare" />
+            <Select label="Tone" value={advTone} onChange={setAdvTone} options={ADVOCACY_TONES} />
+            <Select label="Number of Variants" value={advVariants} onChange={setAdvVariants} options={[{ label: '2 Variants', value: '2' }, { label: '3 Variants', value: '3' }, { label: '4 Variants', value: '4' }]} />
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 6 }}>Platforms</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {['linkedin', 'twitter', 'instagram', 'facebook'].map(p => (
+                  <span key={p} onClick={() => toggleAdvPlatform(p)} style={{
+                    padding: '4px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                    background: advPlatforms.includes(p) ? 'rgba(79,142,247,0.15)' : 'transparent',
+                    border: `1px solid ${advPlatforms.includes(p) ? 'rgba(79,142,247,0.5)' : '#1e2535'}`,
+                    color: advPlatforms.includes(p) ? '#4f8ef7' : '#6b7280',
+                  }}>{p.charAt(0).toUpperCase() + p.slice(1)}</span>
+                ))}
+              </div>
+            </div>
+            <Btn onClick={runAdvocacy} loading={advLoading} disabled={!advNews} style={{ width: '100%' }}>Generate Advocacy Posts</Btn>
+            {advErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>Demo mode: {advErr}</div>}
+          </Card>
+          <Card>
+            <SectionHead title="Ready-to-Share Posts" sub="Each variant has a unique hook — pick the one that fits your voice" />
+            {advRes ? (
+              <>
+                {advRes.persona_tip && (
+                  <div style={{ background: '#0f172a', border: '1px solid #818cf833', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#818cf8' }}>
+                    💡 <strong>Persona Tip:</strong> {advRes.persona_tip}
+                  </div>
+                )}
+                {(advRes.variants || []).map((v: any, i: number) => (
+                  <div key={i} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                    <div style={{ color: '#f59e0b', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Variant {i + 1} — {v.hook}</div>
+                    <div style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', marginBottom: 8 }}>{v.body}</div>
+                    {v.cta && <div style={{ color: '#22c55e', fontSize: 12, marginBottom: 8, fontStyle: 'italic' }}>{v.cta}</div>}
+                    {v.hashtags && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {v.hashtags.map((h: string, j: number) => (
+                          <span key={j} style={{ fontSize: 11, padding: '2px 8px', background: '#1e2535', color: '#818cf8', borderRadius: 6 }}>{h}</span>
+                        ))}
+                      </div>
+                    )}
+                    {v.engagement_tip && <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>📊 {v.engagement_tip}</div>}
+                    <span onClick={() => navigator.clipboard?.writeText(`${v.hook}\n\n${v.body}\n\n${v.cta || ''}\n\n${(v.hashtags || []).join(' ')}`)}
+                      style={{ cursor: 'pointer', fontSize: 11, padding: '3px 10px', background: '#374151', color: '#fff', borderRadius: 6 }}>Copy Post</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', marginBottom: 6 }}>Best Practices</div>
+                  {(advRes.best_practice || []).map((b: string, i: number) => (
+                    <div key={i} style={{ fontSize: 11, color: '#6b7280', padding: '4px 0', borderBottom: '1px solid #0f1117' }}>→ {b}</div>
+                  ))}
+                </div>
+              </>
+            ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Add news/achievement and click Generate →</div>}
           </Card>
         </TwoCol>
       )}

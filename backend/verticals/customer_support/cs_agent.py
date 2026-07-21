@@ -560,6 +560,14 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "ticket_categorizer":
+            return _ticket_categorizer(
+                tickets=payload.get("tickets", []),
+                business_name=payload.get("business_name", ""),
+                custom_categories=payload.get("custom_categories", []),
+                language=lang,
+            )
+
         elif action == "onboarding_planner":
             return _onboarding_planner(
                 customer_name=payload.get("customer_name", ""),
@@ -1161,6 +1169,122 @@ def _onboarding_planner(
             {"day": 30, "type": "30-Day Review",  "focus": "ROI measurement, goals vs actuals"},
         ] + ([{"day": 60, "type": "60-Day Review", "focus": "Expansion opportunities, advanced features"}] if tier_key == "enterprise" else []),
         "assigned_csm":    "To be assigned" if tier_key == "standard" else "Dedicated CSM assigned",
+    }
+
+
+# ── Ticket Auto-Categorizer (Round 9) ────────────────────────────────────────
+
+_TICKET_CATEGORIES = {
+    "billing":      {"keywords": ["invoice", "payment", "charge", "refund", "billing", "subscription", "price", "fee", "overcharge", "receipt"], "team": "Finance/Billing", "sla_hours": 4,  "color": "#f59e0b"},
+    "technical":    {"keywords": ["bug", "error", "crash", "broken", "not working", "glitch", "issue", "fail", "loading", "slow", "down", "500", "404"], "team": "Engineering", "sla_hours": 8, "color": "#818cf8"},
+    "feature":      {"keywords": ["feature", "request", "wish", "add", "missing", "would love", "suggest", "improve", "enhancement", "new"], "team": "Product", "sla_hours": 72, "color": "#06b6d4"},
+    "account":      {"keywords": ["login", "password", "access", "account", "profile", "reset", "two factor", "2fa", "locked", "username"], "team": "Support L1", "sla_hours": 2,  "color": "#22c55e"},
+    "complaint":    {"keywords": ["terrible", "worst", "unacceptable", "disappointed", "angry", "frustrated", "useless", "scam", "cheat", "legal", "lawyer", "refund immediately"], "team": "Senior Support", "sla_hours": 2, "color": "#ef4444"},
+    "onboarding":   {"keywords": ["how to", "setup", "getting started", "tutorial", "guide", "new user", "onboard", "walkthrough", "configure", "install"], "team": "Success", "sla_hours": 24, "color": "#10b981"},
+    "integration":  {"keywords": ["api", "webhook", "integrate", "zapier", "sync", "connect", "third party", "import", "export", "oauth"], "team": "Engineering", "sla_hours": 24, "color": "#8b5cf6"},
+    "general":      {"keywords": [], "team": "Support L1", "sla_hours": 24, "color": "#6b7280"},
+}
+
+_URGENCY_SIGNALS = {
+    "critical": ["urgent", "immediately", "asap", "right now", "emergency", "critical", "production down", "data loss", "legal"],
+    "high":     ["today", "frustrated", "angry", "unacceptable", "disappointed", "broken", "cant work"],
+    "medium":   ["issue", "problem", "not working", "bug", "error"],
+    "low":      ["question", "how to", "when", "feature", "suggest"],
+}
+
+
+def _categorize_ticket(text: str, custom_categories: list) -> tuple[str, str, str, int, str]:
+    text_lower = text.lower()
+
+    # Custom categories first
+    for cc in custom_categories:
+        if any(kw.lower() in text_lower for kw in cc.get("keywords", [])):
+            return cc["name"], cc.get("team", "Support"), "medium", cc.get("sla_hours", 24), cc.get("color", "#6b7280")
+
+    # Standard categories — scored
+    scores: dict[str, int] = {}
+    for cat, info in _TICKET_CATEGORIES.items():
+        if cat == "general":
+            continue
+        scores[cat] = sum(1 for kw in info["keywords"] if kw in text_lower)
+
+    best_cat = max(scores, key=lambda k: scores[k]) if any(scores.values()) else "general"
+    if scores.get(best_cat, 0) == 0:
+        best_cat = "general"
+
+    # Urgency
+    urgency = "low"
+    for level in ["critical", "high", "medium", "low"]:
+        if any(sig in text_lower for sig in _URGENCY_SIGNALS[level]):
+            urgency = level
+            break
+
+    cat_info = _TICKET_CATEGORIES[best_cat]
+    return best_cat, cat_info["team"], urgency, cat_info["sla_hours"], cat_info["color"]
+
+
+def _ticket_categorizer(
+    tickets: list,
+    business_name: str = "",
+    custom_categories: list | None = None,
+    language: str = "en",
+) -> dict:
+    custom_categories = custom_categories or []
+    if not tickets:
+        tickets = [
+            {"id": "T001", "subject": "Cannot login — password reset not working", "description": "I've tried resetting my password 3 times but the email never arrives. Urgent!"},
+            {"id": "T002", "subject": "Invoice shows wrong amount", "description": "I was charged Rs.5,000 but my plan is Rs.2,500. Please refund the extra charge immediately."},
+            {"id": "T003", "subject": "API webhook not firing", "description": "Our Zapier integration broke after the latest update. Webhooks not triggering at all."},
+            {"id": "T004", "subject": "How do I export data to Excel?", "description": "New user here — just trying to figure out how to export my reports to Excel format."},
+            {"id": "T005", "subject": "This product is absolutely terrible!", "description": "I've had 5 bugs in 3 days. This is completely unacceptable. I want a full refund or I'm going to social media."},
+        ]
+
+    categorized = []
+    cat_counts: dict[str, int] = {}
+    urgency_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+
+    for t in tickets:
+        text = (t.get("subject", "") + " " + t.get("description", "")).strip()
+        category, team, urgency, sla_hours, color = _categorize_ticket(text, custom_categories)
+
+        cat_counts[category] = cat_counts.get(category, 0) + 1
+        urgency_counts[urgency] = urgency_counts.get(urgency, 0) + 1
+
+        resolution_steps = {
+            "billing":   ["Verify transaction in payment gateway", "Check subscription plan details", "Process refund/adjustment if applicable", "Send confirmation to customer"],
+            "technical": ["Reproduce the issue in staging", "Check error logs", "Assign to on-call engineer if P0", "Update customer with ETA"],
+            "account":   ["Verify identity", "Force password reset from admin panel", "Check 2FA settings", "Confirm access restored"],
+            "complaint": ["Escalate to Senior Support immediately", "Acknowledge within 30 min", "Offer goodwill gesture", "Loop in manager if legal threat"],
+            "feature":   ["Log in Product backlog", "Send 'we hear you' response", "Add to roadmap discussion"],
+            "onboarding":["Send relevant documentation", "Schedule a 15-min screen-share", "Add to onboarding email sequence"],
+            "integration":["Check API changelog for breaking changes", "Test in sandbox environment", "Assign to integration specialist"],
+            "general":   ["Acknowledge receipt", "Route to appropriate team", "Respond within SLA"],
+        }.get(category, ["Acknowledge and triage"])
+
+        categorized.append({
+            "id":          t.get("id", ""),
+            "subject":     t.get("subject", ""),
+            "category":    category,
+            "category_color": color,
+            "team":        team,
+            "urgency":     urgency,
+            "sla_hours":   sla_hours,
+            "priority_score": {"critical": 100, "high": 70, "medium": 40, "low": 15}[urgency],
+            "resolution_steps": resolution_steps,
+            "auto_reply":  f"Thank you for reaching out! Your ticket [{t.get('id','')}] has been received and routed to our {team} team. We'll respond within {sla_hours} hours.",
+        })
+
+    categorized.sort(key=lambda x: -x["priority_score"])
+
+    return {
+        "action":          "ticket_categorizer",
+        "business_name":   business_name,
+        "total_tickets":   len(categorized),
+        "tickets":         categorized,
+        "category_breakdown": [{"category": k, "count": v} for k, v in sorted(cat_counts.items(), key=lambda x: -x[1])],
+        "urgency_breakdown":  urgency_counts,
+        "critical_tickets":   [t for t in categorized if t["urgency"] == "critical"],
+        "routing_summary":    {t["team"]: sum(1 for c in categorized if c["team"] == t["team"]) for t in categorized},
     }
 
 

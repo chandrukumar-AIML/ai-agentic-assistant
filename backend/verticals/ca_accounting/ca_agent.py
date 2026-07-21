@@ -953,6 +953,19 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "business_valuation":
+        return calculate_business_valuation(
+            revenue=float(payload.get("revenue", 0) or 0),
+            ebitda=float(payload.get("ebitda", 0) or 0),
+            net_profit=float(payload.get("net_profit", 0) or 0),
+            industry=payload.get("industry", "technology"),
+            stage=payload.get("stage", "growth"),
+            growth_rate=float(payload.get("growth_rate", 20) or 20),
+            assets=float(payload.get("assets", 0) or 0),
+            liabilities=float(payload.get("liabilities", 0) or 0),
+            language=language,
+        )
+
     elif action == "gst_notice_reply":
         return await draft_gst_notice_reply(
             notice_type=payload.get("notice_type", ""),
@@ -1499,6 +1512,132 @@ def calculate_payroll(
             "TDS (Form 24Q) due: quarterly — 31st July, 31st Oct, 31st Jan, 15th May",
             "PT due: as per state schedule (monthly/annual)",
         ],
+    }
+
+
+# ── Business Valuation Calculator (Round 9) ───────────────────────────────────
+
+_INDUSTRY_MULTIPLES: dict[str, dict] = {
+    "technology":     {"revenue": (4, 8),  "ebitda": (15, 25), "pe": (25, 45)},
+    "saas":           {"revenue": (6, 12), "ebitda": (20, 35), "pe": (30, 60)},
+    "ecommerce":      {"revenue": (1, 3),  "ebitda": (8, 14),  "pe": (15, 25)},
+    "manufacturing":  {"revenue": (0.5,1.5),"ebitda":(5, 10),  "pe": (10, 18)},
+    "retail":         {"revenue": (0.5,1.5),"ebitda":(5, 8),   "pe": (10, 15)},
+    "healthcare":     {"revenue": (2, 4),  "ebitda": (10, 18), "pe": (18, 28)},
+    "fintech":        {"revenue": (5, 10), "ebitda": (18, 30), "pe": (28, 50)},
+    "education":      {"revenue": (2, 5),  "ebitda": (8, 15),  "pe": (15, 25)},
+    "real_estate":    {"revenue": (2, 4),  "ebitda": (10, 16), "pe": (12, 20)},
+    "consulting":     {"revenue": (1, 2),  "ebitda": (5, 10),  "pe": (10, 15)},
+    "default":        {"revenue": (2, 4),  "ebitda": (8, 14),  "pe": (15, 22)},
+}
+
+_STAGE_DISCOUNT = {"pre_revenue": 0.4, "early": 0.6, "growth": 0.8, "mature": 1.0, "late": 1.0}
+
+
+def calculate_business_valuation(
+    revenue: float,
+    ebitda: float,
+    net_profit: float,
+    industry: str = "technology",
+    stage: str = "growth",
+    growth_rate: float = 20.0,
+    assets: float = 0.0,
+    liabilities: float = 0.0,
+    language: str = "en",
+) -> dict:
+    ind_key = industry.lower().replace(" ", "_").replace("-", "_")
+    mult = _INDUSTRY_MULTIPLES.get(ind_key, _INDUSTRY_MULTIPLES["default"])
+    disc = _STAGE_DISCOUNT.get(stage, 0.8)
+    growth_premium = 1 + max(0, (growth_rate - 15) / 100)
+
+    def _range(low_m: float, high_m: float, base: float) -> tuple[float, float]:
+        return (round(base * low_m * disc * growth_premium, 0),
+                round(base * high_m * disc * growth_premium, 0))
+
+    valuations: dict[str, dict] = {}
+
+    if revenue > 0:
+        lo, hi = _range(*mult["revenue"], revenue)
+        valuations["revenue_multiple"] = {
+            "method": "Revenue Multiple",
+            "low": lo, "high": hi, "midpoint": round((lo + hi) / 2, 0),
+            "multiple_used": f"{mult['revenue'][0]}x – {mult['revenue'][1]}x revenue",
+            "note": "Common for high-growth startups with strong top-line",
+        }
+
+    if ebitda > 0:
+        lo, hi = _range(*mult["ebitda"], ebitda)
+        valuations["ebitda_multiple"] = {
+            "method": "EBITDA Multiple",
+            "low": lo, "high": hi, "midpoint": round((lo + hi) / 2, 0),
+            "multiple_used": f"{mult['ebitda'][0]}x – {mult['ebitda'][1]}x EBITDA",
+            "note": "Standard for profitable businesses seeking PE/strategic acquisition",
+        }
+
+    if net_profit > 0:
+        lo, hi = _range(*mult["pe"], net_profit)
+        valuations["pe_multiple"] = {
+            "method": "P/E Multiple",
+            "low": lo, "high": hi, "midpoint": round((lo + hi) / 2, 0),
+            "multiple_used": f"{mult['pe'][0]}x – {mult['pe'][1]}x PAT",
+            "note": "Used by public market investors and listed company comparables",
+        }
+
+    net_assets = assets - liabilities
+    if net_assets > 0:
+        valuations["asset_based"] = {
+            "method": "Net Asset Value",
+            "low": round(net_assets * 0.8, 0), "high": round(net_assets * 1.2, 0),
+            "midpoint": round(net_assets, 0),
+            "multiple_used": "Book value ± 20%",
+            "note": "Floor valuation — asset-heavy or distressed businesses",
+        }
+
+    midpoints = [v["midpoint"] for v in valuations.values() if v["midpoint"] > 0]
+    blended = round(sum(midpoints) / len(midpoints), 0) if midpoints else 0
+    overall_low  = round(min(v["low"]  for v in valuations.values()), 0) if valuations else 0
+    overall_high = round(max(v["high"] for v in valuations.values()), 0) if valuations else 0
+
+    ebitda_margin = round(ebitda / revenue * 100, 1) if revenue else 0
+    pat_margin    = round(net_profit / revenue * 100, 1) if revenue else 0
+
+    def _cr(n: float) -> str:
+        if n >= 10_000_000:
+            return f"₹{n/10_000_000:.1f} Cr"
+        elif n >= 100_000:
+            return f"₹{n/100_000:.1f} L"
+        return f"₹{n:,.0f}"
+
+    return {
+        "action":          "business_valuation",
+        "industry":        industry,
+        "stage":           stage,
+        "growth_rate":     growth_rate,
+        "inputs": {
+            "revenue": revenue, "ebitda": ebitda,
+            "net_profit": net_profit, "assets": assets, "liabilities": liabilities,
+        },
+        "financials": {
+            "ebitda_margin": ebitda_margin,
+            "pat_margin":    pat_margin,
+            "net_assets":    net_assets,
+        },
+        "valuations":        valuations,
+        "blended_valuation": blended,
+        "range": {"low": overall_low, "high": overall_high},
+        "formatted": {
+            "blended": _cr(blended),
+            "low":     _cr(overall_low),
+            "high":    _cr(overall_high),
+        },
+        "stage_discount":    disc,
+        "growth_premium":    round(growth_premium, 2),
+        "recommendations": [
+            f"Blended valuation: {_cr(blended)} (range: {_cr(overall_low)} – {_cr(overall_high)})",
+            f"For fundraising, use revenue multiple ({_cr(valuations.get('revenue_multiple',{}).get('midpoint',0))}) if pre-profit.",
+            f"EBITDA margin of {ebitda_margin}% — {'healthy' if ebitda_margin >= 20 else 'improve margins before fundraising'} for {industry}.",
+            "Consider getting a formal valuation report from a SEBI-registered Category I Merchant Banker for DPIIT/funding purposes.",
+        ] if valuations else ["Enter financial figures to see valuation"],
     }
 
 

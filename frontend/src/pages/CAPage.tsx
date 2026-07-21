@@ -267,6 +267,45 @@ export default function CAPage() {
     setGstrLoading(false)
   }
 
+  // ── Business Valuation Calculator (Round 9) ──
+  const BIZ_INDUSTRIES = [
+    { label: 'Technology', value: 'technology' }, { label: 'SaaS / Cloud', value: 'saas' },
+    { label: 'E-Commerce', value: 'ecommerce' }, { label: 'Manufacturing', value: 'manufacturing' },
+    { label: 'Retail', value: 'retail' }, { label: 'Healthcare', value: 'healthcare' },
+    { label: 'Fintech', value: 'fintech' }, { label: 'Education', value: 'education' },
+    { label: 'Real Estate', value: 'real_estate' }, { label: 'Consulting', value: 'consulting' },
+  ]
+  const BIZ_STAGES = [
+    { label: 'Pre-Revenue / Idea', value: 'pre_revenue' },
+    { label: 'Early Stage (< 1 Cr revenue)', value: 'early' },
+    { label: 'Growth Stage (1–50 Cr)', value: 'growth' },
+    { label: 'Mature / Profitable', value: 'mature' },
+  ]
+  const [bvRevenue, setBvRevenue]       = useState('5000000')
+  const [bvEbitda, setBvEbitda]         = useState('1000000')
+  const [bvNetProfit, setBvNetProfit]   = useState('700000')
+  const [bvAssets, setBvAssets]         = useState('2000000')
+  const [bvLiab, setBvLiab]            = useState('500000')
+  const [bvIndustry, setBvIndustry]     = useState('technology')
+  const [bvStage, setBvStage]           = useState('growth')
+  const [bvGrowth, setBvGrowth]         = useState('35')
+  const [bvRes, setBvRes]               = useState<any>(null)
+  const [bvLoading, setBvLoading]       = useState(false)
+  const [bvErr, setBvErr]               = useState('')
+
+  const runValuation = async () => {
+    setBvLoading(true); setBvErr(''); setBvRes(null)
+    try {
+      setBvRes(await caAction('business_valuation', {
+        revenue: parseFloat(bvRevenue) || 0, ebitda: parseFloat(bvEbitda) || 0,
+        net_profit: parseFloat(bvNetProfit) || 0, assets: parseFloat(bvAssets) || 0,
+        liabilities: parseFloat(bvLiab) || 0, industry: bvIndustry,
+        stage: bvStage, growth_rate: parseFloat(bvGrowth) || 20,
+      }, language))
+    } catch (e: any) { setBvErr(e.message) }
+    setBvLoading(false)
+  }
+
   // ── GST Notice Reply Drafter (Round 8) ──
   const NOTICE_TYPES = [
     { label: 'GST Scrutiny Notice (Sec 61)', value: 'gst_scrutiny' },
@@ -411,6 +450,7 @@ export default function CAPage() {
           { id: 'tax_planning',      label: 'Tax Planning',            icon: '💡' },
           { id: 'payroll',           label: 'Payroll Processor',       icon: '💰' },
           { id: 'notice_reply',      label: 'GST Notice Reply',        icon: '📨' },
+          { id: 'valuation',         label: 'Business Valuation',      icon: '🏦' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1264,6 +1304,90 @@ export default function CAPage() {
           </div>
         </TwoCol>
       )}
+      {/* ── BUSINESS VALUATION (Round 9) ── */}
+      {tab === 'valuation' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Business Valuation Calculator" sub="PE · EBITDA · Revenue Multiple — for fundraising & M&A" />
+            <Select label="Industry" value={bvIndustry} onChange={setBvIndustry} options={BIZ_INDUSTRIES} />
+            <Select label="Business Stage" value={bvStage} onChange={setBvStage} options={BIZ_STAGES} />
+            <Input label="Annual Revenue (₹)" value={bvRevenue} onChange={setBvRevenue} placeholder="e.g. 5000000" />
+            <Input label="EBITDA (₹)" value={bvEbitda} onChange={setBvEbitda} placeholder="e.g. 1000000" />
+            <Input label="Net Profit / PAT (₹)" value={bvNetProfit} onChange={setBvNetProfit} placeholder="e.g. 700000" />
+            <Input label="Total Assets (₹)" value={bvAssets} onChange={setBvAssets} placeholder="e.g. 2000000" />
+            <Input label="Total Liabilities (₹)" value={bvLiab} onChange={setBvLiab} placeholder="e.g. 500000" />
+            <Input label="Revenue Growth Rate (%)" value={bvGrowth} onChange={setBvGrowth} placeholder="e.g. 35" />
+            <Btn onClick={runValuation} loading={bvLoading} style={{ marginTop: 14, width: '100%' }}>Calculate Valuation</Btn>
+            {bvErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>Demo mode: {bvErr}</div>}
+          </Card>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {bvRes ? (
+              <>
+                {/* Hero valuation */}
+                <Card>
+                  <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
+                    <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Blended Valuation</div>
+                    <div style={{ fontSize: 44, fontWeight: 800, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>{bvRes.formatted?.blended}</div>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Range: {bvRes.formatted?.low} – {bvRes.formatted?.high}</div>
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 10 }}>
+                      <Badge label={`${bvRes.industry}`} color="#818cf8" />
+                      <Badge label={`${bvRes.stage}`} color="#6b7280" />
+                      <Badge label={`${bvRes.growth_rate}% growth`} color="#22c55e" />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                    {[
+                      { label: 'EBITDA Margin', val: `${bvRes.financials?.ebitda_margin}%` },
+                      { label: 'PAT Margin', val: `${bvRes.financials?.pat_margin}%` },
+                      { label: 'Growth Premium', val: `${bvRes.growth_premium}x` },
+                    ].map(k => (
+                      <div key={k.label} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>{k.val}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
+                {/* Method breakdown */}
+                <Card>
+                  <SectionHead title="Valuation by Method" sub="Each method gives a different lens" />
+                  {Object.values(bvRes.valuations || {}).map((v: any, i: number) => (
+                    <div key={i} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 13 }}>{v.method}</span>
+                        <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
+                          ₹{(v.midpoint / 10000000).toFixed(2)} Cr
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#818cf8', marginBottom: 4 }}>{v.multiple_used}</div>
+                      <div style={{ height: 4, background: '#1e2535', borderRadius: 2, marginBottom: 6 }}>
+                        <div style={{ height: '100%', width: `${Math.min((v.midpoint / (bvRes.range?.high || 1)) * 100, 100)}%`, background: '#22c55e', borderRadius: 2 }} />
+                      </div>
+                      <div style={{ fontSize: 11, color: '#4b5563' }}>{v.note}</div>
+                    </div>
+                  ))}
+                </Card>
+
+                {/* Recommendations */}
+                <Card>
+                  <SectionHead title="CA's Recommendations" sub="For fundraising or M&A discussions" />
+                  {(bvRes.recommendations || []).map((r: string, i: number) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, padding: '7px 0', borderBottom: '1px solid #0f1117', fontSize: 12, color: '#9ca3af' }}>
+                      <span style={{ color: '#818cf8', flexShrink: 0 }}>→</span>{r}
+                    </div>
+                  ))}
+                </Card>
+              </>
+            ) : !bvLoading && (
+              <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                Demo data is pre-filled — click Calculate Valuation to see results →
+              </div>
+            )}
+          </div>
+        </TwoCol>
+      )}
+
       {/* ── GST NOTICE REPLY (Round 8) ── */}
       {tab === 'notice_reply' && (
         <TwoCol>
