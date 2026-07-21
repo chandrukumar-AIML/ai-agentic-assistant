@@ -15,9 +15,9 @@ interface NavItem {
 const NAV: NavItem[] = [
   { id: 'dashboard',        label: 'Dashboard',         icon: 'D',  group: 'Overview' },
   { id: 'chat',             label: 'AI Chat',            icon: 'C',  group: 'Overview' },
-  { id: 'social',           label: 'Social Media',       icon: 'SM', badge: 'NEW', group: 'Core Agents' },
-  { id: 'ca-accounting',    label: 'CA & Accounting',    icon: 'CA', badge: 'NEW', group: 'Core Agents' },
-  { id: 'customer-support', label: 'Customer Support',   icon: 'CS', badge: 'NEW', group: 'Core Agents' },
+  { id: 'social',           label: 'Social Media',       icon: 'SM', group: 'Core Agents' },
+  { id: 'ca-accounting',    label: 'CA & Accounting',    icon: 'CA', group: 'Core Agents' },
+  { id: 'customer-support', label: 'Customer Support',   icon: 'CS', group: 'Core Agents' },
   { id: 'billing',          label: 'Billing & Plans',    icon: 'B',  badge: 'LIVE', group: 'Settings' },
   { id: 'knowledge-base',   label: 'Knowledge Base',     icon: 'KB', badge: 'RAG',  group: 'Settings' },
   { id: 'integrations',     label: 'Integrations',       icon: 'I',  badge: 'LIVE', group: 'Settings' },

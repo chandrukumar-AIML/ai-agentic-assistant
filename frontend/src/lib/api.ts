@@ -528,6 +528,10 @@ export const realestateAction = (action: string, payload: object) =>
 export const edtechAction = (action: string, payload: object) =>
   apiFetch('/verticals/edtech/action', { method: 'POST', body: JSON.stringify({ action, payload }) }, 360_000)
 
+// ── Social Media Agent — generic action helper ────────────────────────────────
+export const socialAction = (action: string, payload: object, platform = 'all', language = 'en') =>
+  apiFetch('/verticals/social/action', { method: 'POST', body: JSON.stringify({ action, platform, payload, language }) }, 360_000)
+
 // ── CA / Accounting Agent ──────────────────────────────────────────────────────
 export const caAction = (action: string, payload: object, language = 'en') =>
   apiFetch('/verticals/ca/action', { method: 'POST', body: JSON.stringify({ action, payload, language }) }, 360_000)

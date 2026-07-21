@@ -1,7 +1,7 @@
 // frontend/src/pages/SocialPage.tsx — AI Social Media Manager (Enterprise Depth)
 import { useState } from 'react'
 import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
-import { generateContent, generateHashtags, generateImage, socialEnhance, socialPro, submitSocialForApproval } from '../lib/api'
+import { generateContent, generateHashtags, generateImage, socialEnhance, socialPro, submitSocialForApproval, socialAction } from '../lib/api'
 
 const PLATFORMS  = [{ label: 'LinkedIn', value: 'linkedin' }, { label: 'Twitter/X', value: 'twitter' }, { label: 'Instagram', value: 'instagram' }, { label: 'Facebook', value: 'facebook' }]
 const TONES      = [{ label: 'Professional', value: 'professional' }, { label: 'Casual', value: 'casual' }, { label: 'Inspirational', value: 'inspirational' }, { label: 'Educational', value: 'educational' }, { label: 'Humorous', value: 'humorous' }]
@@ -17,7 +17,10 @@ const CONTENT_TYPES = [{ label: 'Blog Post', value: 'blog' }, { label: 'Article'
 
 const TOPICS = ['AI in Healthcare India', 'Startup funding tips', 'Python best practices', 'Climate change solutions', 'Digital marketing trends']
 const REGIONAL_LANGS = [{ label: 'Tamil (தமிழ்)', value: 'tamil' }, { label: 'Hindi (हिन्दी)', value: 'hindi' }, { label: 'Telugu (తెలుగు)', value: 'telugu' }, { label: 'Kannada (ಕನ್ನಡ)', value: 'kannada' }, { label: 'Malayalam (മലയാളം)', value: 'malayalam' }, { label: 'Marathi (मराठी)', value: 'marathi' }]
-const WA_TYPES = [{ label: 'Broadcast Message', value: 'broadcast' }, { label: 'Status Update', value: 'status' }, { label: 'Catalogue Description', value: 'catalogue' }, { label: 'Channel Announcement', value: 'announcement' }, { label: 'Story', value: 'story' }]
+const WA_TYPES = [{ label: 'Broadcast / Promo', value: 'broadcast' }, { label: 'Product Catalogue', value: 'catalogue' }, { label: 'Welcome Message', value: 'welcome' }, { label: 'Abandoned Cart Recovery', value: 'abandoned_cart' }, { label: 'Review Request', value: 'review_request' }, { label: 'Reorder Reminder', value: 'reorder' }]
+const CAL_TONES = [{ label: 'Festive', value: 'festive' }, { label: 'Professional', value: 'professional' }, { label: 'Emotional / Heartfelt', value: 'emotional' }, { label: 'Humorous', value: 'humorous' }]
+const LANG_OPTIONS = [{ label: 'English', value: 'en' }, { label: 'Tamil', value: 'tamil' }, { label: 'Hindi', value: 'hindi' }, { label: 'Telugu', value: 'telugu' }]
+const CAL_PLATFORMS = ['instagram', 'linkedin', 'twitter', 'whatsapp', 'facebook']
 const NICHES = [{ label: 'CA / Chartered Accountant Firm', value: 'ca_firm' }, { label: 'Legal Firm / Lawyer', value: 'legal_firm' }, { label: 'Medical Clinic / Hospital', value: 'clinic' }, { label: 'School / Coaching', value: 'school' }, { label: 'Restaurant / Food', value: 'restaurant' }, { label: 'Real Estate', value: 'real_estate' }, { label: 'Salon / Beauty', value: 'salon' }]
 const TRIGGER_TYPES = [{ label: 'CRM Deal Won 🎉', value: 'crm_deal_won' }, { label: 'New Team Hire 👋', value: 'hr_hire' }, { label: 'Product Launch 🚀', value: 'product_launch' }, { label: 'Company Milestone 🏆', value: 'milestone' }, { label: 'Event / Webinar 📅', value: 'event' }, { label: 'Award / Recognition 🥇', value: 'award' }, { label: 'Client Success Story ⭐', value: 'client_success' }]
 const POST_STATUSES = ['Draft', 'Scheduled', 'Posted', 'Failed'] as const
@@ -185,9 +188,24 @@ export default function SocialPage() {
   const [waTopic, setWaTopic]           = useState('')
   const [waType, setWaType]             = useState('broadcast')
   const [waBrand, setWaBrand]           = useState('')
-  const trendApi = useApi()
+  const [waProduct, setWaProduct]       = useState('')
+  const [waOffer, setWaOffer]           = useState('')
+  const [waIndustry, setWaIndustry]     = useState('')
+  const trendApi    = useApi()
   const regionalApi = useApi()
-  const waApi = useApi()
+  const waApi       = useApi()
+
+  // ── Cultural Calendar ──
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const [calBrandName, setCalBrandName]   = useState('')
+  const [calIndustryCC, setCalIndustryCC] = useState('')
+  const [calSelectedMonths, setCalSelectedMonths] = useState<string[]>([])
+  const [calPlatforms, setCalPlatforms]   = useState<string[]>(['instagram', 'whatsapp'])
+  const [calTone, setCalTone]             = useState('festive')
+  const [calLang, setCalLang]             = useState('en')
+  const culturalApi = useApi()
+  const toggleMonth = (m: string) => setCalSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
+  const togglePlatform = (p: string) => setCalPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
 
   // ── Tab 20: Niche Templates ──
   const [ntNiche, setNtNiche]   = useState('ca_firm')
@@ -992,49 +1010,119 @@ export default function SocialPage() {
 
       {/* ── INDIA & WHATSAPP ── */}
       {tab === 'india' && (
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Row 1: Trending + Regional + WhatsApp */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-            {/* India Trending */}
             <Card>
-              <SectionHead title="🇮🇳 India Trending Topics" sub="Festival, news, events → content ideas" />
+              <SectionHead title="India Trending Topics" sub="Festival, news, events — content ideas" />
               <Input label="Your Industry" value={indIndustry} onChange={setIndIndustry} placeholder="e.g. Fintech, FMCG, EdTech" />
               <div style={{ padding: 8, background: 'rgba(255,153,0,0.08)', borderRadius: 6, marginBottom: 12, fontSize: 11, color: '#fbbf24' }}>
-                🎊 Covers: festivals, cricket, budget, IPL, Republic Day, startup events, and seasonal trends for India
+                Covers festivals, cricket, Budget, IPL, Republic Day, startup events, seasonal India trends
               </div>
               <Btn onClick={() => trendApi.call(() => socialPro('india_trends', { industry: indIndustry }))} loading={trendApi.loading}>
-                🇮🇳 Get India Trends
+                Get India Trends
               </Btn>
               <ResultBox data={trendApi.data ? { trends: trendApi.data.trends } : null} loading={trendApi.loading} error={trendApi.error} title="India Content Opportunities" />
             </Card>
 
-            {/* Regional Language */}
             <Card>
-              <SectionHead title="🗣️ Regional Language Post" sub="Tamil, Hindi, Telugu — authentic, not translated" />
-              <Select label="Language"    value={indRegLang}  onChange={setIndRegLang}  options={REGIONAL_LANGS} />
-              <Select label="Platform"    value={anlPlatform} onChange={setAnlPlatform} options={PLATFORMS} />
-              <Input  label="Topic"       value={indRegTopic} onChange={setIndRegTopic} placeholder="e.g. GST filing tips for SMBs" />
-              <Input  label="Brand Name"  value={indRegBrand} onChange={setIndRegBrand} placeholder="Your brand" />
+              <SectionHead title="Regional Language Post" sub="Tamil, Hindi, Telugu — authentic, not translated" />
+              <Select label="Language"   value={indRegLang}  onChange={setIndRegLang}  options={REGIONAL_LANGS} />
+              <Select label="Platform"   value={anlPlatform} onChange={setAnlPlatform} options={PLATFORMS} />
+              <Input  label="Topic"      value={indRegTopic} onChange={setIndRegTopic} placeholder="e.g. GST filing tips for SMBs" />
+              <Input  label="Brand Name" value={indRegBrand} onChange={setIndRegBrand} placeholder="Your brand" />
               <Btn onClick={() => regionalApi.call(() => socialPro('regional_post', {
                 topic: indRegTopic, regional_language: indRegLang, brand_name: indRegBrand,
-              }, anlPlatform))} loading={regionalApi.loading}>🗣️ Generate Regional Post</Btn>
+              }, anlPlatform))} loading={regionalApi.loading}>Generate Regional Post</Btn>
               <ResultBox data={regionalApi.data ? { post: regionalApi.data.post } : null} loading={regionalApi.loading} error={regionalApi.error} title="Regional Post" />
             </Card>
 
-            {/* WhatsApp Business */}
             <Card>
-              <SectionHead title="💬 WhatsApp Business Content" sub="Broadcast, Status, Catalogue — India's #1 platform" />
-              <Select label="Content Type" value={waType}  onChange={setWaType}  options={WA_TYPES} />
-              <Input  label="Topic / Offer" value={waTopic} onChange={setWaTopic} placeholder="e.g. Diwali sale — 30% off on all plans" />
-              <Input  label="Brand Name"   value={waBrand} onChange={setWaBrand} placeholder="Your business name" />
+              <SectionHead title="WhatsApp Business Content" sub="Broadcast, Catalogue, Abandoned Cart, Reviews" />
+              <Select label="Message Type"   value={waType}      onChange={setWaType}      options={WA_TYPES} />
+              <Input  label="Brand Name"     value={waBrand}     onChange={setWaBrand}     placeholder="Your business name" />
+              <Input  label="Industry"       value={waIndustry}  onChange={setWaIndustry}  placeholder="e.g. Apparel, Restaurant" />
+              <Input  label="Product / Service" value={waProduct} onChange={setWaProduct}  placeholder="e.g. Summer Collection" />
+              <Input  label="Offer / Context"   value={waOffer}  onChange={setWaOffer}     placeholder="e.g. 20% off this weekend" />
               <div style={{ padding: 8, background: 'rgba(37,211,102,0.08)', borderRadius: 6, marginBottom: 12, fontSize: 11, color: '#4ade80' }}>
-                💬 Gets: Main message + Hindi version + emoji version + formal version + quick reply buttons + follow-up
+                Gets: Primary message + Alternate version + Quick reply buttons + Follow-up + Best send time + Open rate benchmark
               </div>
-              <Btn onClick={() => waApi.call(() => socialPro('whatsapp_content', {
-                content_type: waType, topic: waTopic, brand_name: waBrand,
-              }))} loading={waApi.loading}>💬 Generate WhatsApp Content</Btn>
-              <ResultBox data={waApi.data ? { content: waApi.data.content } : null} loading={waApi.loading} error={waApi.error} title="WhatsApp Content" />
+              <Btn onClick={() => waApi.call(() => socialAction('whatsapp_content', {
+                content_type: waType, brand_name: waBrand, industry: waIndustry,
+                product_name: waProduct, offer: waOffer,
+              }))} loading={waApi.loading}>Generate WhatsApp Content</Btn>
+              <ResultBox data={waApi.data} loading={waApi.loading} error={waApi.error} title="WhatsApp Messages" />
             </Card>
           </div>
+
+          {/* Row 2: Indian Cultural Calendar — KILLER DIFFERENTIATOR */}
+          <Card>
+            <SectionHead
+              title="Indian Cultural Calendar — Festival Campaign Planner"
+              sub="Diwali, Pongal, Holi, Eid, Republic Day — ready-to-post campaign briefs. Zero competitors offer this."
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <Input  label="Brand Name"  value={calBrandName}   onChange={setCalBrandName}   placeholder="e.g. Raju Textiles" />
+              <Input  label="Industry"    value={calIndustryCC}  onChange={setCalIndustryCC}  placeholder="e.g. Apparel, Fintech" />
+              <Select label="Tone"        value={calTone}        onChange={setCalTone}         options={CAL_TONES} />
+              <Select label="Language"    value={calLang}        onChange={setCalLang}         options={LANG_OPTIONS} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, fontWeight: 600 }}>SELECT MONTHS</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {MONTHS.map(m => (
+                  <button key={m} onClick={() => toggleMonth(m)} style={{
+                    padding: '4px 12px', borderRadius: 20, fontSize: 11, cursor: 'pointer', border: 'none',
+                    background: calSelectedMonths.includes(m) ? 'rgba(16,185,129,0.2)' : '#1e2535',
+                    color: calSelectedMonths.includes(m) ? '#10b981' : '#6b7280',
+                    fontWeight: calSelectedMonths.includes(m) ? 600 : 400,
+                  }}>{m}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, fontWeight: 600 }}>SELECT PLATFORMS</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {CAL_PLATFORMS.map(p => (
+                  <button key={p} onClick={() => togglePlatform(p)} style={{
+                    padding: '4px 12px', borderRadius: 20, fontSize: 11, cursor: 'pointer', border: 'none', textTransform: 'capitalize',
+                    background: calPlatforms.includes(p) ? 'rgba(99,102,241,0.2)' : '#1e2535',
+                    color: calPlatforms.includes(p) ? '#a5b4fc' : '#6b7280',
+                    fontWeight: calPlatforms.includes(p) ? 600 : 400,
+                  }}>{p}</button>
+                ))}
+              </div>
+            </div>
+            <Btn
+              onClick={() => culturalApi.call(() => socialAction('cultural_calendar', {
+                brand_name: calBrandName, industry: calIndustryCC,
+                months: calSelectedMonths, platforms: calPlatforms, tone: calTone,
+              }, 'all', calLang))}
+              loading={culturalApi.loading}
+              disabled={calSelectedMonths.length === 0 || !calBrandName}
+            >
+              Generate Festival Campaigns
+            </Btn>
+            {culturalApi.data?.campaigns?.length > 0 && (
+              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {culturalApi.data.campaigns.map((c: any, i: number) => (
+                  <div key={i} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: 14 }}>{c.event}</span>
+                      <span style={{ fontSize: 11, color: '#6b7280' }}>{c.date}</span>
+                    </div>
+                    {c.angle && <div style={{ color: '#a5b4fc', fontSize: 12, marginBottom: 6 }}>Angle: {c.angle}</div>}
+                    {c.caption && <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 6, fontStyle: 'italic' }}>"{c.caption}"</div>}
+                    {c.hashtags && <div style={{ fontSize: 11, color: '#10b981' }}>{Array.isArray(c.hashtags) ? c.hashtags.join(' ') : c.hashtags}</div>}
+                    {c.dos_donts && <div style={{ marginTop: 8, fontSize: 11, color: '#ef4444', borderTop: '1px solid #1e2535', paddingTop: 8 }}>Do/Don't: {c.dos_donts}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {culturalApi.data && !culturalApi.data.campaigns?.length && (
+              <ResultBox data={culturalApi.data} loading={culturalApi.loading} error={culturalApi.error} title="Festival Campaigns" />
+            )}
+          </Card>
         </div>
       )}
 

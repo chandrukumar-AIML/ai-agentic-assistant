@@ -1583,6 +1583,157 @@ async def build_post_preview_tips(
     }
 
 
+# ── Indian Cultural Calendar Campaign Planner ────────────────────────────────
+
+INDIAN_CALENDAR = {
+    "January":  ["Pongal (14)", "Makar Sankranti (14)", "Republic Day (26)", "Lohri (13)"],
+    "February": ["Valentine's Day (14)", "Maha Shivaratri (varies)"],
+    "March":    ["Holi (varies)", "International Women's Day (8)", "Ugadi/Gudi Padwa (varies)"],
+    "April":    ["Ram Navami (varies)", "Tamil New Year (14)", "Dr. Ambedkar Jayanti (14)", "Hanuman Jayanti (varies)"],
+    "May":      ["Labour Day (1)", "Mother's Day (2nd Sun)", "Buddha Purnima (varies)", "Eid ul-Fitr (varies)"],
+    "June":     ["World Environment Day (5)", "Father's Day (3rd Sun)", "Eid al-Adha (varies)"],
+    "July":     ["Guru Purnima (varies)", "GST Day (1 — for CA/Finance brands)", "Muharram (varies)"],
+    "August":   ["Independence Day (15)", "Raksha Bandhan (varies)", "Janmashtami (varies)", "Onam (varies)"],
+    "September": ["Teachers' Day (5)", "Ganesh Chaturthi (varies)", "Navaratri begins (varies)"],
+    "October":  ["Gandhi Jayanti (2)", "Dussehra (varies)", "Navaratri ends", "World Mental Health Day (10)"],
+    "November": ["Diwali (varies)", "Bhai Dooj (varies)", "Guru Nanak Jayanti (varies)", "Children's Day (14)"],
+    "December": ["Christmas (25)", "New Year's Eve (31)", "Year-end sales season"],
+}
+
+async def plan_cultural_calendar(
+    brand_name:   str,
+    industry:     str,
+    months:       list,      # e.g. ["October", "November"]
+    platforms:    list,      # e.g. ["instagram", "whatsapp"]
+    tone:         str = "festive",
+    language:     str = "en",
+) -> dict:
+    """Generate campaign briefs for Indian festivals and national days — months ahead."""
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    import json
+
+    events_block = ""
+    for m in months:
+        evts = INDIAN_CALENDAR.get(m, [])
+        if evts:
+            events_block += f"\n{m}: {', '.join(evts)}"
+
+    system = (
+        f"You are a senior Indian social media strategist. "
+        f"Tone: {tone}. Language: {language}. "
+        "Deep knowledge of Indian festivals, regional variations, and how Indian brands leverage them."
+    )
+    prompt = (
+        f"Brand: {brand_name} | Industry: {industry}\n"
+        f"Platforms: {', '.join(platforms)}\n"
+        f"Months requested: {', '.join(months)}\n"
+        f"Indian events in these months:{events_block}\n\n"
+        "For each relevant festival/event create a campaign brief:\n"
+        "1. EVENT NAME + DATE + why it matters for this brand\n"
+        "2. CAMPAIGN ANGLE — unique hook that fits the brand (not generic 'Happy Diwali')\n"
+        "3. CONTENT IDEAS per platform (3 posts: feed, story/reel, WhatsApp broadcast)\n"
+        "4. CAPTION (ready to post) in selected language\n"
+        "5. HASHTAGS (10 — mix of trending + niche)\n"
+        "6. VISUAL DIRECTION — color palette, imagery style, cultural elements to include\n"
+        "7. POSTING SCHEDULE — best days & times in the lead-up to the event\n"
+        "8. DO / DON'T — cultural sensitivities specific to this festival\n\n"
+        "Skip events that have no logical connection to this brand/industry.\n"
+        "Output as JSON array: [{event, date, angle, posts:{feed,story,whatsapp}, caption, hashtags, visual, schedule, dos_donts}]"
+    )
+    try:
+        raw = await ollama_chat_completion(
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+            model=OLLAMA_MODEL, max_tokens=1500, temperature=0.7,
+        )
+        try:
+            import re
+            match = re.search(r'\[.*\]', raw, re.DOTALL)
+            campaigns = json.loads(match.group()) if match else []
+        except Exception:
+            campaigns = []
+        return {
+            "action": "cultural_calendar",
+            "brand": brand_name,
+            "months": months,
+            "events_found": events_block.strip(),
+            "campaigns": campaigns,
+            "raw": raw if not campaigns else None,
+        }
+    except Exception as e:
+        logger.error("Cultural calendar failed: %s", e)
+        return {"error": "Cultural calendar generation failed.", "detail": str(e)}
+
+
+# ── WhatsApp Business Content Generator ──────────────────────────────────────
+
+async def generate_whatsapp_content(
+    content_type: str,   # broadcast | catalogue | welcome | abandoned_cart | review_request | reorder
+    brand_name:   str,
+    industry:     str,
+    product_name: str = "",
+    offer:        str = "",
+    customer_name: str = "Customer",
+    language:     str = "en",
+    tone:         str = "friendly",
+) -> dict:
+    """Generate WhatsApp Business messages — broadcasts, catalogues, automations."""
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+
+    TYPE_DESC = {
+        "broadcast":       "promotional broadcast message to opted-in customers",
+        "catalogue":       "product catalogue description and CTA message",
+        "welcome":         "welcome message for new WhatsApp contacts",
+        "abandoned_cart":  "recover abandoned cart with gentle nudge",
+        "review_request":  "ask happy customers for a Google/review",
+        "reorder":         "remind customer to reorder a product they bought before",
+    }
+    desc = TYPE_DESC.get(content_type, content_type)
+
+    system = (
+        f"You are a WhatsApp Business messaging expert for Indian SMBs. "
+        f"Tone: {tone}. Language: {language}. "
+        "Messages must be under 1024 chars, conversational, use emojis sparingly, respect WhatsApp policies."
+    )
+    prompt = (
+        f"Brand: {brand_name} | Industry: {industry}\n"
+        f"Message type: {desc}\n"
+        f"Product/Service: {product_name or 'general'}\n"
+        f"Offer/Context: {offer or 'none'}\n"
+        f"Customer name variable: {customer_name}\n\n"
+        "Generate:\n"
+        "1. PRIMARY MESSAGE (ready to send, under 1024 chars, with emojis)\n"
+        "2. ALTERNATE VERSION (different angle, same goal)\n"
+        "3. QUICK REPLY BUTTONS (3 options customers can tap)\n"
+        "4. FOLLOW-UP MESSAGE (if no reply in 24h)\n"
+        "5. BEST TIME TO SEND for Indian audiences\n"
+        "6. ESTIMATED OPEN RATE for this message type (India benchmark)\n"
+        "7. COMPLIANCE CHECK — any WhatsApp policy issue? (yes/no + reason)\n\n"
+        "Output as JSON: {primary, alternate, quick_replies, followup, best_time, open_rate_benchmark, compliance_ok, compliance_note}"
+    )
+    try:
+        raw = await ollama_chat_completion(
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+            model=OLLAMA_MODEL, max_tokens=800, temperature=0.7,
+        )
+        import json, re
+        try:
+            match = re.search(r'\{.*\}', raw, re.DOTALL)
+            data = json.loads(match.group()) if match else {}
+        except Exception:
+            data = {}
+        return {
+            "action": "whatsapp_content",
+            "brand": brand_name,
+            "content_type": content_type,
+            "language": language,
+            **data,
+            "raw": raw if not data else None,
+        }
+    except Exception as e:
+        logger.error("WhatsApp content generation failed: %s", e)
+        return {"error": "WhatsApp content generation failed.", "detail": str(e)}
+
+
 # ── Main social media agent dispatcher ───────────────────────────────────────
 
 async def social_agent(
@@ -1883,6 +2034,28 @@ async def social_agent(
             post_text=payload.get("post_text", ""),
             platform=platform,
             has_image=payload.get("has_image", False),
+        )
+
+    elif action == "cultural_calendar":
+        return await plan_cultural_calendar(
+            brand_name=payload.get("brand_name", ""),
+            industry=payload.get("industry", ""),
+            months=payload.get("months", []),
+            platforms=payload.get("platforms", ["instagram"]),
+            tone=payload.get("tone", "festive"),
+            language=language,
+        )
+
+    elif action == "whatsapp_content":
+        return await generate_whatsapp_content(
+            content_type=payload.get("content_type", "broadcast"),
+            brand_name=payload.get("brand_name", ""),
+            industry=payload.get("industry", ""),
+            product_name=payload.get("product_name", ""),
+            offer=payload.get("offer", ""),
+            customer_name=payload.get("customer_name", "Customer"),
+            language=language,
+            tone=payload.get("tone", "friendly"),
         )
 
     return {"error": f"Unknown social action: {action}"}
