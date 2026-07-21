@@ -540,6 +540,35 @@ export const caAction = (action: string, payload: object, language = 'en') =>
 export const csAction = (action: string, payload: object, language = 'en') =>
   apiFetch('/verticals/cs/action', { method: 'POST', body: JSON.stringify({ action, payload, language }) }, 360_000)
 
+// ── Admin: Audit log + Usage + RBAC ──────────────────────────────────────────
+export const getAuditLog = (params?: { user_id?: string; action?: string; limit?: number }) => {
+  const q = new URLSearchParams()
+  if (params?.user_id) q.set('user_id', params.user_id)
+  if (params?.action)  q.set('action',  params.action)
+  if (params?.limit)   q.set('limit',   String(params.limit))
+  return apiFetch(`/admin/audit?${q}`)
+}
+export const getAuditSummary = (days = 7) =>
+  apiFetch(`/admin/audit/summary?days=${days}`)
+
+export const getWorkspaceUsage = (days = 30) =>
+  apiFetch(`/admin/usage?days=${days}`)
+
+export const getAdminUsers = () =>
+  apiFetch('/admin/users')
+
+export const updateUserTools = (userId: string, allowedTools: string[]) =>
+  apiFetch(`/admin/users/${userId}/tools`, {
+    method: 'PATCH',
+    body: JSON.stringify({ allowed_tools: allowedTools }),
+  })
+
+export const updateUserRole = (userId: string, role: string) =>
+  apiFetch(`/admin/users/${userId}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ value: role }),
+  })
+
 // ── Analyst Vertical — POST /vertical/analyst?query=... ───────────────────────
 export async function analystQuery(query: string, contextJson = '{}') {
   const params = new URLSearchParams({ query, context_json: contextJson })

@@ -115,6 +115,92 @@ async def update_user_role(
     return {"updated": True, "user_id": user_id, "role": role}
 
 
+@router.patch("/users/{user_id}/tools")
+async def update_user_tools(
+    user_id: str,
+    body:    dict,
+    claims:  JWTClaims = Depends(require_admin),
+):
+    """Update which agents/tools a user can access. body = {"allowed_tools": ["social","ca-accounting"]}"""
+    tools = body.get("allowed_tools", [])
+    import json
+    from backend.prompts.registry import get_pool
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET allowed_tools = $1 WHERE id = $2",
+            json.dumps(tools), user_id,
+        )
+    return {"updated": True, "user_id": user_id, "allowed_tools": tools}
+
+
+@router.get("/usage")
+async def get_workspace_usage(
+    days:   int = 30,
+    claims: JWTClaims = Depends(require_admin),
+):
+    """Workspace-level usage summary for admin dashboard."""
+    from backend.prompts.registry import get_pool
+    import json
+    pool = await get_pool()
+    workspace_id = claims.get("workspace_id", "")
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    tool_called,
+                    COUNT(*) as calls,
+                    SUM(input_tokens + output_tokens) as tokens,
+                    SUM(cost_usd) as cost,
+                    AVG(latency_ms) as avg_latency,
+                    SUM(CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END) as errors
+                FROM audit_log
+                WHERE workspace_id = $1
+                  AND timestamp >= NOW() - ($2 * INTERVAL '1 day')
+                GROUP BY tool_called
+                ORDER BY calls DESC
+                """,
+                workspace_id, days,
+            )
+            total = await conn.fetchrow(
+                """
+                SELECT COUNT(*) as total_calls,
+                       SUM(input_tokens + output_tokens) as total_tokens,
+                       SUM(cost_usd) as total_cost,
+                       COUNT(DISTINCT user_id) as active_users
+                FROM audit_log
+                WHERE workspace_id = $1
+                  AND timestamp >= NOW() - ($2 * INTERVAL '1 day')
+                """,
+                workspace_id, days,
+            )
+        return {
+            "period_days": days,
+            "total_calls":   int(total["total_calls"] or 0),
+            "total_tokens":  int(total["total_tokens"] or 0),
+            "total_cost_usd": round(float(total["total_cost"] or 0), 4),
+            "active_users":  int(total["active_users"] or 0),
+            "by_agent": [
+                {
+                    "agent": r["tool_called"] or "unknown",
+                    "calls": int(r["calls"]),
+                    "tokens": int(r["tokens"] or 0),
+                    "cost": round(float(r["cost"] or 0), 4),
+                    "avg_latency_ms": round(float(r["avg_latency"] or 0)),
+                    "errors": int(r["errors"]),
+                }
+                for r in rows
+            ],
+        }
+    except Exception as e:
+        return {
+            "period_days": days, "total_calls": 0, "total_tokens": 0,
+            "total_cost_usd": 0, "active_users": 0, "by_agent": [],
+            "demo_mode": True, "note": str(e),
+        }
+
+
 @router.delete("/users/{user_id}")
 async def deactivate_user(
     user_id: str,
