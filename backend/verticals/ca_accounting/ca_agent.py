@@ -953,6 +953,16 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "overdue_collector":
+        return generate_overdue_collection(
+            company_name=payload.get("company_name", ""),
+            invoices=payload.get("invoices", []),
+            contact_name=payload.get("contact_name", ""),
+            sender_name=payload.get("sender_name", ""),
+            payment_terms=payload.get("payment_terms", "Net 30"),
+            late_fee_pct=float(payload.get("late_fee_pct", 2) or 2),
+        )
+
     elif action == "cash_flow_forecast":
         return calculate_cash_flow_forecast(
             company_name=payload.get("company_name", ""),
@@ -1911,4 +1921,190 @@ def calculate_cash_flow_forecast(
         "months":           months_data,
         "recommendations":  recommendations,
         "summary":          f"{company_name or 'Company'} 12-month forecast: ₹{annual_profit/100000:.1f}L net profit, {runway_months}m runway, {'⚠️ cash deficit risk' if deficit_months else '✅ healthy cash flow'}.",
+    }
+
+
+# ── Overdue Invoice Collector (Round 11) ─────────────────────────────────────
+
+def generate_overdue_collection(
+    company_name: str,
+    invoices: list,
+    contact_name: str,
+    sender_name: str,
+    payment_terms: str,
+    late_fee_pct: float,
+) -> dict:
+    company = company_name or "Your Company"
+    contact = contact_name or "Sir/Madam"
+    sender = sender_name or f"{company} Finance Team"
+    terms = payment_terms or "Net 30"
+
+    if not invoices:
+        invoices = [
+            {"invoice_no": "INV-2024-101", "amount": 85000, "due_date": "2024-11-15", "days_overdue": 45, "client": "ABC Enterprises"},
+            {"invoice_no": "INV-2024-118", "amount": 42500, "due_date": "2024-11-28", "days_overdue": 32, "client": "XYZ Trading Co"},
+            {"invoice_no": "INV-2024-135", "amount": 125000, "due_date": "2024-12-05", "days_overdue": 15, "client": "PQR Solutions"},
+        ]
+
+    total_overdue = sum(float(inv.get("amount", 0)) for inv in invoices)
+    late_fee_total = total_overdue * (late_fee_pct / 100)
+
+    processed = []
+    for inv in invoices:
+        days = int(inv.get("days_overdue", 0))
+        amount = float(inv.get("amount", 0))
+        late_fee = amount * (late_fee_pct / 100)
+
+        if days <= 15:
+            stage = "gentle"
+            urgency = "low"
+        elif days <= 30:
+            stage = "firm"
+            urgency = "medium"
+        elif days <= 60:
+            stage = "strong"
+            urgency = "high"
+        else:
+            stage = "legal"
+            urgency = "critical"
+
+        client = inv.get("client", contact)
+        inv_no = inv.get("invoice_no", "INV-XXX")
+        due_date = inv.get("due_date", "")
+
+        if stage == "gentle":
+            subject = f"Friendly Reminder — Invoice {inv_no} Payment Due"
+            body = f"""Dear {client},
+
+I hope this message finds you well.
+
+This is a friendly reminder that Invoice {inv_no} for ₹{amount:,.0f} was due on {due_date} and appears to be outstanding on our records.
+
+We understand that sometimes payments slip through the cracks — if you have already initiated the transfer, please disregard this note and share the UTR/reference number at your convenience.
+
+Invoice Details:
+• Invoice No: {inv_no}
+• Amount: ₹{amount:,.0f}
+• Due Date: {due_date}
+• Days Overdue: {days} days
+
+Kindly arrange payment at the earliest. Our bank details are on the invoice. Feel free to reach out if you have any questions.
+
+Warm regards,
+{sender}"""
+
+        elif stage == "firm":
+            subject = f"Payment Overdue — Invoice {inv_no} | Action Required"
+            body = f"""Dear {client},
+
+We are writing to bring to your attention that Invoice {inv_no} for ₹{amount:,.0f} is now {days} days overdue (original due date: {due_date}).
+
+Despite our earlier reminder, we have not received payment or any communication regarding this invoice. We request you to please clear this immediately.
+
+Invoice Details:
+• Invoice No: {inv_no}
+• Amount Due: ₹{amount:,.0f}
+• Original Due Date: {due_date}
+• Days Overdue: {days} days
+• Late Fee Applicable: ₹{late_fee:,.0f} ({late_fee_pct}% per month as per our terms)
+
+To avoid late fees, please process payment by [DATE+3 DAYS] and share confirmation.
+
+If there is a dispute or issue with this invoice, please let us know immediately so we can resolve it together.
+
+Regards,
+{sender}"""
+
+        elif stage == "strong":
+            subject = f"URGENT: Invoice {inv_no} — {days} Days Overdue | ₹{amount:,.0f} Outstanding"
+            body = f"""Dear {client},
+
+This is our third and final reminder regarding Invoice {inv_no} for ₹{amount:,.0f}, which is now {days} days past due.
+
+We have a strong business relationship with you and wish to resolve this amicably. However, the continued non-payment is affecting our cash flow and we need this resolved immediately.
+
+Outstanding Amount Summary:
+• Principal: ₹{amount:,.0f}
+• Late Fee ({late_fee_pct}%/month): ₹{late_fee:,.0f}
+• TOTAL NOW DUE: ₹{amount + late_fee:,.0f}
+
+If payment is not received by [DATE+7 DAYS], we will be left with no option but to escalate this matter, which may include:
+1. Suspension of future services/deliveries
+2. Referral to our legal team for recovery proceedings
+3. Reporting to credit bureaus (if applicable)
+
+We sincerely hope it does not come to this. Please arrange payment or call us at [PHONE] today.
+
+{sender}"""
+
+        else:
+            subject = f"LEGAL NOTICE — Invoice {inv_no} | {days} Days Overdue | ₹{amount + late_fee:,.0f} Due"
+            body = f"""Dear {client},
+
+NOTICE OF OVERDUE PAYMENT AND INTENTION TO INITIATE LEGAL PROCEEDINGS
+
+This notice is served upon you in the matter of Invoice {inv_no} dated [INVOICE DATE] for ₹{amount:,.0f}, which has remained unpaid for {days} days despite multiple reminders.
+
+Demand Details:
+• Principal Amount: ₹{amount:,.0f}
+• Late Fee Accrued: ₹{late_fee:,.0f}
+• Total Amount in Demand: ₹{amount + late_fee:,.0f}
+
+Under the terms of our agreement ({terms}), you are in breach of your payment obligation. Under Section 138 of the Negotiable Instruments Act and the MSME Delayed Payments Act (if applicable), we are entitled to recover the outstanding amount along with interest at 1.5x the bank rate.
+
+You are hereby given 7 (SEVEN) days from the date of this notice to settle the full amount. Failure to do so will result in:
+1. Filing a complaint under Section 138 NI Act
+2. Initiation of arbitration/civil suit for recovery
+3. Reporting to credit rating agencies
+
+To avoid legal action, transfer the amount immediately and send proof to [EMAIL].
+
+This notice is issued without prejudice to all other rights and remedies available to {company}.
+
+{sender}
+[Designation], {company}
+[Date]
+
+Note: Consult your CA/lawyer before sending the Legal Notice stage. This draft is a starting template."""
+
+        processed.append({
+            "invoice_no":    inv_no,
+            "client":        client,
+            "amount":        amount,
+            "late_fee":      round(late_fee, 0),
+            "total_due":     round(amount + late_fee, 0),
+            "due_date":      due_date,
+            "days_overdue":  days,
+            "stage":         stage,
+            "urgency":       urgency,
+            "subject":       subject,
+            "email_body":    body,
+        })
+
+    processed.sort(key=lambda x: x["days_overdue"], reverse=True)
+
+    tips = [
+        "Always CC your CA on the Legal Notice stage — it adds credibility and protects you legally.",
+        "Under the MSME Act, buyers must pay within 45 days; you can file a complaint with MSME Samadhaan portal.",
+        "Call the client 24h after sending the email — a voice conversation often unblocks payment faster than email.",
+        "Consider offering a payment plan if the client is genuinely struggling — a part-payment is better than bad debt.",
+        f"Your late fee clause ({late_fee_pct}% per month) should be on every invoice and in your service agreement to be enforceable.",
+    ]
+
+    return {
+        "action":          "overdue_collector",
+        "company":         company,
+        "total_invoices":  len(processed),
+        "total_overdue":   round(total_overdue, 0),
+        "total_late_fees": round(late_fee_total, 0),
+        "total_recoverable": round(total_overdue + late_fee_total, 0),
+        "invoices":        processed,
+        "collection_tips": tips,
+        "urgency_count":   {
+            "critical": sum(1 for i in processed if i["urgency"] == "critical"),
+            "high":     sum(1 for i in processed if i["urgency"] == "high"),
+            "medium":   sum(1 for i in processed if i["urgency"] == "medium"),
+            "low":      sum(1 for i in processed if i["urgency"] == "low"),
+        },
+        "summary": f"Generated {len(processed)} collection emails. Total overdue: ₹{total_overdue/100000:.1f}L + ₹{late_fee_total/100000:.1f}L late fees = ₹{(total_overdue+late_fee_total)/100000:.1f}L recoverable.",
     }

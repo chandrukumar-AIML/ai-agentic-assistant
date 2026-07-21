@@ -55,6 +55,7 @@ const TABS = [
   { id: 'onboarding', label: 'Onboarding Planner' },
   { id: 'categorizer',label: 'Ticket Categorizer' },
   { id: 'rulebook',   label: 'Escalation Rulebook' },
+  { id: 'health',     label: 'Customer Health Score' },
 ]
 
 const WA_TYPES = [
@@ -1303,6 +1304,7 @@ export default function CustomerSupportPage() {
         {tab === 'onboarding'  && <OnboardingTab lang={lang} />}
         {tab === 'categorizer' && <CategorizerTab lang={lang} />}
         {tab === 'rulebook'    && <EscalationRulebookTab lang={lang} />}
+        {tab === 'health'      && <CustomerHealthTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -1986,6 +1988,123 @@ function EscalationRulebookTab({ lang }: { lang: Lang }) {
         ) : (
           <Card>
             <Empty text="Demo values pre-filled — click Build Escalation Rulebook to generate your custom matrix →" />
+          </Card>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Customer Health Score Tab (Round 11) ─────────────────────────────────────
+
+function CustomerHealthTab({ lang }: { lang: Lang }) {
+  const [biz, setBiz]         = useState('Acme SaaS')
+  const [product, setProduct] = useState('Core Platform')
+  const [jsonData, setJsonData] = useState('')
+  const [res, setRes]         = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [err, setErr]         = useState('')
+  const [selected, setSelected] = useState<number | null>(null)
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null)
+    let customers: any[] = []
+    try { if (jsonData.trim()) customers = JSON.parse(jsonData) } catch { setErr('Invalid JSON'); setLoading(false); return }
+    try {
+      const r = await csAction('customer_health_score', { business_name: biz, product_name: product, customers }, lang)
+      setRes(r)
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+
+  const SEG_COLOR: Record<string, string> = { champion: '#22c55e', healthy: '#10b981', at_risk: '#f59e0b', critical: '#f97316', churned: '#ef4444' }
+  const SEG_LABEL: Record<string, string> = { champion: 'Champion', healthy: 'Healthy', at_risk: 'At Risk', critical: 'Critical', churned: 'Churned' }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.8fr', gap: 16 }}>
+      <div>
+        <Card>
+          <SectionHead title="Customer Health Score" sub="Score 0–100 from usage signals — segment + intervention playbook" />
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Business Name</label>
+            <input value={biz} onChange={e => setBiz(e.target.value)} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Product Name</label>
+            <input value={product} onChange={e => setProduct(e.target.value)} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Customer Data JSON (blank = demo)</label>
+            <textarea value={jsonData} onChange={e => setJsonData(e.target.value)} rows={7} placeholder={`[\n  {\n    "name": "Ravi Textiles",\n    "login_frequency": 8,\n    "feature_adoption": 75,\n    "support_tickets": 2,\n    "nps_score": 8,\n    "payment_history": 100,\n    "arr": 120000\n  }\n]`} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 11, fontFamily: 'monospace', boxSizing: 'border-box', resize: 'vertical' }} />
+          </div>
+          <button onClick={run} disabled={loading} style={{ width: '100%', padding: '10px 0', background: loading ? '#374151' : '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 14 }}>
+            {loading ? 'Scoring…' : 'Score All Customers'}
+          </button>
+          {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{err}</div>}
+          {res && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                <Badge label={`Avg score: ${res.avg_health_score}/100`} color="#818cf8" />
+                <Badge label={`ARR at risk: ₹${((res.arr_at_risk || 0)/100000).toFixed(1)}L`} color="#ef4444" />
+              </div>
+              {Object.entries(res.segment_breakdown || {}).map(([seg, count]: any) => (
+                <div key={seg} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                  <span style={{ fontSize: 11, color: SEG_COLOR[seg] || '#6b7280', minWidth: 72 }}>{SEG_LABEL[seg] || seg}</span>
+                  <div style={{ flex: 1, background: '#1e2535', borderRadius: 4, height: 6 }}>
+                    <div style={{ width: `${(count / res.total_customers) * 100}%`, height: '100%', background: SEG_COLOR[seg] || '#6b7280', borderRadius: 4 }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: '#9ca3af', minWidth: 16 }}>{count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+      <div>
+        {res ? (
+          (res.customers || []).map((cust: any, i: number) => (
+            <div key={i} style={{ border: `1px solid ${cust.color || '#374151'}`, borderRadius: 8, marginBottom: 10, overflow: 'hidden' }}>
+              <div onClick={() => setSelected(selected === i ? null : i)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#111827', cursor: 'pointer' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 13 }}>{cust.name}</span>
+                    <Badge label={cust.segment_label} color={cust.color} />
+                    {cust.csm && <span style={{ fontSize: 11, color: '#4b5563' }}>CSM: {cust.csm}</span>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 22, fontWeight: 800, color: cust.color }}>{cust.health_score}</span>
+                    <div style={{ flex: 1, background: '#1e2535', borderRadius: 4, height: 6 }}>
+                      <div style={{ width: `${cust.health_score}%`, height: '100%', background: cust.color, borderRadius: 4 }} />
+                    </div>
+                    {cust.arr > 0 && <span style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>₹{(cust.arr/1000).toFixed(0)}K ARR</span>}
+                  </div>
+                </div>
+                <span style={{ fontSize: 14, marginLeft: 12, color: '#6b7280' }}>{selected === i ? '▲' : '▼'}</span>
+              </div>
+              {selected === i && (
+                <div style={{ padding: '12px 14px', background: '#0f1117' }}>
+                  {(cust.risk_flags || []).length > 0 && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginBottom: 4 }}>Risk Flags</div>
+                      {cust.risk_flags.map((f: string, j: number) => <div key={j} style={{ fontSize: 12, color: '#f97316' }}>• {f}</div>)}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                    {Object.entries(cust.signals || {}).filter(([, v]) => v !== undefined && v !== null).map(([k, v]: any) => (
+                      <Badge key={k} label={`${k.replace(/_/g, ' ')}: ${v}`} color="#374151" />
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#10b981', fontWeight: 700, marginBottom: 6 }}>Recommended Actions</div>
+                  {(cust.actions || []).map((a: string, j: number) => (
+                    <div key={j} style={{ fontSize: 12, color: '#e2e8f0', background: '#111827', borderRadius: 4, padding: '6px 10px', marginBottom: 4, borderLeft: '3px solid #10b981' }}>{a}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
+        ) : !loading && (
+          <Card>
+            <Empty text="Demo data pre-loaded — click Score All Customers to see results →" />
           </Card>
         )}
       </div>

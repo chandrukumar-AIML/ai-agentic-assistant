@@ -266,6 +266,32 @@ export default function SocialPage() {
   // ── Employee Advocacy Generator (Round 9) ──
   const ADVOCACY_TONES = [{ label: 'Professional', value: 'professional' }, { label: 'Casual & Warm', value: 'casual' }, { label: 'Excited / Celebratory', value: 'excited' }, { label: 'Humble & Grateful', value: 'humble' }]
   const EMPLOYEE_ROLES = [{ label: 'Founder / CEO', value: 'founder' }, { label: 'Sales / BD', value: 'sales' }, { label: 'Engineer', value: 'engineer' }, { label: 'HR / People', value: 'hr' }, { label: 'Marketing', value: 'marketing' }, { label: 'Team Member', value: 'team_member' }]
+  // Influencer Outreach Generator (Round 11)
+  const [ioInfluencer, setIoInfluencer] = useState('Neha Sharma')
+  const [ioBrand, setIoBrand]           = useState('')
+  const [ioNiche, setIoNiche]           = useState('lifestyle')
+  const [ioPlatform, setIoPlatform]     = useState('instagram')
+  const [ioFollowers, setIoFollowers]   = useState('75000')
+  const [ioGoal, setIoGoal]             = useState('brand awareness')
+  const [ioProduct, setIoProduct]       = useState('')
+  const [ioBudget, setIoBudget]         = useState('')
+  const [ioRes, setIoRes]               = useState<any>(null)
+  const [ioLoading, setIoLoading]       = useState(false)
+  const [ioErr, setIoErr]               = useState('')
+  const [ioActiveEmail, setIoActiveEmail] = useState<'primary' | 'negotiation' | 'followup1' | 'followup2'>('primary')
+  const runInfluencerOutreach = async () => {
+    setIoLoading(true); setIoErr(''); setIoRes(null)
+    try {
+      setIoRes(await socialAction('influencer_outreach', {
+        brand_name: ioBrand, influencer_name: ioInfluencer, influencer_niche: ioNiche,
+        influencer_platform: ioPlatform, follower_count: parseInt(ioFollowers) || 75000,
+        campaign_goal: ioGoal, product_name: ioProduct, budget_range: ioBudget,
+        deliverables: ['1 feed post', '3 stories'], industry: ioNiche,
+      }, ioPlatform))
+    } catch (e: any) { setIoErr(e.message) }
+    finally { setIoLoading(false) }
+  }
+
   // Viral Hook Generator (Round 10)
   const [hookTopic, setHookTopic]       = useState('')
   const [hookBrand, setHookBrand]       = useState('')
@@ -502,6 +528,7 @@ export default function SocialPage() {
           { id: 'spy',        label: 'Competitor Spy',        icon: '🕵️' },
           { id: 'advocacy',   label: 'Employee Advocacy',     icon: '📢' },
           { id: 'hooks',      label: 'Viral Hooks',           icon: '🎣' },
+          { id: 'outreach',   label: 'Influencer Outreach',   icon: '✉️' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2147,6 +2174,113 @@ export default function SocialPage() {
                 </>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Paste mentions JSON and click Generate →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── INFLUENCER OUTREACH GENERATOR (Round 11) ── */}
+      {tab === 'outreach' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="✉️ Influencer Outreach Kit" sub="Personalized pitch + negotiation + follow-up sequence" />
+            <Input label="Influencer Name" value={ioInfluencer} onChange={setIoInfluencer} placeholder="e.g. Neha Sharma" />
+            <Input label="Your Brand Name" value={ioBrand} onChange={setIoBrand} placeholder="e.g. Mamaearth, Zoho" />
+            <Input label="Influencer Niche" value={ioNiche} onChange={setIoNiche} placeholder="e.g. lifestyle, tech, finance, fitness" />
+            <Select label="Platform" value={ioPlatform} onChange={setIoPlatform} options={[
+              { label: 'Instagram', value: 'instagram' },
+              { label: 'YouTube', value: 'youtube' },
+              { label: 'LinkedIn', value: 'linkedin' },
+              { label: 'Twitter/X', value: 'twitter' },
+              { label: 'Moj / Josh', value: 'moj' },
+            ]} />
+            <Input label="Follower Count" value={ioFollowers} onChange={setIoFollowers} placeholder="e.g. 75000" />
+            <Select label="Campaign Goal" value={ioGoal} onChange={setIoGoal} options={[
+              { label: 'Brand Awareness', value: 'brand awareness' },
+              { label: 'Product Launch', value: 'product launch' },
+              { label: 'Lead Generation', value: 'lead generation' },
+              { label: 'App Downloads', value: 'app downloads' },
+              { label: 'Sales / Conversions', value: 'sales and conversions' },
+            ]} />
+            <Input label="Product / Service to Feature" value={ioProduct} onChange={setIoProduct} placeholder="e.g. AI accounting software" />
+            <Input label="Budget Range (optional)" value={ioBudget} onChange={setIoBudget} placeholder="e.g. ₹20K–₹40K per post" />
+            <Btn onClick={runInfluencerOutreach} loading={ioLoading}>Generate Outreach Kit</Btn>
+            {ioErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{ioErr}</div>}
+          </Card>
+          <Card>
+            {ioRes ? (() => {
+              const r = ioRes
+              const tierColor = r.tier === 'mega' ? '#a78bfa' : r.tier === 'macro' ? '#818cf8' : r.tier === 'micro' ? '#10b981' : '#6b7280'
+              const emails: Record<string, { label: string; content: string }> = {
+                primary:     { label: 'Initial Outreach', content: r.primary_outreach_email },
+                negotiation: { label: 'Negotiation Reply', content: r.negotiation_email },
+                followup1:   { label: `Follow-up (Day ${r.follow_up_sequence?.[0]?.day || 3})`, content: r.follow_up_sequence?.[0]?.body || '' },
+                followup2:   { label: `Follow-up (Day ${r.follow_up_sequence?.[1]?.day || 7})`, content: r.follow_up_sequence?.[1]?.body || '' },
+              }
+              return (
+                <>
+                  {/* Tier + Rate badges */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                    <Badge label={`${r.tier?.toUpperCase()} tier — ${r.tier_range} followers`} color={tierColor} />
+                    <Badge label={`Post rate: ${r.market_rate_post}`} color="#f59e0b" />
+                    <Badge label={`Reel rate: ${r.market_rate_reel}`} color="#f97316" />
+                  </div>
+                  {r.negotiation_tip && <div style={{ fontSize: 12, color: '#10b981', background: 'rgba(16,185,129,0.08)', borderRadius: 6, padding: '8px 12px', marginBottom: 14 }}>💡 {r.negotiation_tip}</div>}
+
+                  {/* Email switcher */}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                    {(Object.entries(emails) as [string, { label: string; content: string }][]).map(([key, val]) => (
+                      <span key={key} onClick={() => setIoActiveEmail(key as any)} style={{
+                        padding: '4px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                        background: ioActiveEmail === key ? '#10b981' : '#1e2535',
+                        color: ioActiveEmail === key ? '#fff' : '#9ca3af',
+                        border: `1px solid ${ioActiveEmail === key ? '#10b981' : '#374151'}`,
+                      }}>{val.label}</span>
+                    ))}
+                  </div>
+
+                  {/* Subject line */}
+                  {ioActiveEmail === 'primary' && r.follow_up_sequence && (
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>
+                      Subject: <span style={{ color: '#e2e8f0' }}>{r.primary_outreach_email?.split('\n')[0]?.replace('Subject: ', '')}</span>
+                    </div>
+                  )}
+
+                  {/* Email body */}
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: '#e2e8f0', lineHeight: 1.7, whiteSpace: 'pre-wrap', maxHeight: 360, overflowY: 'auto', marginBottom: 10 }}>
+                    {emails[ioActiveEmail]?.content}
+                  </div>
+                  <span onClick={() => navigator.clipboard?.writeText(emails[ioActiveEmail]?.content || '')} style={{ cursor: 'pointer', color: '#fff', fontSize: 12, padding: '5px 14px', background: '#374151', borderRadius: 6, display: 'inline-block', marginBottom: 14 }}>Copy Email</span>
+
+                  {/* Campaign Brief */}
+                  {(r.campaign_brief_outline || []).length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', marginBottom: 8 }}>Campaign Brief Outline</div>
+                      {r.campaign_brief_outline.map((line: string, i: number) => (
+                        <div key={i} style={{ fontSize: 12, color: '#6b7280', background: '#0f1117', borderRadius: 4, padding: '5px 10px', marginBottom: 4 }}>{line}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Do/Don't */}
+                  {r.do_dont && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', marginBottom: 6 }}>DO ✓</div>
+                        {(r.do_dont.do || []).map((d: string, i: number) => <div key={i} style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>• {d}</div>)}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', marginBottom: 6 }}>DON'T ✗</div>
+                        {(r.do_dont.dont || []).map((d: string, i: number) => <div key={i} style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>• {d}</div>)}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            })() : (
+              <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                Fill in the influencer details and click Generate Outreach Kit →
+              </div>
+            )}
           </Card>
         </TwoCol>
       )}

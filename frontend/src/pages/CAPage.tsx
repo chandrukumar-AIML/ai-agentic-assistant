@@ -282,6 +282,29 @@ export default function CAPage() {
     { label: 'Mature / Profitable', value: 'mature' },
   ]
   const [bvRevenue, setBvRevenue]       = useState('5000000')
+  // Overdue Invoice Collector (Round 11)
+  const [odCompany, setOdCompany]       = useState('Acme Pvt Ltd')
+  const [odContact, setOdContact]       = useState('')
+  const [odSender, setOdSender]         = useState('')
+  const [odLateFee, setOdLateFee]       = useState('2')
+  const [odInvoicesJson, setOdInvoicesJson] = useState('')
+  const [odRes, setOdRes]               = useState<any>(null)
+  const [odLoading, setOdLoading]       = useState(false)
+  const [odErr, setOdErr]               = useState('')
+  const [odSelected, setOdSelected]     = useState<number | null>(null)
+  const runOverdueCollector = async () => {
+    setOdLoading(true); setOdErr(''); setOdRes(null)
+    let invoices: any[] = []
+    try { if (odInvoicesJson.trim()) invoices = JSON.parse(odInvoicesJson) } catch { setOdErr('Invalid JSON in invoice list'); setOdLoading(false); return }
+    try {
+      setOdRes(await caAction('overdue_collector', {
+        company_name: odCompany, contact_name: odContact, sender_name: odSender,
+        late_fee_pct: parseFloat(odLateFee) || 2, invoices,
+      }, language))
+    } catch (e: any) { setOdErr(e.message) }
+    finally { setOdLoading(false) }
+  }
+
   // Cash Flow Forecaster (Round 10)
   const [cfCompany, setCfCompany]       = useState('Acme Pvt Ltd')
   const [cfRevenue, setCfRevenue]       = useState('500000')
@@ -476,6 +499,7 @@ export default function CAPage() {
           { id: 'notice_reply',      label: 'GST Notice Reply',        icon: '📨' },
           { id: 'valuation',         label: 'Business Valuation',      icon: '🏦' },
           { id: 'cashflow',          label: 'Cash Flow Forecast',       icon: '💰' },
+          { id: 'overdue',           label: 'Overdue Collector',         icon: '📬' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1672,6 +1696,94 @@ export default function CAPage() {
               <Card>
                 <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
                   Demo values are pre-filled — click Generate 12-Month Forecast to see results →
+                </div>
+              </Card>
+            )}
+          </div>
+        </TwoCol>
+      )}
+      {/* ── OVERDUE INVOICE COLLECTOR (Round 11) ── */}
+      {tab === 'overdue' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="📬 Overdue Invoice Collector" sub="4-stage escalating email sequence — gentle to legal notice" />
+            <Input label="Your Company Name" value={odCompany} onChange={setOdCompany} placeholder="e.g. Acme Pvt Ltd" />
+            <Input label="Default Contact Name" value={odContact} onChange={setOdContact} placeholder="e.g. Rahul (leave blank for Sir/Madam)" />
+            <Input label="Sender Name / Designation" value={odSender} onChange={setOdSender} placeholder="e.g. Priya Sharma, Finance Manager" />
+            <Input label="Late Fee % per Month" value={odLateFee} onChange={setOdLateFee} placeholder="e.g. 2" />
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Invoice List (JSON — leave blank for demo)</label>
+              <textarea value={odInvoicesJson} onChange={e => setOdInvoicesJson(e.target.value)} rows={5} placeholder={`[\n  {"invoice_no":"INV-101","amount":85000,"due_date":"2024-11-15","days_overdue":45,"client":"ABC Ltd"}\n]`} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 12, fontFamily: 'monospace', boxSizing: 'border-box', resize: 'vertical' }} />
+            </div>
+            <Btn onClick={runOverdueCollector} loading={odLoading} style={{ width: '100%' }}>Generate Collection Emails</Btn>
+            {odErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{odErr}</div>}
+          </Card>
+          <div>
+            {odRes ? (() => {
+              const r = odRes
+              const URGENCY_COLOR: Record<string, string> = { critical: '#ef4444', high: '#f97316', medium: '#f59e0b', low: '#22c55e' }
+              const STAGE_LABEL: Record<string, string> = { gentle: 'Gentle Reminder', firm: 'Firm Notice', strong: 'Strong Warning', legal: 'Legal Notice' }
+              return (
+                <>
+                  {/* KPI */}
+                  <Card style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                      {[
+                        { label: 'Total Overdue', val: `₹${((r.total_overdue || 0)/100000).toFixed(1)}L`, color: '#ef4444' },
+                        { label: 'Late Fees', val: `₹${((r.total_late_fees || 0)/100000).toFixed(1)}L`, color: '#f97316' },
+                        { label: 'Recoverable', val: `₹${((r.total_recoverable || 0)/100000).toFixed(1)}L`, color: '#22c55e' },
+                      ].map(k => (
+                        <div key={k.label} style={{ background: '#0f1117', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>{k.label}</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: k.color }}>{k.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+                      {Object.entries(r.urgency_count || {}).filter(([, v]: any) => v > 0).map(([k, v]: any) => (
+                        <Badge key={k} label={`${k}: ${v}`} color={URGENCY_COLOR[k] || '#6b7280'} />
+                      ))}
+                    </div>
+                  </Card>
+
+                  {/* Invoice list */}
+                  {(r.invoices || []).map((inv: any, i: number) => (
+                    <div key={i} style={{ border: `1px solid ${URGENCY_COLOR[inv.urgency] || '#374151'}`, borderRadius: 8, marginBottom: 10, overflow: 'hidden' }}>
+                      <div onClick={() => setOdSelected(odSelected === i ? null : i)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#111827', cursor: 'pointer' }}>
+                        <div>
+                          <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 13 }}>{inv.client} — {inv.invoice_no}</span>
+                          <span style={{ marginLeft: 10, fontSize: 11, color: '#6b7280' }}>{inv.days_overdue} days overdue</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <Badge label={STAGE_LABEL[inv.stage] || inv.stage} color={URGENCY_COLOR[inv.urgency] || '#6b7280'} />
+                          <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 13 }}>₹{(inv.total_due || 0).toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                      {odSelected === i && (
+                        <div style={{ padding: '12px 14px', background: '#0f1117' }}>
+                          <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>Subject: <span style={{ color: '#e2e8f0' }}>{inv.subject}</span></div>
+                          <div style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.7, whiteSpace: 'pre-wrap', maxHeight: 300, overflowY: 'auto', background: '#111827', borderRadius: 6, padding: '10px 12px', marginBottom: 8 }}>{inv.email_body}</div>
+                          <span onClick={() => navigator.clipboard?.writeText(`Subject: ${inv.subject}\n\n${inv.email_body}`)} style={{ cursor: 'pointer', fontSize: 11, color: '#fff', padding: '4px 12px', background: '#374151', borderRadius: 6 }}>Copy Email</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Tips */}
+                  {(r.collection_tips || []).length > 0 && (
+                    <Card>
+                      <SectionHead title="Collection Tips" sub="India-specific best practices" />
+                      {r.collection_tips.map((t: string, i: number) => (
+                        <div key={i} style={{ fontSize: 12, color: '#9ca3af', padding: '6px 0', borderBottom: '1px solid #1e2535' }}>• {t}</div>
+                      ))}
+                    </Card>
+                  )}
+                </>
+              )
+            })() : !odLoading && (
+              <Card>
+                <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                  Leave invoice list blank for demo data — click Generate Collection Emails →
                 </div>
               </Card>
             )}

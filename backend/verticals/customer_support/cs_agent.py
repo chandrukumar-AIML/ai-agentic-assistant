@@ -560,6 +560,14 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "customer_health_score":
+            return _customer_health_score(
+                customers=payload.get("customers", []),
+                business_name=payload.get("business_name", ""),
+                product_name=payload.get("product_name", ""),
+                industry=payload.get("industry", "saas"),
+            )
+
         elif action == "escalation_rule_builder":
             return _escalation_rule_builder(
                 business_name=payload.get("business_name", ""),
@@ -1582,4 +1590,196 @@ def _escalation_rule_builder(
         "time_based_rules":       _TRIGGER_LIBRARY["time_based"],
         "best_practices":         best_practices,
         "summary":                f"Built {len(escalation_matrix)}-tier escalation matrix for {company} with {tier_key} SLA profile and {len(routing)} routing teams.",
+    }
+
+
+# ── Customer Health Score (Round 11) ─────────────────────────────────────────
+
+_HEALTH_SIGNALS = {
+    "login_frequency":    {"weight": 20, "desc": "How often they log in / use the product"},
+    "feature_adoption":   {"weight": 18, "desc": "% of core features actively used"},
+    "support_tickets":    {"weight": -15, "desc": "High ticket volume = friction (negative signal)"},
+    "nps_score":          {"weight": 15, "desc": "Net Promoter Score (0-10)"},
+    "payment_history":    {"weight": 12, "desc": "On-time payments = commitment signal"},
+    "engagement_score":   {"weight": 10, "desc": "Email opens, webinar attendance, community activity"},
+    "contract_length":    {"weight": 8,  "desc": "Longer contract = higher commitment"},
+    "expansion_revenue":  {"weight": 10, "desc": "Upsells, seat additions = growing value"},
+    "last_activity_days": {"weight": -12, "desc": "Days since last login (negative — recency matters)"},
+}
+
+_SEGMENT_PLAYBOOKS = {
+    "champion": {
+        "label": "Champion",
+        "color": "#22c55e",
+        "score_range": "80-100",
+        "description": "Highly engaged, expanding, likely to refer",
+        "actions": [
+            "Ask for a case study or testimonial — they will usually say yes",
+            "Invite to your customer advisory board or beta program",
+            "Identify upsell opportunity — they are ready to grow with you",
+            "Create referral incentive — champions drive 40% of new pipeline in SaaS",
+            "Feature them in marketing content (with permission)",
+        ],
+    },
+    "healthy": {
+        "label": "Healthy",
+        "color": "#10b981",
+        "score_range": "60-79",
+        "description": "Good engagement, stable usage, renewal likely",
+        "actions": [
+            "Proactive check-in call every quarter to surface unmet needs",
+            "Share new features relevant to their use case",
+            "Identify a power user to champion internal adoption",
+            "Send ROI report showing value delivered since onboarding",
+        ],
+    },
+    "at_risk": {
+        "label": "At Risk",
+        "color": "#f59e0b",
+        "score_range": "40-59",
+        "description": "Declining engagement or friction detected",
+        "actions": [
+            "Immediate CSM outreach — do not wait for them to contact you",
+            "Run a health review call to understand root cause of disengagement",
+            "Offer a re-onboarding session if feature adoption is low",
+            "Identify internal champion — key contact may have left",
+            "Consider a temporary discount or service upgrade to re-engage",
+        ],
+    },
+    "critical": {
+        "label": "Critical",
+        "color": "#f97316",
+        "score_range": "20-39",
+        "description": "High churn risk — needs urgent intervention",
+        "actions": [
+            "Escalate to senior CSM or VP Customer Success immediately",
+            "Schedule an executive-to-executive call within 48 hours",
+            "Prepare a save plan: address root cause, offer incentive, show roadmap",
+            "Understand if a competitor is involved — address it directly",
+            "If contract is ending within 90 days, start renewal conversation now",
+        ],
+    },
+    "churned": {
+        "label": "Churned / Inactive",
+        "color": "#ef4444",
+        "score_range": "0-19",
+        "description": "Likely inactive or has churned",
+        "actions": [
+            "Run an exit interview — understanding why they left prevents future churn",
+            "Pause all marketing emails — churned customers unsubscribe if pressured",
+            "Start a win-back sequence at 60 and 90 days post-churn",
+            "Flag account for product team — repeated churn patterns signal product gaps",
+        ],
+    },
+}
+
+
+def _customer_health_score(
+    customers: list,
+    business_name: str,
+    product_name: str,
+    industry: str,
+) -> dict:
+    if not customers:
+        customers = [
+            {"name": "Ravi Textiles", "login_frequency": 8, "feature_adoption": 75, "support_tickets": 2, "nps_score": 8, "payment_history": 100, "engagement_score": 7, "contract_length": 12, "expansion_revenue": 1, "last_activity_days": 2, "arr": 120000, "csm": "Priya"},
+            {"name": "ABC Pharma Ltd", "login_frequency": 3, "feature_adoption": 40, "support_tickets": 8, "nps_score": 5, "payment_history": 80, "engagement_score": 4, "contract_length": 6, "expansion_revenue": 0, "last_activity_days": 18, "arr": 85000, "csm": "Arjun"},
+            {"name": "Sharma & Sons", "login_frequency": 1, "feature_adoption": 20, "support_tickets": 12, "nps_score": 3, "payment_history": 60, "engagement_score": 2, "contract_length": 3, "expansion_revenue": 0, "last_activity_days": 45, "arr": 60000, "csm": "Meera"},
+            {"name": "TechStart Solutions", "login_frequency": 10, "feature_adoption": 90, "support_tickets": 1, "nps_score": 10, "payment_history": 100, "engagement_score": 9, "contract_length": 24, "expansion_revenue": 3, "last_activity_days": 1, "arr": 240000, "csm": "Priya"},
+            {"name": "Krishna Exports", "login_frequency": 5, "feature_adoption": 55, "support_tickets": 5, "nps_score": 6, "payment_history": 90, "engagement_score": 5, "contract_length": 12, "expansion_revenue": 1, "last_activity_days": 7, "arr": 95000, "csm": "Arjun"},
+        ]
+
+    scored = []
+    for cust in customers:
+        login = min(float(cust.get("login_frequency", 5)), 10) / 10
+        feature = min(float(cust.get("feature_adoption", 50)), 100) / 100
+        tickets = min(float(cust.get("support_tickets", 3)), 15) / 15
+        nps = min(float(cust.get("nps_score", 5)), 10) / 10
+        payment = min(float(cust.get("payment_history", 80)), 100) / 100
+        engagement = min(float(cust.get("engagement_score", 5)), 10) / 10
+        contract = min(float(cust.get("contract_length", 6)), 24) / 24
+        expansion = min(float(cust.get("expansion_revenue", 0)), 5) / 5
+        recency = min(float(cust.get("last_activity_days", 7)), 60) / 60
+
+        raw = (
+            login * 20
+            + feature * 18
+            - tickets * 15
+            + nps * 15
+            + payment * 12
+            + engagement * 10
+            + contract * 8
+            + expansion * 10
+            - recency * 12
+        )
+        score = max(0, min(100, int(raw)))
+
+        if score >= 80:
+            seg = "champion"
+        elif score >= 60:
+            seg = "healthy"
+        elif score >= 40:
+            seg = "at_risk"
+        elif score >= 20:
+            seg = "critical"
+        else:
+            seg = "churned"
+
+        playbook = _SEGMENT_PLAYBOOKS[seg]
+
+        risk_flags = []
+        if float(cust.get("last_activity_days", 0)) > 14:
+            risk_flags.append(f"No login for {int(cust.get('last_activity_days', 0))} days")
+        if float(cust.get("support_tickets", 0)) > 6:
+            risk_flags.append(f"{int(cust.get('support_tickets', 0))} open/recent tickets")
+        if float(cust.get("feature_adoption", 100)) < 40:
+            risk_flags.append(f"Low feature adoption ({int(cust.get('feature_adoption', 0))}%)")
+        if float(cust.get("nps_score", 10)) < 5:
+            risk_flags.append(f"Low NPS: {cust.get('nps_score')}/10")
+        if float(cust.get("payment_history", 100)) < 80:
+            risk_flags.append("Payment delays detected")
+
+        scored.append({
+            "name":          cust.get("name", "Customer"),
+            "health_score":  score,
+            "segment":       seg,
+            "segment_label": playbook["label"],
+            "color":         playbook["color"],
+            "arr":           float(cust.get("arr", 0)),
+            "csm":           cust.get("csm", "Unassigned"),
+            "risk_flags":    risk_flags,
+            "actions":       playbook["actions"][:3],
+            "signals": {
+                "login_frequency":  cust.get("login_frequency"),
+                "feature_adoption": cust.get("feature_adoption"),
+                "support_tickets":  cust.get("support_tickets"),
+                "nps_score":        cust.get("nps_score"),
+                "last_active_days": cust.get("last_activity_days"),
+            },
+        })
+
+    scored.sort(key=lambda x: x["health_score"])
+
+    seg_counts = {}
+    arr_at_risk = 0.0
+    for s in scored:
+        seg_counts[s["segment"]] = seg_counts.get(s["segment"], 0) + 1
+        if s["segment"] in ("at_risk", "critical", "churned"):
+            arr_at_risk += s["arr"]
+
+    avg_score = sum(s["health_score"] for s in scored) / len(scored) if scored else 0
+    total_arr = sum(s["arr"] for s in scored)
+
+    return {
+        "action":           "customer_health_score",
+        "business_name":    business_name or "Your Business",
+        "product_name":     product_name or "Product",
+        "total_customers":  len(scored),
+        "avg_health_score": round(avg_score, 1),
+        "total_arr":        round(total_arr, 0),
+        "arr_at_risk":      round(arr_at_risk, 0),
+        "segment_breakdown": seg_counts,
+        "customers":        scored,
+        "segment_playbooks": _SEGMENT_PLAYBOOKS,
+        "summary": f"Scored {len(scored)} customers. Avg health: {avg_score:.0f}/100. ₹{arr_at_risk/100000:.1f}L ARR at risk ({len([s for s in scored if s['segment'] in ('at_risk','critical','churned')])} accounts need attention).",
     }

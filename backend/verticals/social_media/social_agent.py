@@ -2069,6 +2069,20 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "influencer_outreach":
+        return generate_influencer_outreach(
+            brand_name=payload.get("brand_name", ""),
+            influencer_name=payload.get("influencer_name", ""),
+            influencer_niche=payload.get("influencer_niche", ""),
+            influencer_platform=payload.get("influencer_platform", "instagram"),
+            follower_count=int(payload.get("follower_count", 50000) or 50000),
+            campaign_goal=payload.get("campaign_goal", "brand awareness"),
+            product_name=payload.get("product_name", ""),
+            budget_range=payload.get("budget_range", ""),
+            deliverables=payload.get("deliverables", []),
+            industry=payload.get("industry", ""),
+        )
+
     elif action == "viral_hook_generator":
         return generate_viral_hooks(
             topic=payload.get("topic", ""),
@@ -2128,6 +2142,180 @@ async def social_agent(
         )
 
     return {"error": f"Unknown social action: {action}"}
+
+
+# ── Influencer Outreach Generator (Round 11) ────────────────────────────────
+
+_COLLAB_TYPES = {
+    "product_review":    {"label": "Product Review",    "deliverable": "honest review post/reel", "timeline": "2 weeks post product receipt"},
+    "sponsored_post":    {"label": "Sponsored Post",    "deliverable": "1 feed post + 3 stories",  "timeline": "within 7 days of brief approval"},
+    "brand_ambassador":  {"label": "Brand Ambassador",  "deliverable": "monthly posts + exclusive discount code", "timeline": "ongoing 3-month engagement"},
+    "event_coverage":    {"label": "Event Coverage",    "deliverable": "live stories + 1 post-event reel", "timeline": "day of event + 48h after"},
+    "giveaway":          {"label": "Giveaway Collab",   "deliverable": "joint giveaway post + story countdown", "timeline": "coordinated campaign window"},
+    "affiliate":         {"label": "Affiliate Partner", "deliverable": "custom discount code + tracking link in bio", "timeline": "30-day campaign with performance review"},
+}
+
+_TIER_RATES = {
+    "nano":   {"range": "1K–10K",   "rate_post": "₹2K–₹10K",   "rate_reel": "₹5K–₹20K",   "negotiation_tip": "Offer free product + small fee — nano influencers prioritize authentic partnerships over money."},
+    "micro":  {"range": "10K–100K", "rate_post": "₹10K–₹50K",  "rate_reel": "₹20K–₹80K",  "negotiation_tip": "Lead with creative freedom — micro influencers reject overly scripted briefs. Offer performance bonus on conversions."},
+    "macro":  {"range": "100K–1M",  "rate_post": "₹50K–₹2L",   "rate_reel": "₹80K–₹3L",   "negotiation_tip": "Come with a clear brief and fast payment terms. Macro creators have busy pipelines — show you're organized."},
+    "mega":   {"range": "1M+",      "rate_post": "₹2L–₹10L+",  "rate_reel": "₹3L–₹15L+",  "negotiation_tip": "Work through their management. Lead with brand story and long-term partnership potential, not just one-off fees."},
+}
+
+_FOLLOW_UP_TEMPLATES = [
+    {
+        "day": 3,
+        "subject": "Quick follow-up — {brand} x {influencer} collab",
+        "body": "Hi {influencer},\n\nJust wanted to bump this up in case my earlier message got buried! We're genuinely excited about working with you and would love to get on a quick call this week to discuss.\n\nWould {day_option_1} or {day_option_2} work for a 15-min chat?\n\nLooking forward to connecting!\nBest,\n{sender}",
+    },
+    {
+        "day": 7,
+        "subject": "Last nudge — {brand} partnership (closing spots this week)",
+        "body": "Hi {influencer},\n\nWe're finalising our influencer roster for this campaign and have a spot reserved for you. We'd hate to close this without hearing back!\n\nIf you're not interested, no worries at all — just a quick reply to let us know and we won't bother you again.\n\nIf you are open to it, I'd love to chat this week.\n\nCheers,\n{sender}",
+    },
+]
+
+
+def generate_influencer_outreach(
+    brand_name: str,
+    influencer_name: str,
+    influencer_niche: str,
+    influencer_platform: str,
+    follower_count: int,
+    campaign_goal: str,
+    product_name: str,
+    budget_range: str,
+    deliverables: list,
+    industry: str,
+) -> dict:
+    brand = brand_name or "Our Brand"
+    influencer = influencer_name or "Creator"
+    niche = influencer_niche or industry or "lifestyle"
+    platform = influencer_platform or "instagram"
+    product = product_name or f"{brand} product"
+
+    if follower_count < 10000:
+        tier_key = "nano"
+    elif follower_count < 100000:
+        tier_key = "micro"
+    elif follower_count < 1000000:
+        tier_key = "macro"
+    else:
+        tier_key = "mega"
+
+    tier = _TIER_RATES[tier_key]
+    deliv_list = deliverables if deliverables else ["1 feed post", "3 stories"]
+
+    primary_email = f"""Subject: Collaboration Opportunity — {brand} x {influencer} 🤝
+
+Hi {influencer},
+
+I hope this finds you well! I'm [Your Name] from the partnerships team at {brand}.
+
+We've been following your {niche} content on {platform.title()} and genuinely love the way you connect with your audience — your authentic style is exactly what we look for in a partner.
+
+We'd love to explore a collaboration with you for our upcoming {campaign_goal} campaign featuring {product}. Here's what we have in mind:
+
+✅ Campaign Goal: {campaign_goal.title()}
+📦 Product/Service: {product}
+📱 Platform: {platform.title()}
+🎯 Deliverables: {", ".join(deliv_list)}
+💰 Compensation: {budget_range or tier["rate_post"] + " (negotiable based on deliverables)"}
+📅 Timeline: Flexible — we want this to work with your schedule
+
+We believe your audience aligns perfectly with the people who would love {product}, and we want to give you full creative freedom to present it in your signature style.
+
+Would you be open to a quick 15-minute call this week to discuss? I'd love to share more details and hear your ideas.
+
+Looking forward to potentially working together!
+
+Warm regards,
+[Your Name]
+{brand} Partnerships Team
+[Email] | [Phone]"""
+
+    negotiation_email = f"""Subject: Re: {brand} Collaboration — Let's Find the Right Fit
+
+Hi {influencer},
+
+Thank you for getting back to us! We appreciate your transparency about rates.
+
+We completely understand your value, and we want to make this work for both sides. Here's our updated thinking:
+
+💡 Counter-proposal:
+• Upfront fee: [Adjusted amount]
+• Performance bonus: Additional [X]% of tracked sales using your custom code
+• Gifting: [Product worth ₹X] for you to keep regardless
+• Long-term: If this campaign performs well, we'd love to discuss a 3-month ambassador arrangement
+
+We're flexible on the deliverables too — if some formats work better for your audience, we're open to swapping. The goal is content your followers will actually engage with, not a forced brand message.
+
+Can we hop on a 10-minute call to finalize? I want to make sure this feels right for you.
+
+Best,
+[Your Name]"""
+
+    follow_ups = []
+    for fu in _FOLLOW_UP_TEMPLATES:
+        body_filled = (fu["body"]
+            .replace("{brand}", brand)
+            .replace("{influencer}", influencer)
+            .replace("{day_option_1}", "Tuesday afternoon")
+            .replace("{day_option_2}", "Thursday morning")
+            .replace("{sender}", f"[Your Name], {brand} Partnerships"))
+        follow_ups.append({
+            "day": fu["day"],
+            "subject": fu["subject"].replace("{brand}", brand).replace("{influencer}", influencer),
+            "body": body_filled,
+        })
+
+    brief_outline = [
+        f"Brand Overview: {brand} — {industry or 'leading brand'} focused on {campaign_goal}",
+        f"Product to Feature: {product}",
+        f"Key Message: [1-2 sentence message you want the audience to take away]",
+        f"Dos: Authentic storytelling, show product in real use, tag @{brand.lower().replace(' ', '')}",
+        f"Don'ts: No competitor mentions, no false claims, disclose #ad or #sponsored",
+        f"Hashtags: #{brand.lower().replace(' ', '')} + [2-3 campaign hashtags]",
+        f"Approval: Send draft 72h before posting for brand review",
+        f"Payment: Within 7 days of content going live (with invoice)",
+    ]
+
+    do_dont = {
+        "do": [
+            "Research their recent posts before reaching out — mention a specific piece of content",
+            "Keep the first email under 200 words — respect their time",
+            "Give creative freedom — over-scripted briefs get rejected by top creators",
+            "Pay fast — word travels fast in creator communities about slow-paying brands",
+            "Send product before asking for content — let them experience it first",
+        ],
+        "dont": [
+            "Offer 'exposure' as payment — it's insulting and will get you blocked",
+            "Send a copy-paste email — creators can spot these immediately",
+            "Demand exclusivity without extra compensation",
+            "Set unrealistic timelines — quality content takes time",
+            "Ask for all rights in perpetuity without acknowledging it in the rate",
+        ],
+    }
+
+    return {
+        "action":              "influencer_outreach",
+        "brand":               brand,
+        "influencer":          influencer,
+        "platform":            platform,
+        "niche":               niche,
+        "follower_count":      follower_count,
+        "tier":                tier_key,
+        "tier_range":          tier["range"],
+        "market_rate_post":    tier["rate_post"],
+        "market_rate_reel":    tier["rate_reel"],
+        "negotiation_tip":     tier["negotiation_tip"],
+        "primary_outreach_email": primary_email,
+        "negotiation_email":   negotiation_email,
+        "follow_up_sequence":  follow_ups,
+        "campaign_brief_outline": brief_outline,
+        "do_dont":             do_dont,
+        "summary": f"Generated outreach kit for {tier_key}-tier influencer {influencer} ({follower_count:,} followers) on {platform}. Market rate: {tier['rate_post']} per post.",
+    }
 
 
 # ── Viral Hook Generator (Round 10) ─────────────────────────────────────────
