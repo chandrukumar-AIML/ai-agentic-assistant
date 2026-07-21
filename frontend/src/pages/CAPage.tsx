@@ -267,6 +267,51 @@ export default function CAPage() {
     setGstrLoading(false)
   }
 
+  // ── Tax Planning Optimizer (Round 6) ──
+  const [tpGross, setTpGross]       = useState('1200000')
+  const [tpOther, setTpOther]       = useState('0')
+  const [tpAge, setTpAge]           = useState('32')
+  const [tp80c, setTp80c]           = useState('80000')
+  const [tpNps, setTpNps]           = useState('0')
+  const [tp80d, setTp80d]           = useState('10000')
+  const [tpHlInt, setTpHlInt]       = useState('0')
+  const [tpRes, setTpRes]           = useState<any>(null)
+  const [tpLoading, setTpLoading]   = useState(false)
+  const [tpErr, setTpErr]           = useState('')
+
+  const runTaxPlan = async () => {
+    setTpLoading(true); setTpErr(''); setTpRes(null)
+    try {
+      setTpRes(await caAction('tax_planning', {
+        income_details: { gross_salary: parseFloat(tpGross) || 0, other_income: parseFloat(tpOther) || 0 },
+        investments: { c80: parseFloat(tp80c) || 0, nps: parseFloat(tpNps) || 0, health_insurance: parseFloat(tp80d) || 0, home_loan_interest: parseFloat(tpHlInt) || 0 },
+        expenses: {},
+        age: parseInt(tpAge) || 30,
+        regime: 'old',
+      }, language))
+    } catch (e: any) {
+      setTpErr(e.message)
+      setTpRes({
+        action: 'tax_planning', gross_income: parseFloat(tpGross) || 1200000,
+        tax_current: 114400, tax_optimized: 42320, potential_saving: 72080,
+        effective_rate: 9.5, optimized_rate: 3.5,
+        deduction_gaps: { '80C': 70000, 'NPS': 50000, '80D': 15000 },
+        recommendations: [
+          { section: '80C', priority: 'High', action: 'Invest Rs.70,000 more in ELSS/PPF to max 80C', saving: 21000, instruments: ['ELSS Mutual Funds', 'PPF'] },
+          { section: '80CCD(1B)', priority: 'High', action: 'Invest Rs.50,000 in NPS for extra deduction', saving: 15000, instruments: ['NPS Tier 1'] },
+          { section: '80D', priority: 'Medium', action: 'Get health insurance to claim Rs.15,000 under 80D', saving: 4500, instruments: ['Family Floater Plan'] },
+        ],
+        instruments: [
+          { name: 'ELSS Mutual Funds', section: '80C', returns: '12-15%', lock_in: '3 years', risk: 'High' },
+          { name: 'PPF', section: '80C', returns: '7.1%', lock_in: '15 years', risk: 'None' },
+          { name: 'NPS Tier 1', section: '80C+80CCD(1B)', returns: '8-10%', lock_in: 'Till retire', risk: 'Low-Medium' },
+        ],
+        narrative: 'Based on your income of Rs.12L, you can save Rs.72,080 in taxes by fully utilizing available deductions. Start with ELSS for 80C (3-year lock-in, 12-15% returns), then maximize NPS for the extra Rs.50,000 deduction. A health insurance policy adds both protection and tax savings.',
+      })
+    }
+    setTpLoading(false)
+  }
+
   return (
     <PageShell icon="📒" title="AI CA / Accounting Agent" subtitle="GST · TDS · ITR · Audit · Invoice · Client Communication — India-focused">
       <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -296,6 +341,7 @@ export default function CAPage() {
           { id: 'compliance_cal',    label: 'Compliance Calendar',     icon: '🗓️' },
           { id: 'tally_analysis',    label: 'Tally Import & Analyse',  icon: '📂' },
           { id: 'gstr_filing',       label: 'GSTR Filing Prep',        icon: '📊' },
+          { id: 'tax_planning',      label: 'Tax Planning',            icon: '💡' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1043,6 +1089,107 @@ export default function CAPage() {
             {!gstrRes && !gstrLoading && (
               <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
                 Paste sales & purchase JSON, then click Prepare Filing Summary →
+              </div>
+            )}
+          </div>
+        </TwoCol>
+      )}
+
+      {/* ── TAX PLANNING OPTIMIZER (Round 6) ── */}
+      {tab === 'tax_planning' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Tax Planning Optimizer" sub="Old Regime — find every rupee you can save before 31 March" />
+            <Input label="Gross Salary (₹)" value={tpGross} onChange={setTpGross} placeholder="e.g. 1200000" />
+            <Input label="Other Income (₹)" value={tpOther} onChange={setTpOther} placeholder="e.g. 50000" />
+            <Input label="Age" value={tpAge} onChange={setTpAge} placeholder="e.g. 32" />
+            <div style={{ margin: '12px 0 6px', fontSize: 12, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>Current Investments</div>
+            <Input label="80C Investments (₹) — max 1,50,000" value={tp80c} onChange={setTp80c} placeholder="e.g. 80000" />
+            <Input label="NPS 80CCD(1B) (₹) — max 50,000" value={tpNps} onChange={setTpNps} placeholder="e.g. 0" />
+            <Input label="Health Insurance 80D (₹)" value={tp80d} onChange={setTp80d} placeholder="e.g. 10000" />
+            <Input label="Home Loan Interest 24(b) (₹) — max 2,00,000" value={tpHlInt} onChange={setTpHlInt} placeholder="e.g. 0" />
+            <Btn onClick={runTaxPlan} loading={tpLoading} style={{ marginTop: 14, width: '100%' }}>Optimize My Tax Plan</Btn>
+            {tpErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>Demo mode (backend offline): {tpErr}</div>}
+          </Card>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {tpRes ? (
+              <>
+                {/* Savings Hero */}
+                <Card>
+                  <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
+                    <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Potential Tax Saving</div>
+                    <div style={{ fontSize: 40, fontWeight: 800, color: '#22c55e' }}>₹{(tpRes.potential_saving || 0).toLocaleString('en-IN')}</div>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
+                      Tax before: ₹{(tpRes.tax_current || 0).toLocaleString('en-IN')} ({tpRes.effective_rate}%) → after: ₹{(tpRes.tax_optimized || 0).toLocaleString('en-IN')} ({tpRes.optimized_rate}%)
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    {Object.entries(tpRes.deduction_gaps || {}).map(([sec, gap]: any) => (
+                      <div key={sec} style={{ flex: 1, background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: gap > 0 ? '#f59e0b' : '#22c55e' }}>₹{gap.toLocaleString('en-IN')}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>{sec} gap</div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
+                {/* Recommendations */}
+                <Card>
+                  <SectionHead title="Action Plan" sub="Sorted by priority" />
+                  {(tpRes.recommendations || []).map((r: any, i: number) => (
+                    <div key={i} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 14, marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <Badge label={`Section ${r.section}`} color="#818cf8" />
+                        <Badge label={r.priority} color={r.priority === 'High' ? '#ef4444' : '#f59e0b'} />
+                      </div>
+                      <div style={{ color: '#e2e8f0', fontSize: 13, marginBottom: 6 }}>{r.action}</div>
+                      <div style={{ color: '#22c55e', fontSize: 12, fontWeight: 600 }}>Save ₹{typeof r.saving === 'number' ? r.saving.toLocaleString('en-IN') : r.saving}</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                        {(r.instruments || []).map((inst: string, j: number) => (
+                          <span key={j} style={{ fontSize: 11, padding: '2px 8px', background: '#1e2535', color: '#9ca3af', borderRadius: 6 }}>{inst}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </Card>
+
+                {/* Instruments */}
+                <Card>
+                  <SectionHead title="Investment Instruments" sub="Compare your options" />
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ color: '#6b7280', borderBottom: '1px solid #1e2535' }}>
+                          {['Instrument', 'Section', 'Returns', 'Lock-in', 'Risk'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '6px 8px', fontWeight: 600 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(tpRes.instruments || []).map((inst: any, i: number) => (
+                          <tr key={i} style={{ borderBottom: '1px solid #0f1117' }}>
+                            <td style={{ padding: '7px 8px', color: '#e2e8f0', fontWeight: 600 }}>{inst.name}</td>
+                            <td style={{ padding: '7px 8px', color: '#818cf8' }}>{inst.section}</td>
+                            <td style={{ padding: '7px 8px', color: '#22c55e' }}>{inst.returns}</td>
+                            <td style={{ padding: '7px 8px', color: '#9ca3af' }}>{inst.lock_in}</td>
+                            <td style={{ padding: '7px 8px', color: inst.risk === 'None' ? '#22c55e' : inst.risk === 'High' ? '#ef4444' : '#f59e0b' }}>{inst.risk}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+
+                {tpRes.narrative && (
+                  <Card>
+                    <SectionHead title="CA's Advice" sub="Personalized recommendation" />
+                    <div style={{ color: '#9ca3af', fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{tpRes.narrative}</div>
+                  </Card>
+                )}
+              </>
+            ) : !tpLoading && (
+              <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                Enter your income & investments to see the optimization →
               </div>
             )}
           </div>

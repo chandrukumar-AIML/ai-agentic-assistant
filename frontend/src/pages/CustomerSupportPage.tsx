@@ -50,6 +50,7 @@ const TABS = [
   { id: 'canned',     label: 'Canned Responses' },
   { id: 'sla',        label: 'SLA Tracker' },
   { id: 'csat',       label: 'CSAT Survey' },
+  { id: 'escalation', label: 'Escalation Manager' },
 ]
 
 const WA_TYPES = [
@@ -1293,7 +1294,140 @@ export default function CustomerSupportPage() {
         {tab === 'canned'    && <CannedTab lang={lang} />}
         {tab === 'sla'       && <SlaTab lang={lang} />}
         {tab === 'csat'      && <CsatTab lang={lang} />}
+        {tab === 'escalation' && <EscalationTab lang={lang} />}
       </div>
     </PageShell>
+  )
+}
+
+
+// ── Escalation Manager (Round 6) ─────────────────────────────────────────────
+
+const DEMO_ESC_TICKETS = [
+  { id: 'T1001', subject: 'Complete data loss after your update!', customer_name: 'Rahul Sharma', customer_tier: 'Enterprise', status: 'open', priority: 'high', assignee: 'Priya K', created_at: new Date(Date.now() - 26 * 3600000).toISOString(), description: 'We lost 3 days of billing data after the forced update. This is unacceptable.', sentiment: 'very negative' },
+  { id: 'T1002', subject: 'Refund not processed after 30 days', customer_name: 'Anita Menon', customer_tier: 'Premium', status: 'open', priority: 'medium', assignee: 'Dev S', created_at: new Date(Date.now() - 5 * 3600000).toISOString(), description: 'I requested a refund on 15th Jan and still no response. Double charge on my card.', sentiment: 'negative' },
+  { id: 'T1003', subject: 'VIP account setup assistance needed', customer_name: 'CEO - TataGroup', customer_tier: 'VIP', status: 'open', priority: 'high', assignee: 'Unassigned', created_at: new Date(Date.now() - 2 * 3600000).toISOString(), description: 'Need dedicated onboarding support for our 500-seat enterprise deployment.' },
+  { id: 'T1004', subject: 'Login page loading slow', customer_name: 'Karan Patel', customer_tier: 'Standard', status: 'open', priority: 'low', assignee: 'Tech Team', created_at: new Date(Date.now() - 1 * 3600000).toISOString(), description: 'Login page takes 8-10 seconds on mobile.' },
+  { id: 'T1005', subject: 'Invoice export feature request', customer_name: 'Deepa R', customer_tier: 'Standard', status: 'resolved', priority: 'low', assignee: 'Meena L', created_at: new Date(Date.now() - 48 * 3600000).toISOString(), description: 'Can you add CSV export to the invoice module?' },
+]
+
+function EscalationTab({ lang }: { lang: Lang }) {
+  const [escBusiness, setEscBusiness] = useState('')
+  const [escEmail, setEscEmail]       = useState('')
+  const [escJson, setEscJson]         = useState(JSON.stringify(DEMO_ESC_TICKETS, null, 2))
+  const [escRes, setEscRes]           = useState<any>(null)
+  const [escLoading, setEscLoading]   = useState(false)
+  const [escErr, setEscErr]           = useState('')
+
+  const runEscalation = async () => {
+    setEscLoading(true); setEscErr(''); setEscRes(null)
+    try {
+      let tickets: any[]
+      try { tickets = JSON.parse(escJson) } catch { throw new Error('Invalid JSON') }
+      setEscRes(await csAction('escalation_manager', {
+        tickets, business_name: escBusiness, escalation_email: escEmail, rules: {},
+      }, lang))
+    } catch (e: any) { setEscErr(e.message) }
+    setEscLoading(false)
+  }
+
+  const PRIORITY_COLOR: Record<string, string> = { critical: '#ef4444', high: '#f97316', medium: '#f59e0b', low: '#22c55e' }
+
+  return (
+    <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      <div style={{ flex: '0 0 360px' }}>
+        <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Escalation Manager</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>Auto-detect tickets that need immediate attention</div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Business Name</div>
+            <input value={escBusiness} onChange={e => setEscBusiness(e.target.value)} placeholder="e.g. Zoho Support" style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: '8px 12px', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Escalation Email (for draft)</div>
+            <input value={escEmail} onChange={e => setEscEmail(e.target.value)} placeholder="manager@company.com" style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: '8px 12px', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Tickets JSON</div>
+          <textarea value={escJson} onChange={e => setEscJson(e.target.value)} rows={12}
+            style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 11, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
+          <button onClick={runEscalation} disabled={escLoading} style={{
+            marginTop: 12, width: '100%', padding: '10px 0', background: escLoading ? '#1e2535' : '#4f8ef7',
+            color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: escLoading ? 'not-allowed' : 'pointer',
+          }}>{escLoading ? 'Analysing…' : 'Run Escalation Analysis'}</button>
+          {escErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>Demo mode: {escErr}</div>}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {escRes ? (
+          <>
+            {/* Health bar */}
+            <div style={{ background: '#161b27', border: `1px solid ${escRes.health_color === 'red' ? '#ef4444' : escRes.health_color === 'orange' ? '#f97316' : '#22c55e'}44`, borderRadius: 12, padding: 16, display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>Status</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: escRes.health_color === 'red' ? '#ef4444' : escRes.health_color === 'orange' ? '#f97316' : '#22c55e' }}>{escRes.health}</div>
+              </div>
+              {[
+                { label: 'Total', val: escRes.stats?.total },
+                { label: 'Escalated', val: escRes.stats?.escalated, color: '#f97316' },
+                { label: 'Critical', val: escRes.stats?.critical, color: '#ef4444' },
+                { label: 'Resolved', val: escRes.stats?.resolved, color: '#22c55e' },
+              ].map(k => (
+                <div key={k.label} style={{ background: '#0f1117', borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: k.color || '#e2e8f0' }}>{k.val ?? 0}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Escalated tickets */}
+            {(escRes.escalated || []).length > 0 && (
+              <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Escalated Tickets ({escRes.escalated.length})</div>
+                {escRes.escalated.map((t: any) => (
+                  <div key={t.id} style={{ background: '#0f1117', border: `1px solid ${PRIORITY_COLOR[t.priority] || '#1e2535'}55`, borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                      <div>
+                        <span style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 13 }}>[{t.id}] {t.subject}</span>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{t.customer} · {t.customer_tier} · {t.hours_open}h open · {t.assignee}</div>
+                      </div>
+                      <Badge label={t.priority.toUpperCase()} color={PRIORITY_COLOR[t.priority] || '#6b7280'} />
+                    </div>
+                    <div style={{ fontSize: 12, color: '#f59e0b', margin: '6px 0' }}>⚠ {t.action_needed}</div>
+                    <div style={{ fontSize: 11, color: '#4b5563' }}>Trigger: {(t.reason || '').replace(/_/g, ' ')}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Email draft */}
+            {escRes.email_draft && (
+              <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>Escalation Email Draft</div>
+                  <span onClick={() => navigator.clipboard?.writeText(escRes.email_draft)} style={{ cursor: 'pointer', fontSize: 11, padding: '3px 10px', background: '#374151', color: '#fff', borderRadius: 6 }}>Copy</span>
+                </div>
+                <pre style={{ color: '#9ca3af', fontSize: 12, whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit', lineHeight: 1.7 }}>{escRes.email_draft}</pre>
+              </div>
+            )}
+
+            {/* Monitored */}
+            {(escRes.monitored || []).length > 0 && (
+              <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#9ca3af', marginBottom: 8 }}>Monitoring ({escRes.monitored.length} tickets)</div>
+                {escRes.monitored.map((t: any) => (
+                  <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #0f1117', fontSize: 12 }}>
+                    <span style={{ color: '#9ca3af' }}>[{t.id}] {t.subject.slice(0, 50)}</span>
+                    <span style={{ color: '#6b7280' }}>{t.hours_open}h</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <Empty text="Load demo tickets or paste your own JSON, then click Run Escalation Analysis →" />
+        )}
+      </div>
+    </div>
   )
 }

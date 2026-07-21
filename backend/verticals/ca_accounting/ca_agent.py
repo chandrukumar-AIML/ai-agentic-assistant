@@ -953,6 +953,17 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "tax_planning":
+        return await optimize_tax_planning(
+            income_details=payload.get("income_details", {}),
+            investments=payload.get("investments", {}),
+            expenses=payload.get("expenses", {}),
+            taxpayer_type=payload.get("taxpayer_type", "individual"),
+            age=int(payload.get("age", 30)),
+            regime=payload.get("regime", "old"),
+            language=language,
+        )
+
     elif action == "gstr_filing_prep":
         return await prepare_gstr_filing(
             sales_data=payload.get("sales_data", []),
@@ -1219,4 +1230,119 @@ async def prepare_gstr_filing(
         "gstr1_summary":   gstr1_summary,
         "filing_checklist": checklist,
         "ready_to_file":   net_payable >= 0 and len(sales_data) > 0,
+    }
+
+
+# ── Tax Planning Optimizer (Round 6) ─────────────────────────────────────────
+
+_INSTRUMENTS = [
+    {"name": "ELSS Mutual Funds",         "section": "80C",           "returns": "12-15%",   "lock_in": "3 years",      "risk": "High",        "best_for": "Investors with 3+ year horizon"},
+    {"name": "PPF (Public Provident Fund)","section": "80C",           "returns": "7.1%",     "lock_in": "15 years",     "risk": "None",        "best_for": "Long-term risk-free savings"},
+    {"name": "NPS Tier 1",                 "section": "80C+80CCD(1B)", "returns": "8-10%",    "lock_in": "Till retire",  "risk": "Low-Medium",  "best_for": "Extra Rs.50,000 deduction"},
+    {"name": "Health Insurance",           "section": "80D",           "returns": "Protection","lock_in": "Annual",       "risk": "None",        "best_for": "Everyone — medical + tax"},
+    {"name": "5-Year Bank FD",             "section": "80C",           "returns": "6.5-7.5%", "lock_in": "5 years",      "risk": "None",        "best_for": "Conservative investors"},
+    {"name": "Sukanya Samriddhi Yojana",   "section": "80C",           "returns": "8.2%",     "lock_in": "21 years",     "risk": "None",        "best_for": "Parents of girl child"},
+]
+
+
+async def optimize_tax_planning(
+    income_details: dict,
+    investments:    dict,
+    expenses:       dict,
+    taxpayer_type:  str = "individual",
+    age:            int = 30,
+    regime:         str = "old",
+    language:       str = "en",
+) -> dict:
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+
+    gross = (
+        float(income_details.get("gross_salary",   0) or 0) +
+        float(income_details.get("other_income",   0) or 0) +
+        float(income_details.get("rental_income",  0) or 0) +
+        float(income_details.get("business_income",0) or 0)
+    )
+    std_deduction  = 75000 if income_details.get("gross_salary", 0) else 0
+    cur_80c        = min(float(investments.get("c80", 0) or 0), 150000)
+    cur_nps        = min(float(investments.get("nps", 0) or 0), 50000)
+    cur_80d        = min(float(investments.get("health_insurance", 0) or 0), 50000 if age >= 60 else 25000)
+    cur_hl_int     = min(float(investments.get("home_loan_interest", 0) or 0), 200000)
+    cur_donations  = float(investments.get("donations", 0) or 0)
+    cur_edu_loan   = float(expenses.get("education_loan_interest", 0) or 0)
+
+    total_ded = std_deduction + cur_80c + cur_nps + cur_80d + cur_hl_int + cur_donations + cur_edu_loan
+    gap_80c = max(150000 - float(investments.get("c80", 0) or 0), 0)
+    gap_nps = max(50000  - float(investments.get("nps", 0) or 0), 0)
+    gap_80d = max((50000 if age >= 60 else 25000) - float(investments.get("health_insurance", 0) or 0), 0)
+
+    taxable_now = max(gross - total_ded, 0)
+    taxable_opt = max(gross - total_ded - gap_80c - gap_nps - gap_80d, 0)
+
+    def _tax(income: float) -> float:
+        exemption = 300000 if age >= 60 else 250000
+        if income <= exemption:
+            return 0.0
+        tax, remaining = 0.0, income - exemption
+        for slab, rate in [(300000, .05), (300000, .10), (300000, .15), (300000, .20), (300000, .25), (float("inf"), .30)]:
+            if remaining <= 0:
+                break
+            chunk = min(remaining, slab)
+            tax += chunk * rate
+            remaining -= chunk
+        return round(tax * 1.04, 0)
+
+    tax_now  = _tax(taxable_now)
+    tax_opt  = _tax(taxable_opt)
+    saving   = round(tax_now - tax_opt, 0)
+
+    recs = []
+    if gap_80c > 0:
+        recs.append({"section": "80C", "priority": "High",
+            "action": f"Invest Rs.{gap_80c:,.0f} more to max out 80C (Rs.1.5L limit)",
+            "saving": round(gap_80c * 0.30, 0),
+            "instruments": ["ELSS — best returns + 3yr lock-in", "PPF — safe + 15yr", "NPS Tier 1"]})
+    if gap_nps > 0:
+        recs.append({"section": "80CCD(1B)", "priority": "High",
+            "action": f"Invest Rs.{gap_nps:,.0f} in NPS for extra deduction beyond 80C",
+            "saving": round(gap_nps * 0.30, 0),
+            "instruments": ["NPS Tier 1 via PFRDA-registered fund manager"]})
+    if gap_80d > 0:
+        recs.append({"section": "80D", "priority": "High" if gap_80d > 10000 else "Medium",
+            "action": f"Get health insurance to claim Rs.{gap_80d:,.0f} more under 80D",
+            "saving": round(gap_80d * 0.30, 0),
+            "instruments": ["Family floater plan", "Add parents policy for extra Rs.25K-50K"]})
+    if not investments.get("home_loan_interest"):
+        recs.append({"section": "24(b)+80C", "priority": "Medium",
+            "action": "Home loan interest (up to Rs.2L) + principal (80C) both deductible",
+            "saving": "Up to Rs.75,000/yr", "instruments": ["Home loan from bank/HFC"]})
+
+    try:
+        narrative = await ollama_chat_completion(
+            messages=[
+                {"role": "system", "content": f"Senior CA giving tax advice. Language: {language}. Be specific and encouraging."},
+                {"role": "user",   "content": f"Income Rs.{gross:,.0f}, age {age}, {regime.upper()} regime. Current tax Rs.{tax_now:,.0f}, after optimization Rs.{tax_opt:,.0f}, saving Rs.{saving:,.0f}. Write 3 sentences of personalized advice."},
+            ],
+            model=OLLAMA_MODEL, max_tokens=250,
+        )
+    except Exception:
+        narrative = f"With a gross income of Rs.{gross:,.0f}, you can save approximately Rs.{saving:,.0f} in taxes this year by fully using available deductions. Start with ELSS for 80C (3-year lock-in, market returns), then add NPS for the extra Rs.50,000 deduction under 80CCD(1B). A health insurance policy will also save tax under 80D while protecting your family."
+
+    return {
+        "action":             "tax_planning",
+        "taxpayer_type":      taxpayer_type,
+        "age":                age,
+        "regime":             regime,
+        "gross_income":       gross,
+        "current_deductions": round(total_ded, 0),
+        "taxable_current":    round(taxable_now, 0),
+        "taxable_optimized":  round(taxable_opt, 0),
+        "tax_current":        tax_now,
+        "tax_optimized":      tax_opt,
+        "potential_saving":   saving,
+        "effective_rate":     round(tax_now / gross * 100, 1) if gross else 0,
+        "optimized_rate":     round(tax_opt / gross * 100, 1) if gross else 0,
+        "deduction_gaps":     {"80C": round(gap_80c, 0), "NPS": round(gap_nps, 0), "80D": round(gap_80d, 0)},
+        "recommendations":    recs,
+        "instruments":        _INSTRUMENTS,
+        "narrative":          narrative,
     }

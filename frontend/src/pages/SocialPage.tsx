@@ -263,6 +263,31 @@ export default function SocialPage() {
   const [bridgeResult, setBridgeResult] = useState('')
   const bridgeApi = useApi()
 
+  // ── Brand Mention Responder (Round 6) ──
+  const [mentBrand, setMentBrand]     = useState('')
+  const [mentPlatform, setMentPlatform] = useState('twitter')
+  const [mentLang, setMentLang]       = useState('en')
+  const [mentMentions, setMentMentions] = useState(JSON.stringify([
+    { id: 'M001', author: '@rahul_dev', text: 'Just tried @MentBrand and it is absolutely terrible! Lost 2 hours of data. Unacceptable!', sentiment: 'very negative', platform: 'twitter', timestamp: '2024-01-15T10:30:00Z', followers: 2400 },
+    { id: 'M002', author: '@priya_cto', text: '@MentBrand your AI feature is 🔥 — saved our team 5 hours this week. Keep it up!', sentiment: 'positive', platform: 'twitter', timestamp: '2024-01-15T09:15:00Z', followers: 8900 },
+    { id: 'M003', author: '@startup_guy', text: 'Thinking of switching to @MentBrand from Zoho. Anyone have experience?', sentiment: 'neutral', platform: 'twitter', timestamp: '2024-01-15T08:45:00Z', followers: 1200 },
+  ], null, 2))
+  const [mentRes, setMentRes]         = useState<any>(null)
+  const [mentLoading, setMentLoading] = useState(false)
+  const [mentErr, setMentErr]         = useState('')
+
+  const runMentionResponder = async () => {
+    setMentLoading(true); setMentErr(''); setMentRes(null)
+    try {
+      let mentions: any[]
+      try { mentions = JSON.parse(mentMentions) } catch { throw new Error('Invalid JSON in mentions') }
+      setMentRes(await socialAction('mention_responder', {
+        brand_name: mentBrand, mentions, platform: mentPlatform,
+      }, mentPlatform, mentLang))
+    } catch (e: any) { setMentErr(e.message) }
+    setMentLoading(false)
+  }
+
   // ── A/B Copy Tester (Round 5) ──
   const [abTopic, setAbTopic]       = useState('')
   const [abBrand, setAbBrand]       = useState('')
@@ -372,7 +397,8 @@ export default function SocialPage() {
           { id: 'monitor',    label: 'Monitor',         icon: '👁️' },
           { id: 'bridge',     label: 'Content Bridge',  icon: '🔗' },
           { id: 'scheduler',  label: 'AI Scheduler',    icon: '🗓️' },
-          { id: 'abtest',     label: 'A/B Copy Tester', icon: '🔬' },
+          { id: 'abtest',     label: 'A/B Copy Tester',      icon: '🔬' },
+          { id: 'mention',    label: 'Mention Responder',     icon: '📣' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1675,6 +1701,86 @@ export default function SocialPage() {
                 })}
               </div>
             ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter a topic and generate variations →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── BRAND MENTION RESPONDER (Round 6) ── */}
+      {tab === 'mention' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Brand Mention Responder" sub="AI drafts replies to every brand mention — negative, positive, or neutral" />
+            <Input label="Brand / Company Name" value={mentBrand} onChange={setMentBrand} placeholder="e.g. Zoho, Freshworks" />
+            <Select label="Primary Platform" value={mentPlatform} onChange={setMentPlatform} options={[
+              { label: 'Twitter / X', value: 'twitter' }, { label: 'LinkedIn', value: 'linkedin' },
+              { label: 'Instagram', value: 'instagram' }, { label: 'Facebook', value: 'facebook' },
+            ]} />
+            <Select label="Response Language" value={mentLang} onChange={setMentLang} options={LANG_OPTIONS} />
+            <div style={{ marginBottom: 6, fontSize: 12, color: '#9ca3af' }}>Mentions JSON (paste or edit)</div>
+            <textarea
+              value={mentMentions}
+              onChange={e => setMentMentions(e.target.value)}
+              rows={10}
+              style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 12, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }}
+            />
+            <Btn onClick={runMentionResponder} loading={mentLoading} disabled={!mentBrand} style={{ marginTop: 12, width: '100%' }}>
+              Generate AI Responses
+            </Btn>
+            {mentErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{mentErr}</div>}
+          </Card>
+          <Card>
+            <SectionHead title="AI-Drafted Responses" sub="Review and post — personalized per sentiment" />
+            {mentRes ? (() => {
+              const summary = mentRes.summary || {}
+              const responses: any[] = mentRes.responses || []
+              const SENT_COLOR: Record<string, string> = {
+                'very negative': '#ef4444', 'negative': '#f97316', 'neutral': '#6b7280',
+                'positive': '#22c55e', 'very positive': '#10b981',
+              }
+              return (
+                <>
+                  {/* KPI bar */}
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+                    {[
+                      { label: 'Total Mentions', val: summary.total_mentions ?? responses.length },
+                      { label: 'Urgent', val: summary.urgent_count ?? responses.filter((r: any) => r.urgency === 'high').length, color: '#ef4444' },
+                      { label: 'Positive', val: summary.positive_count ?? responses.filter((r: any) => r.sentiment === 'positive' || r.sentiment === 'very positive').length, color: '#22c55e' },
+                    ].map(k => (
+                      <div key={k.label} style={{ flex: 1, minWidth: 90, background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 14px' }}>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: k.color || '#e2e8f0' }}>{k.val}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Response cards */}
+                  {responses.map((r: any, i: number) => (
+                    <div key={i} style={{ background: '#0f1117', border: `1px solid ${SENT_COLOR[r.sentiment] || '#1e2535'}44`, borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 13 }}>{r.author || `@mention_${i + 1}`}</span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <Badge label={r.sentiment} color={SENT_COLOR[r.sentiment] || '#6b7280'} />
+                          {r.urgency === 'high' && <Badge label="URGENT" color="#ef4444" />}
+                        </div>
+                      </div>
+                      <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 8, fontStyle: 'italic' }}>"{r.original_text?.slice(0, 120)}{(r.original_text?.length || 0) > 120 ? '…' : ''}"</div>
+                      <div style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.7, background: '#111827', borderRadius: 6, padding: '8px 12px', marginBottom: 8, whiteSpace: 'pre-wrap' }}>{r.ai_response}</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {r.tone && <Badge label={`Tone: ${r.tone}`} color="#818cf8" />}
+                        {r.action_required && <Badge label={r.action_required} color="#f59e0b" />}
+                        <span onClick={() => navigator.clipboard?.writeText(r.ai_response)} style={{ cursor: 'pointer', color: '#fff', fontSize: 11, padding: '3px 10px', background: '#374151', borderRadius: 6, marginLeft: 'auto' }}>Copy</span>
+                      </div>
+                    </div>
+                  ))}
+                  {mentRes.brand_health_score !== undefined && (
+                    <div style={{ marginTop: 12, background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 14px' }}>
+                      <div style={{ fontSize: 12, color: '#9ca3af' }}>Brand Sentiment Score</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: mentRes.brand_health_score >= 60 ? '#22c55e' : mentRes.brand_health_score >= 40 ? '#f59e0b' : '#ef4444' }}>{mentRes.brand_health_score}/100</div>
+                    </div>
+                  )}
+                </>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Paste mentions JSON and click Generate →</div>}
           </Card>
         </TwoCol>
       )}

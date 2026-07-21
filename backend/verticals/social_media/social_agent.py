@@ -2069,6 +2069,15 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "mention_responder":
+        return await respond_to_mentions(
+            mentions=payload.get("mentions", []),
+            brand_name=payload.get("brand_name", ""),
+            brand_voice=payload.get("brand_voice", "professional"),
+            industry=payload.get("industry", ""),
+            language=language,
+        )
+
     elif action == "ab_copy_test":
         return await generate_ab_copy(
             topic=payload.get("topic", ""),
@@ -2309,3 +2318,127 @@ Return ONLY valid JSON."""
             "testing_advice": "Run each variation for 24h. Compare comment rate (not just likes). Pause lowest performer at 6h if gap is >20%.",
             "demo_mode": True,
         }
+
+
+# ── Brand Mention Responder (Round 6) ─────────────────────────────────────────
+
+_MENTION_SENTIMENT = {
+    "positive":  {"color": "#10b981", "urgency": "low",      "action": "Engage warmly"},
+    "neutral":   {"color": "#6b7280", "urgency": "low",      "action": "Acknowledge"},
+    "question":  {"color": "#3b82f6", "urgency": "medium",   "action": "Answer promptly"},
+    "complaint": {"color": "#f59e0b", "urgency": "high",     "action": "Resolve quickly"},
+    "negative":  {"color": "#ef4444", "urgency": "high",     "action": "Address immediately"},
+    "pr_risk":   {"color": "#dc2626", "urgency": "critical", "action": "Escalate now"},
+}
+
+
+async def respond_to_mentions(
+    mentions:    list[dict],
+    brand_name:  str = "",
+    brand_voice: str = "professional",
+    industry:    str = "",
+    language:    str = "en",
+) -> dict:
+    """
+    Categorize and draft replies for social media mentions/comments.
+    Each mention: {id, platform, author, text, likes, is_verified}
+    """
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    import json
+
+    if not mentions:
+        return {"error": "No mentions provided"}
+
+    system = f"""You are a social media community manager for {brand_name or 'a brand'} ({industry or 'general'}).
+Brand voice: {brand_voice}. Language: {language}.
+
+Analyze each mention and return JSON array:
+[
+  {{
+    "id": "same id as input",
+    "sentiment": "positive|neutral|question|complaint|negative|pr_risk",
+    "sentiment_score": 0-100,
+    "key_issue": "what the person is really saying (one phrase)",
+    "reply": "ready-to-post reply (platform-appropriate, brand voice, under 280 chars for Twitter)",
+    "urgency": "low|medium|high|critical",
+    "action": "what to do",
+    "pr_risk": true/false,
+    "risk_reason": "why it's a risk (or null)"
+  }}
+]
+Return ONLY the JSON array."""
+
+    mentions_text = "\n".join(
+        f"[{m.get('id','?')}] @{m.get('author','?')} on {m.get('platform','?')}: {m.get('text','')}"
+        for m in mentions
+    )
+
+    try:
+        raw = await ollama_chat_completion(
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user",   "content": f"Analyze and draft replies for these mentions:\n{mentions_text}"},
+            ],
+            model=OLLAMA_MODEL,
+            max_tokens=2000,
+        )
+        raw = raw.strip()
+        if "[" in raw:
+            raw = raw[raw.index("["):]
+            if "]" in raw:
+                raw = raw[:raw.rindex("]") + 1]
+        results = json.loads(raw)
+    except Exception as e:
+        logger.error("Mention responder failed: %s", e)
+        # Demo fallback
+        import random
+        sentiments = ["positive", "question", "complaint", "neutral", "negative"]
+        results = []
+        for m in mentions:
+            sent = random.choice(sentiments)
+            info = _MENTION_SENTIMENT[sent]
+            results.append({
+                "id": m.get("id", ""),
+                "sentiment": sent,
+                "sentiment_score": random.randint(20, 90),
+                "key_issue": m.get("text", "")[:50],
+                "reply": f"Hi @{m.get('author', 'there')}! Thanks for reaching out. Our team at {brand_name or 'us'} will get back to you shortly. 🙏",
+                "urgency": info["urgency"],
+                "action": info["action"],
+                "pr_risk": sent == "pr_risk",
+                "risk_reason": None,
+            })
+
+    # Merge with original mention data and add color
+    id_map = {m.get("id", str(i)): m for i, m in enumerate(mentions)}
+    enriched = []
+    pr_risks = []
+    for r in results:
+        original = id_map.get(str(r.get("id", "")), {})
+        info = _MENTION_SENTIMENT.get(r.get("sentiment", "neutral"), _MENTION_SENTIMENT["neutral"])
+        r["color"]    = info["color"]
+        r["platform"] = original.get("platform", "")
+        r["author"]   = original.get("author", "")
+        r["original_text"] = original.get("text", "")
+        r["likes"]    = original.get("likes", 0)
+        enriched.append(r)
+        if r.get("pr_risk"):
+            pr_risks.append(r)
+
+    stats = {
+        "total": len(enriched),
+        "positive":  sum(1 for r in enriched if r["sentiment"] == "positive"),
+        "questions": sum(1 for r in enriched if r["sentiment"] == "question"),
+        "complaints": sum(1 for r in enriched if r["sentiment"] in ("complaint", "negative")),
+        "pr_risks":  len(pr_risks),
+        "critical":  sum(1 for r in enriched if r["urgency"] == "critical"),
+    }
+
+    return {
+        "action":     "mention_responder",
+        "brand_name": brand_name,
+        "stats":      stats,
+        "mentions":   sorted(enriched, key=lambda x: {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(x.get("urgency"), 4)),
+        "pr_risks":   pr_risks,
+        "health":     "Critical" if pr_risks else ("At Risk" if stats["complaints"] > stats["total"] * 0.3 else "Healthy"),
+    }

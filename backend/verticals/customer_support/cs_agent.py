@@ -560,6 +560,15 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "escalation_manager":
+            return _escalation_manager(
+                tickets=payload.get("tickets", []),
+                rules=payload.get("rules", {}),
+                business_name=payload.get("business_name", ""),
+                escalation_email=payload.get("escalation_email", ""),
+                language=lang,
+            )
+
         elif action == "build_csat_survey":
             return _build_csat_survey(
                 business_name=payload.get("business_name", ""),
@@ -859,4 +868,135 @@ def _analyze_csat(responses: list[dict], business_name: str = "") -> dict:
         "comments":         comments[:20],
         "health":           "Excellent" if csat_pct >= 80 else ("Good" if csat_pct >= 65 else ("Needs Attention" if csat_pct >= 50 else "Critical")),
         "top_action":       f"Focus on '{pain_areas[0]['touchpoint']}' — lowest rated at {pain_areas[0]['avg_score']}/5" if pain_areas else "Maintain current quality across all touchpoints",
+    }
+
+
+# ── Escalation Manager (Round 6) ─────────────────────────────────────────────
+
+_ESC_PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+_ESC_COLOR = {"critical": "red", "high": "orange", "medium": "yellow", "low": "green"}
+
+_DEFAULT_ESC_RULES = {
+    "vip_keywords":    ["vip", "premium", "enterprise", "ceo", "founder", "director"],
+    "legal_keywords":  ["legal", "lawsuit", "court", "fraud", "cheat", "scam", "fir", "police"],
+    "financial_keywords": ["refund", "payment", "billing", "overcharge", "double charge"],
+    "auto_escalate_hours": 4,
+    "breach_hours":    24,
+}
+
+
+def _escalation_manager(
+    tickets:          list,
+    rules:            dict,
+    business_name:    str  = "",
+    escalation_email: str  = "",
+    language:         str  = "en",
+) -> dict:
+    import re
+    from datetime import datetime, timezone
+
+    r = {**_DEFAULT_ESC_RULES, **rules}
+    vip_kw     = [k.lower() for k in r.get("vip_keywords", [])]
+    legal_kw   = [k.lower() for k in r.get("legal_keywords", [])]
+    fin_kw     = [k.lower() for k in r.get("financial_keywords", [])]
+    auto_hrs   = float(r.get("auto_escalate_hours", 4))
+    breach_hrs = float(r.get("breach_hours", 24))
+
+    now = datetime.now(timezone.utc)
+
+    def _hours_open(t: dict) -> float:
+        try:
+            created = datetime.fromisoformat(t.get("created_at", "").replace("Z", "+00:00"))
+            return (now - created).total_seconds() / 3600
+        except Exception:
+            return 0.0
+
+    def _reason(t: dict) -> tuple[str, str]:
+        text = (t.get("subject", "") + " " + t.get("description", "") + " " + t.get("customer_tier", "")).lower()
+        if any(k in text for k in legal_kw):
+            return "legal_threat", "critical"
+        if any(k in text for k in vip_kw) or t.get("customer_tier", "").lower() in ("vip", "enterprise", "premium"):
+            return "vip_customer", "high"
+        if any(k in text for k in fin_kw):
+            return "financial_dispute", "high"
+        hrs = _hours_open(t)
+        if hrs >= breach_hrs:
+            return "sla_breach", "critical"
+        if hrs >= auto_hrs:
+            return "auto_time", "medium"
+        if t.get("sentiment", "").lower() in ("very negative", "angry"):
+            return "angry_customer", "high"
+        return "", ""
+
+    escalated, monitored, resolved = [], [], []
+
+    for t in tickets:
+        tid    = t.get("id", "T000")
+        hrs    = _hours_open(t)
+        reason, pri = _reason(t)
+        status = t.get("status", "open").lower()
+
+        entry = {
+            "id":           tid,
+            "subject":      t.get("subject", "No subject"),
+            "customer":     t.get("customer_name", "Unknown"),
+            "customer_tier":t.get("customer_tier", "standard"),
+            "status":       status,
+            "priority":     pri or t.get("priority", "medium"),
+            "hours_open":   round(hrs, 1),
+            "reason":       reason,
+            "color":        _ESC_COLOR.get(pri or t.get("priority", "medium"), "green"),
+            "assignee":     t.get("assignee", "Unassigned"),
+            "action_needed": "",
+        }
+
+        if status in ("closed", "resolved"):
+            resolved.append(entry)
+        elif reason:
+            entry["action_needed"] = {
+                "legal_threat":     "Immediately loop in Legal & Management. Do NOT respond without approval.",
+                "vip_customer":     "Escalate to Senior Support / Account Manager within 1 hour.",
+                "financial_dispute":"Escalate to Finance team. Prepare refund/waiver options.",
+                "sla_breach":       f"SLA breached ({hrs:.0f}h open). Escalate and compensate.",
+                "auto_time":        f"Open {hrs:.0f}h — escalate to senior agent now.",
+                "angry_customer":   "High anger detected — senior agent should take over.",
+            }.get(reason, "Review and escalate if needed.")
+            escalated.append(entry)
+        else:
+            entry["action_needed"] = "Monitor — no escalation trigger yet."
+            monitored.append(entry)
+
+    escalated.sort(key=lambda x: _ESC_PRIORITY_ORDER.get(x["priority"], 9))
+
+    stats = {
+        "total":       len(tickets),
+        "escalated":   len(escalated),
+        "monitored":   len(monitored),
+        "resolved":    len(resolved),
+        "critical":    sum(1 for e in escalated if e["priority"] == "critical"),
+        "high":        sum(1 for e in escalated if e["priority"] == "high"),
+    }
+
+    email_draft = ""
+    if escalated and escalation_email:
+        crit = [e for e in escalated if e["priority"] == "critical"]
+        items = "\n".join(f"  - [{e['id']}] {e['subject']} ({e['customer']}) — {e['reason'].replace('_',' ').title()}" for e in crit[:5])
+        email_draft = (
+            f"To: {escalation_email}\n"
+            f"Subject: [URGENT] {stats['critical']} Critical Escalations — {business_name}\n\n"
+            f"Hi Team,\n\nThe following tickets require immediate attention:\n\n{items}\n\n"
+            f"Total escalated: {stats['escalated']} | Critical: {stats['critical']} | High: {stats['high']}\n\n"
+            f"Please action within the next 30 minutes.\n\nRegards,\nSupport System"
+        )
+
+    return {
+        "action":         "escalation_manager",
+        "business_name":  business_name,
+        "stats":          stats,
+        "escalated":      escalated,
+        "monitored":      monitored[:20],
+        "resolved":       resolved[:10],
+        "email_draft":    email_draft,
+        "health":         "Critical" if stats["critical"] > 0 else ("At Risk" if stats["escalated"] > 0 else "Healthy"),
+        "health_color":   "red" if stats["critical"] > 0 else ("orange" if stats["escalated"] > 0 else "green"),
     }
