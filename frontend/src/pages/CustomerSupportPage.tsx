@@ -59,6 +59,7 @@ const TABS = [
   { id: 'winback',    label: 'Win-back Sequence' },
   { id: 'scorecard',  label: 'Agent Scorecard' },
   { id: 'nps',        label: 'NPS Campaign' },
+  { id: 'onboarding_seq', label: 'Onboarding Sequence' },
 ]
 
 const WA_TYPES = [
@@ -1311,6 +1312,7 @@ export default function CustomerSupportPage() {
         {tab === 'winback'     && <WinbackTab lang={lang} />}
         {tab === 'scorecard'   && <AgentScorecardTab lang={lang} />}
         {tab === 'nps'         && <NpsCampaignTab lang={lang} />}
+        {tab === 'onboarding_seq' && <OnboardingSequenceTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -2596,6 +2598,198 @@ function NpsCampaignTab({ lang }: { lang: Lang }) {
               </>
             )
           })() : <Empty text="Demo data pre-loaded — click Build NPS Campaign →" />}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Customer Onboarding Sequence Tab (Round 15) ───────────────────────────────
+
+function OnboardingSequenceTab({ lang }: { lang: Lang }) {
+  const [biz, setBiz]         = useState('')
+  const [product, setProduct] = useState('')
+  const [industry, setIndustry] = useState('saas')
+  const [ctype, setCtype]     = useState('smb')
+  const [csRep, setCsRep]     = useState('')
+  const [metric, setMetric]   = useState('')
+  const [featuresRaw, setFeaturesRaw] = useState('')
+  const [res, setRes]         = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [err, setErr]         = useState('')
+  const [activeDay, setActiveDay] = useState(0)
+  const [view, setView]       = useState<'emails'|'risks'|'metrics'>('emails')
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null); setActiveDay(0)
+    try {
+      const features = featuresRaw.trim() ? featuresRaw.split('\n').filter(Boolean) : []
+      setRes(await csAction('onboarding_sequence', {
+        business_name: biz, product_name: product, industry,
+        customer_type: ctype, key_features: features,
+        success_metric: metric, cs_rep_name: csRep,
+      }))
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+
+  const dayColors: Record<string, string> = {
+    day_0: '#7c3aed', day_1: '#2563eb', day_7: '#059669',
+    day_14: '#d97706', day_30: '#dc2626', day_60: '#db2777', day_90: '#6366f1',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
+        <div style={{ background: '#141b2d', borderRadius: 12, padding: 20, border: '1px solid #1e2535' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>🚀 Onboarding Sequence Builder</div>
+          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 16 }}>Day 0/1/7/14/30/60/90 email sequence + risk signals. Demo data pre-loaded.</div>
+          {[
+            { label: 'Business Name',  value: biz,     set: setBiz,     ph: 'e.g. Acme SaaS' },
+            { label: 'Product Name',   value: product,  set: setProduct, ph: 'e.g. Core Platform' },
+            { label: 'CS Rep Name',    value: csRep,    set: setCsRep,   ph: 'e.g. Priya Sharma' },
+            { label: 'Primary Success Metric', value: metric, set: setMetric, ph: 'e.g. First report generated' },
+          ].map((f, i) => (
+            <div key={i} style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>{f.label}</label>
+              <input value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.ph}
+                style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box' }} />
+            </div>
+          ))}
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Industry</label>
+            <select value={industry} onChange={e => setIndustry(e.target.value)}
+              style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 12 }}>
+              {['saas','ecommerce','fintech','healthcare','logistics','general'].map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Customer Type</label>
+            <select value={ctype} onChange={e => setCtype(e.target.value)}
+              style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 12 }}>
+              {['smb','enterprise','startup','individual'].map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Key Features (one per line)</label>
+            <textarea value={featuresRaw} onChange={e => setFeaturesRaw(e.target.value)} rows={4}
+              placeholder={"Core dashboard\nTeam collaboration\nIntegrations\nAutomated workflows"}
+              style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 11, boxSizing: 'border-box', resize: 'vertical' }} />
+          </div>
+          <button onClick={run} disabled={loading} style={{ width: '100%', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontSize: 13, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'Building sequence…' : '🚀 Build Onboarding Sequence'}
+          </button>
+          {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{err}</div>}
+        </div>
+
+        <div style={{ background: '#141b2d', borderRadius: 12, padding: 20, border: '1px solid #1e2535' }}>
+          {res ? (() => {
+            const r = res
+            const emails: any[] = r.email_sequence || []
+            const active = emails[activeDay] || emails[0]
+            return (
+              <>
+                {/* Stats bar */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Touchpoints', value: r.total_touchpoints, color: '#7c3aed' },
+                    { label: 'Channel',     value: r.channel,           color: '#60a5fa' },
+                    { label: 'SLA',         value: r.response_sla,      color: '#22c55e' },
+                    { label: 'Check-in',    value: r.check_in_format,   color: '#f59e0b' },
+                  ].map((s, i) => (
+                    <div key={i} style={{ background: '#0f172a', borderRadius: 8, padding: '8px 12px', flex: 1, minWidth: 80 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: s.color }}>{s.value}</div>
+                      <div style={{ fontSize: 9, color: '#4b5563' }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* View switcher */}
+                <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                  {(['emails','risks','metrics'] as const).map(v => (
+                    <span key={v} onClick={() => setView(v)} style={{
+                      padding: '4px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+                      background: view === v ? '#4f46e5' : '#1e2535',
+                      color: view === v ? '#fff' : '#6b7280', fontWeight: view === v ? 700 : 400,
+                    }}>{v === 'emails' ? '📧 Emails' : v === 'risks' ? '⚠️ Risk Signals' : '📊 Success Metrics'}</span>
+                  ))}
+                </div>
+
+                {/* Email view */}
+                {view === 'emails' && (
+                  <>
+                    {/* Day navigator */}
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
+                      {emails.map((e: any, i: number) => (
+                        <span key={i} onClick={() => setActiveDay(i)} style={{
+                          padding: '4px 10px', borderRadius: 6, fontSize: 10, cursor: 'pointer', fontWeight: activeDay === i ? 700 : 400,
+                          background: activeDay === i ? (dayColors[e.day] || '#4f46e5') : '#1e2535',
+                          color: activeDay === i ? '#fff' : '#6b7280',
+                        }}>{e.day.replace('day_','Day ')}</span>
+                      ))}
+                    </div>
+
+                    {active && (
+                      <div>
+                        <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, marginBottom: 10 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: dayColors[active.day] || '#4f46e5' }}>{active.milestone}</span>
+                            <span style={{ fontSize: 10, color: '#4b5563' }}>{active.send_time}</span>
+                          </div>
+                          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 8, fontStyle: 'italic' }}>{active.goal}</div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Subject: {active.subject}</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'pre-wrap', lineHeight: 1.7, maxHeight: 250, overflowY: 'auto' }}>{active.body}</div>
+                        </div>
+                        {active.checklist?.length > 0 && (
+                          <div style={{ background: '#1e2535', borderRadius: 6, padding: 10 }}>
+                            <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 6 }}>CS CHECKLIST FOR THIS TOUCHPOINT</div>
+                            {active.checklist.map((c: string, i: number) => (
+                              <div key={i} style={{ fontSize: 11, color: '#d1d5db', padding: '2px 0' }}>☐ {c}</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Risk signals */}
+                {view === 'risks' && (
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>Monitor these signals — most churn intent forms in the first 30 days.</div>
+                    {(r.risk_signals || []).map((rs: any, i: number) => (
+                      <div key={i} style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginBottom: 8, borderLeft: `3px solid ${rs.risk === 'critical' ? '#ef4444' : rs.risk === 'high' ? '#f97316' : '#f59e0b'}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, color: '#e2e8f0', fontWeight: 500 }}>{rs.signal}</span>
+                          <span style={{ fontSize: 10, color: rs.risk === 'critical' ? '#ef4444' : rs.risk === 'high' ? '#f97316' : '#f59e0b', fontWeight: 700, textTransform: 'uppercase' }}>{rs.risk}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>→ {rs.action}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Success metrics */}
+                {view === 'metrics' && (
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>Track these metrics to confirm onboarding success. Primary: <strong style={{ color: '#22c55e' }}>{r.primary_metric}</strong></div>
+                    {(r.success_metrics || []).map((m: string, i: number) => (
+                      <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #111827' }}>
+                        <span style={{ color: i === 0 ? '#22c55e' : '#4b5563', fontSize: 12 }}>{i === 0 ? '★' : '○'}</span>
+                        <span style={{ fontSize: 12, color: i === 0 ? '#e2e8f0' : '#94a3b8' }}>{m}</span>
+                      </div>
+                    ))}
+                    <div style={{ marginTop: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>KEY FEATURES TO DRIVE ADOPTION</div>
+                      {(r.key_features || []).map((f: string, i: number) => (
+                        <div key={i} style={{ fontSize: 11, color: '#d1d5db', padding: '3px 0' }}>→ {f}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )
+          })() : <Empty text="Demo data pre-loaded — click Build Onboarding Sequence →" />}
         </div>
       </div>
     </div>

@@ -2069,6 +2069,18 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "linkedin_article":
+        return generate_linkedin_article(
+            topic=payload.get("topic", ""),
+            brand_name=payload.get("brand_name", ""),
+            author_name=payload.get("author_name", ""),
+            industry=payload.get("industry", ""),
+            target_audience=payload.get("target_audience", ""),
+            article_goal=payload.get("article_goal", "thought_leadership"),
+            key_points=payload.get("key_points", []),
+            word_count=int(payload.get("word_count", 1200) or 1200),
+        )
+
     elif action == "podcast_content_kit":
         return generate_podcast_content_kit(
             episode_title=payload.get("episode_title", ""),
@@ -2255,6 +2267,183 @@ _THREAD_RULES = [
     "Post your thread as a reply to yourself, not as separate tweets — keeps it as one unit.",
     "Best time for Indian Twitter/X: 8-9 AM and 9-10 PM IST on weekdays.",
 ]
+
+
+# ── LinkedIn Article Generator (Round 15) ────────────────────────────────────
+
+_ARTICLE_GOALS = {
+    "thought_leadership": {
+        "intro_hook":   "Start with a bold, counterintuitive claim or a surprising industry statistic. Make the reader stop scrolling.",
+        "structure":    ["hook_intro", "problem_framing", "insight_1", "insight_2", "insight_3", "case_example", "framework", "actionable_takeaway", "cta"],
+        "cta_type":     "Follow for weekly insights + invite comment debate",
+        "length_guide": "1200-1500 words. Long enough to be authoritative, short enough to be read.",
+    },
+    "lead_generation": {
+        "intro_hook":   "Open with the pain point your ideal customer feels every day. Make them feel seen immediately.",
+        "structure":    ["pain_hook", "why_it_happens", "common_mistakes", "the_better_way", "proof_point", "step_by_step", "result_promise", "soft_cta"],
+        "cta_type":     "DM / link to lead magnet / free consultation offer",
+        "length_guide": "900-1200 words. Enough depth to build trust, CTA before they lose interest.",
+    },
+    "brand_awareness": {
+        "intro_hook":   "Tell a story — a client win, a failure, a behind-the-scenes moment. Human beats corporate every time.",
+        "structure":    ["story_hook", "context", "challenge", "what_we_did", "result", "broader_lesson", "brand_values", "cta"],
+        "cta_type":     "Share if this resonated / tag someone who needs to read this",
+        "length_guide": "800-1000 words. Story-driven — doesn't need to be long, needs to be vivid.",
+    },
+    "seo_traffic": {
+        "intro_hook":   "Use the target keyword naturally in the first sentence. Frame as a definitive guide or answer.",
+        "structure":    ["keyword_intro", "what_is_it", "why_it_matters", "how_to_section_1", "how_to_section_2", "how_to_section_3", "common_questions", "summary_cta"],
+        "cta_type":     "Download resource / visit website for deeper guide",
+        "length_guide": "1500-2000 words for SEO. LinkedIn indexes long articles — use headers with keywords.",
+    },
+}
+
+_SECTION_WRITERS = {
+    "hook_intro":        "HOOK (150-200 words): Open with a bold claim or stat that challenges conventional wisdom. Example: 'Most {industry} leaders are optimizing for the wrong metric — and it's costing them 30% growth.' Then expand why this matters NOW, in this moment. End with: 'Here's what I've learned after [X years / working with Y companies]:'",
+    "pain_hook":         "PAIN HOOK (100-150 words): Describe the exact pain your reader feels in their own words. 'You're doing everything right — posting consistently, running ads, attending events — and still not getting inbound leads. Here's why that's not your fault, and what actually works.'",
+    "story_hook":        "STORY HOOK (150-200 words): 'Three months ago, we almost lost our biggest client. Here's what happened — and what it taught us about [topic].' Be specific: name the client type, the amount at risk, the exact moment of crisis. Specificity = credibility.",
+    "problem_framing":   "PROBLEM FRAMING (100-150 words): Define the problem clearly. What's broken about the current approach? Include a specific stat or observation that proves it's widespread. This section validates the reader — they're not alone in struggling with this.",
+    "why_it_happens":    "ROOT CAUSE (100-150 words): Explain WHY the problem exists — not just what it is. Most articles describe symptoms. Go one level deeper. This positions you as an expert, not just an observer.",
+    "insight_1":         "KEY INSIGHT 1 (150-200 words): Your first core insight. Lead with the conclusion, then explain. Use the structure: 'Here's the thing most people miss: [insight]. Why? Because [explanation]. What this means practically: [application].'",
+    "insight_2":         "KEY INSIGHT 2 (150-200 words): Second insight — build on the first, add a layer. Include a mini case study, quote, or example that makes this concrete. Abstract insights without proof don't convert readers to followers.",
+    "insight_3":         "KEY INSIGHT 3 (150-200 words): Third insight — the most counterintuitive one. Save your boldest claim for here. Readers who make it this far are engaged — reward them with your best thinking.",
+    "framework":         "FRAMEWORK (150-200 words): Give the reader a mental model they can take away. Name it if possible (e.g., 'The 3-Layer Revenue Model', 'The CSAT Flywheel'). A named framework is quotable, shareable, and memorable. Include a simple description of the 3-4 components.",
+    "case_example":      "CASE EXAMPLE (100-150 words): One specific story that proves your point. Format: Situation → Problem → What we did → Result (with specific numbers). Don't be vague — '30% improvement' beats 'significant improvement' every time.",
+    "proof_point":       "PROOF / CREDIBILITY (100-150 words): Specific results, client outcomes, or data that validates your approach. LinkedIn readers are skeptical — earn trust with evidence, not claims.",
+    "step_by_step":      "HOW-TO STEPS (200-250 words): Number your steps. Start each with an action verb. Include enough detail that someone could actually do this. Vague advice ('just improve your onboarding') gets ignored. Specific steps get saved and shared.",
+    "how_to_section_1":  "HOW-TO SECTION 1 (150-200 words): First major how-to block. Header with keyword where natural. Detailed enough to be genuinely useful — not just headlines.",
+    "how_to_section_2":  "HOW-TO SECTION 2 (150-200 words): Second major block. Build on section 1. Include a tool recommendation, template, or resource.",
+    "how_to_section_3":  "HOW-TO SECTION 3 (150-200 words): Third major block. This is where you address the hardest/most common obstacle readers face.",
+    "common_mistakes":   "COMMON MISTAKES (150-200 words): List 3-5 mistakes. For each: what people do, why they do it, why it fails, what to do instead. Mistake lists get saved and shared because everyone recognizes themselves in them.",
+    "actionable_takeaway":"TAKEAWAYS (100-150 words): 3-5 bullet points — the 'if you remember nothing else, remember this' section. Design this to stand alone as a screenshot. Bold the key phrase in each bullet.",
+    "the_better_way":    "THE BETTER WAY (150-200 words): The alternative to the common mistakes above. Be prescriptive — 'Do X instead of Y.' Give people a clear direction, not just awareness.",
+    "result_promise":    "RESULT (100 words): What does success look like? Be specific about the outcome the reader can expect if they follow your advice. Timeframe + metric where possible.",
+    "broader_lesson":    "BROADER LESSON (100-150 words): Zoom out from your specific story to the universal principle it illustrates. This is where the article earns its place in a reader's saved posts.",
+    "brand_values":      "BRAND VALUES (50-100 words): One short paragraph about how this story reflects what your company/team believes. Authentic, not salesy. 'This is why we built X the way we did' or 'This experience is what drives how we work with clients.'",
+    "summary_cta":       "SUMMARY + CTA (100-150 words): Quick TL;DR of the whole article, then one clear call to action. Don't ask for multiple things. Pick one: follow, comment, share, DM, or click link.",
+    "soft_cta":          "SOFT CTA (100-150 words): A value-led close: 'If you're dealing with this challenge, here's one thing you can do today: [specific action]. And if you want to go deeper, [offer/resource/conversation].' Low friction, high relevance.",
+    "keyword_intro":     "SEO INTRO (100-150 words): Use your primary keyword in the first two sentences naturally. Define the topic clearly. LinkedIn indexes this article — treat it like a blog post. Include secondary keywords in the first paragraph too.",
+    "what_is_it":        "DEFINITION (100-150 words): Clear, jargon-free definition of the core concept. Who is it for? Why does it exist? Link to a real example if you can.",
+    "why_it_matters":    "WHY IT MATTERS (100-150 words): The business / career impact of getting this right (or wrong). Include a stat if you have one. Urgency + relevance.",
+    "common_questions":  "FAQs (150-200 words): 3-4 questions your ideal reader actually Googles. Answer each in 2-3 sentences. This section drives SEO traffic because it matches search intent.",
+    "context":           "CONTEXT (100 words): Set the scene for your story. When, where, who. Give enough detail that the reader can picture it.",
+    "challenge":         "THE CHALLENGE (100-150 words): What went wrong, or what problem needed solving. Be honest — include your initial reaction, even if it wasn't your proudest moment.",
+    "what_we_did":       "WHAT WE DID (150-200 words): Specific actions taken, in order. Not 'we improved our process' but 'we rebuilt the onboarding email sequence, cut it from 12 emails to 5, and added a video from the founder in email 2.'",
+    "result":            "THE RESULT (100-150 words): Outcome with specific numbers. 'Within 60 days, NPS went from 32 to 58. Churn dropped from 8% to 3.2% monthly. And that client renewed at 2x the contract value.' Numbers + time frame = credibility.",
+    "cta":               "CLOSING CTA (75-100 words): End with an invitation for engagement. Ask a specific question to drive comments: 'What's the biggest [topic] mistake you see in your industry? Drop it below.' Then: 'Follow me for weekly [topic] insights that actually work for Indian businesses.'",
+}
+
+_PULL_QUOTE_TEMPLATES = [
+    '"{insight}" — this is the one line people screenshot and share. Design it to stand alone.',
+    "The most-saved LinkedIn articles always have one quotable sentence. Make sure yours does too.",
+    "Use pull quotes to break up long sections visually and give readers a reason to pause.",
+]
+
+_SEO_TIPS = [
+    "Use your primary keyword in the article title and first paragraph",
+    "Add 3-5 relevant hashtags at the end (LinkedIn indexes these)",
+    "Write a compelling 160-character meta description in your intro paragraph",
+    "Use H2-style subheadings (bold text in LinkedIn) every 200-300 words",
+    "Internal link: mention other articles or posts you've written on related topics",
+    "Optimal publish time for maximum indexing: Tuesday-Thursday 7-9 AM IST",
+]
+
+
+def generate_linkedin_article(
+    topic: str,
+    brand_name: str,
+    author_name: str,
+    industry: str,
+    target_audience: str,
+    article_goal: str,
+    key_points: list,
+    word_count: int,
+) -> dict:
+    topic_clean = topic or "How Indian Startups Can Build Unbreakable Customer Loyalty"
+    brand = brand_name or "Your Company"
+    author = author_name or "Your Name"
+    ind = industry or "technology"
+    audience = target_audience or "startup founders and business leaders"
+    goal_key = article_goal if article_goal in _ARTICLE_GOALS else "thought_leadership"
+    goal_cfg = _ARTICLE_GOALS[goal_key]
+
+    demo_points = key_points if key_points else [
+        f"Most {ind} companies optimise for acquisition but lose on retention — the math doesn't work",
+        f"The top 3 loyalty drivers in Indian B2B are response time, personalisation, and perceived value (not price)",
+        f"A 5% improvement in retention increases profit by 25-95% (Bain & Company)",
+        f"WhatsApp-first support has 3x higher satisfaction scores than email-first for Indian SMBs",
+        f"Loyalty programs that reward behaviour (not just spend) drive 40% higher engagement",
+    ]
+
+    structure = goal_cfg["structure"]
+    sections = []
+    for i, section_key in enumerate(structure):
+        guide = _SECTION_WRITERS.get(section_key, f"Write a compelling section on this topic: {section_key.replace('_',' ').title()}")
+        if i == 0:
+            content_hint = f"Hook readers on: {topic_clean}"
+        elif i < len(demo_points) + 1 and section_key in ("insight_1","insight_2","insight_3","how_to_section_1","how_to_section_2","how_to_section_3"):
+            point_idx = ["insight_1","insight_2","insight_3","how_to_section_1","how_to_section_2","how_to_section_3"].index(section_key)
+            content_hint = demo_points[point_idx] if point_idx < len(demo_points) else f"Key insight about {topic_clean}"
+        elif section_key == "cta":
+            content_hint = f"Follow {author} for weekly {ind} insights. Ask: 'What's your biggest {topic_clean.split()[0].lower()} challenge?'"
+        else:
+            content_hint = f"Expand on: {topic_clean} from the perspective of {audience}"
+
+        sections.append({
+            "section_num":   i + 1,
+            "section_key":   section_key,
+            "section_title": section_key.replace("_", " ").title(),
+            "writing_guide": guide,
+            "content_hint":  content_hint,
+            "approx_words":  word_count // len(structure),
+        })
+
+    # Pull quotes — pick top insights
+    pull_quotes = [f'"{pt[:120]}{"…" if len(pt) > 120 else ""}"' for pt in demo_points[:3]]
+
+    # Title options
+    title_formulas = [
+        f"Why Most {ind.title()} Companies Get {topic_clean.split()[0]} Wrong (And What to Do Instead)",
+        f"The {len(demo_points)} {topic_clean.split()[0].title()} Lessons I Wish Someone Had Told Me Earlier",
+        f"I Spent 5 Years Learning This About {topic_clean.split()[0].title()}. Here's Everything:",
+        f"The {topic_clean.split()[0].title()} Playbook That Actually Works for Indian Businesses",
+        f"Stop {topic_clean.split()[0].title()}ing the Wrong Way. Here's the Framework That Works:",
+    ]
+
+    # Hashtag suggestions
+    hashtags = [
+        f"#{ind.replace(' ','').title()}",
+        f"#{topic_clean.split()[0].title()}",
+        "#IndianBusiness",
+        "#Leadership",
+        "#BusinessGrowth",
+        f"#{audience.split()[0].title()}",
+        "#LinkedIn",
+    ]
+
+    estimated_read_time = max(1, word_count // 200)
+
+    return {
+        "action":           "linkedin_article",
+        "topic":            topic_clean,
+        "author":           author,
+        "brand":            brand,
+        "industry":         ind,
+        "goal":             goal_key,
+        "goal_description": goal_cfg["length_guide"],
+        "title_options":    title_formulas[:5],
+        "sections":         sections,
+        "total_sections":   len(sections),
+        "target_word_count": word_count,
+        "estimated_read_time": f"{estimated_read_time} min read",
+        "pull_quotes":      pull_quotes,
+        "intro_hook_guide": goal_cfg["intro_hook"],
+        "cta_type":         goal_cfg["cta_type"],
+        "seo_tips":         _SEO_TIPS,
+        "hashtags":         hashtags,
+        "key_points_used":  demo_points,
+        "summary":          f"LinkedIn article blueprint for '{topic_clean}' — {len(sections)} sections, ~{word_count} words, goal: {goal_key.replace('_',' ')}. {estimated_read_time} read.",
+    }
 
 
 # ── Podcast → Social Content Kit (Round 14) ──────────────────────────────────

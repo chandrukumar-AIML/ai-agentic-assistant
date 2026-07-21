@@ -301,6 +301,33 @@ export default function SocialPage() {
   const [podRes, setPodRes]         = useState<any>(null)
   const [podLoading, setPodLoading] = useState(false)
   const [podErr, setPodErr]         = useState('')
+  // LinkedIn Article (Round 15)
+  const [artTopic, setArtTopic]     = useState('')
+  const [artBrand, setArtBrand]     = useState('')
+  const [artAuthor, setArtAuthor]   = useState('')
+  const [artIndustry, setArtIndustry] = useState('')
+  const [artAudience, setArtAudience] = useState('')
+  const [artGoal, setArtGoal]       = useState('thought_leadership')
+  const [artWords, setArtWords]     = useState(1200)
+  const [artPointsRaw, setArtPointsRaw] = useState('')
+  const [artRes, setArtRes]         = useState<any>(null)
+  const [artLoading, setArtLoading] = useState(false)
+  const [artErr, setArtErr]         = useState('')
+  const [artActiveSection, setArtActiveSection] = useState(0)
+  const [artView, setArtView]       = useState<'sections'|'titles'|'seo'>('sections')
+  const runArticle = async () => {
+    setArtLoading(true); setArtErr(''); setArtRes(null); setArtActiveSection(0)
+    try {
+      let points: string[] = []
+      if (artPointsRaw.trim()) points = artPointsRaw.split('\n').filter(Boolean)
+      setArtRes(await socialAction('linkedin_article', {
+        topic: artTopic, brand_name: artBrand, author_name: artAuthor,
+        industry: artIndustry, target_audience: artAudience,
+        article_goal: artGoal, key_points: points, word_count: artWords,
+      }, 'linkedin'))
+    } catch (e: any) { setArtErr(e.message) }
+    finally { setArtLoading(false) }
+  }
   const runPodcast = async () => {
     setPodLoading(true); setPodErr(''); setPodRes(null)
     try {
@@ -605,6 +632,7 @@ export default function SocialPage() {
           { id: 'carousel',   label: 'LinkedIn Carousel',     icon: '🎠' },
           { id: 'twitter',    label: 'Twitter Thread',        icon: '🧵' },
           { id: 'podcast',    label: 'Podcast Content Kit',   icon: '🎙️' },
+          { id: 'article',    label: 'LinkedIn Article',       icon: '📝' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2556,6 +2584,148 @@ export default function SocialPage() {
                 <span style={{ fontSize: 11, color: '#374151' }}>Demo topics: "AI automation", "GST compliance", "Instagram growth"</span>
               </div>
             )}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── LINKEDIN ARTICLE GENERATOR (Round 15) ── */}
+      {tab === 'article' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="📝 LinkedIn Article Generator" sub="Thought leadership article blueprint with section-by-section writing guides" />
+            <Input label="Article Topic" value={artTopic} onChange={setArtTopic} placeholder="e.g. How Indian Startups Build Customer Loyalty" />
+            <Input label="Brand / Company Name" value={artBrand} onChange={setArtBrand} placeholder="e.g. Zoho, your startup" />
+            <Input label="Author Name" value={artAuthor} onChange={setArtAuthor} placeholder="e.g. Rahul Sharma" />
+            <Input label="Industry" value={artIndustry} onChange={setArtIndustry} placeholder="e.g. SaaS, fintech, retail" />
+            <Input label="Target Audience" value={artAudience} onChange={setArtAudience} placeholder="e.g. startup founders, HR leaders" />
+            <Select label="Article Goal" value={artGoal} onChange={setArtGoal} options={[
+              { label: 'Thought Leadership — Build authority & following', value: 'thought_leadership' },
+              { label: 'Lead Generation — Drive inbound enquiries', value: 'lead_generation' },
+              { label: 'Brand Awareness — Share story & values', value: 'brand_awareness' },
+              { label: 'SEO Traffic — Rank in LinkedIn & Google search', value: 'seo_traffic' },
+            ]} />
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 6 }}>Target Word Count: {artWords.toLocaleString()}</label>
+              <input type="range" min={600} max={2000} step={100} value={artWords} onChange={e => setArtWords(parseInt(e.target.value))}
+                style={{ width: '100%', accentColor: '#0a66c2' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#4b5563' }}><span>600 (short)</span><span>2000 (deep-dive)</span></div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Key Points (one per line — blank = demo)</label>
+              <textarea value={artPointsRaw} onChange={e => setArtPointsRaw(e.target.value)} rows={4}
+                placeholder={"Most companies optimise for acquisition, not retention\nRetention = profit (Bain: 5% retention = 25-95% profit boost)\nWhatsApp-first support = 3x higher CSAT in India"}
+                style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box', resize: 'vertical' }} />
+            </div>
+            <Btn onClick={runArticle} disabled={artLoading}>{artLoading ? 'Building Article…' : '📝 Generate Article Blueprint'}</Btn>
+            {artErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{artErr}</div>}
+          </Card>
+          <Card>
+            {artRes ? (() => {
+              const r = artRes
+              const sections: any[] = r.sections || []
+              const active = sections[artActiveSection] || sections[0]
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#0a66c2' }}>📝 {r.total_sections}-Section Article Blueprint</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>{r.target_word_count?.toLocaleString()} words · {r.estimated_read_time} · {r.goal?.replace('_',' ')}</div>
+                    </div>
+                  </div>
+
+                  {/* View switcher */}
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                    {(['sections','titles','seo'] as const).map(v => (
+                      <span key={v} onClick={() => setArtView(v)} style={{
+                        padding: '4px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+                        background: artView === v ? '#0a66c2' : '#1e2535',
+                        color: artView === v ? '#fff' : '#6b7280', fontWeight: artView === v ? 700 : 400,
+                      }}>{v === 'sections' ? '📄 Sections' : v === 'titles' ? '✏️ Title Options' : '🔍 SEO Tips'}</span>
+                    ))}
+                  </div>
+
+                  {/* Sections view */}
+                  {artView === 'sections' && (
+                    <>
+                      {/* Section navigator */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+                        {sections.map((s: any, i: number) => (
+                          <span key={i} onClick={() => setArtActiveSection(i)} style={{
+                            padding: '3px 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer',
+                            background: artActiveSection === i ? '#0a66c2' : '#1e2535',
+                            color: artActiveSection === i ? '#fff' : '#6b7280',
+                          }}>{s.section_num}</span>
+                        ))}
+                      </div>
+
+                      {active && (
+                        <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, marginBottom: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#0a66c2', textTransform: 'uppercase', letterSpacing: 1 }}>{active.section_title}</span>
+                            <span style={{ fontSize: 10, color: '#4b5563' }}>~{active.approx_words} words</span>
+                          </div>
+                          <div style={{ color: '#d1d5db', fontSize: 12, lineHeight: 1.7, marginBottom: 10 }}>{active.writing_guide}</div>
+                          <div style={{ borderTop: '1px solid #1e2535', paddingTop: 8 }}>
+                            <div style={{ fontSize: 10, color: '#f59e0b', marginBottom: 4 }}>CONTENT HINT FOR YOUR TOPIC</div>
+                            <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>{active.content_hint}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pull quotes */}
+                      {r.pull_quotes?.length > 0 && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 6 }}>PULL QUOTES (most shareable lines)</div>
+                          {r.pull_quotes.map((q: string, i: number) => (
+                            <div key={i} style={{ borderLeft: '3px solid #0a66c2', paddingLeft: 10, marginBottom: 8, fontSize: 12, color: '#d1d5db', fontStyle: 'italic' }}>{q}</div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* CTA guide */}
+                      <div style={{ background: '#0a66c210', border: '1px solid #0a66c230', borderRadius: 6, padding: 10 }}>
+                        <div style={{ fontSize: 10, color: '#0a66c2', marginBottom: 4 }}>CTA FOR THIS GOAL ({r.goal?.replace('_',' ').toUpperCase()})</div>
+                        <div style={{ fontSize: 11, color: '#d1d5db' }}>{r.cta_type}</div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Title options */}
+                  {artView === 'titles' && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>Choose the title that best fits your goal. Hook = 80% of whether someone reads the article.</div>
+                      {(r.title_options || []).map((t: string, i: number) => (
+                        <div key={i} style={{ background: '#0f172a', borderRadius: 6, padding: 12, marginBottom: 8 }}>
+                          <div style={{ fontSize: 10, color: '#0a66c2', marginBottom: 4 }}>OPTION {i+1}</div>
+                          <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 500, lineHeight: 1.4 }}>{t}</div>
+                        </div>
+                      ))}
+                      <div style={{ background: '#1e2535', borderRadius: 6, padding: 10, marginTop: 8 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>HASHTAGS</div>
+                        <div style={{ color: '#60a5fa', fontSize: 12 }}>{(r.hashtags || []).join(' ')}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SEO tips */}
+                  {artView === 'seo' && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>LinkedIn indexes long-form articles — treat them like blog posts for SEO.</div>
+                      {(r.seo_tips || []).map((tip: string, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #111827' }}>
+                          <span style={{ color: '#22c55e', fontSize: 12 }}>✓</span>
+                          <span style={{ fontSize: 11, color: '#d1d5db' }}>{tip}</span>
+                        </div>
+                      ))}
+                      <div style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginTop: 12 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>INTRO HOOK GUIDE ({r.goal?.replace('_',' ').toUpperCase()})</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.6 }}>{r.intro_hook_guide}</div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill the form and click Generate Article Blueprint →</div>}
           </Card>
         </TwoCol>
       )}

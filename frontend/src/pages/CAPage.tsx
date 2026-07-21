@@ -317,6 +317,31 @@ export default function CAPage() {
   const [tdsLoading, setTdsLoading] = useState(false)
   const [tdsErr, setTdsErr]         = useState('')
   const [tdsActiveSection, setTdsActiveSection] = useState<string|null>(null)
+  // Client Proposal Generator (Round 15)
+  const [propFirm, setPropFirm]         = useState('')
+  const [propClient, setPropClient]     = useState('')
+  const [propIndustry, setPropIndustry] = useState('')
+  const [propTurnover, setPropTurnover] = useState('')
+  const [propCa, setPropCa]             = useState('')
+  const [propStart, setPropStart]       = useState('')
+  const [propFeeType, setPropFeeType]   = useState('monthly_retainer')
+  const [propServices, setPropServices] = useState<string[]>(['bookkeeping','gst_filing','tds_compliance','income_tax'])
+  const [propRes, setPropRes]           = useState<any>(null)
+  const [propLoading, setPropLoading]   = useState(false)
+  const [propErr, setPropErr]           = useState('')
+  const [propView, setPropView]         = useState<'proposal'|'letter'|'checklist'>('proposal')
+  const toggleService = (s: string) => setPropServices(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  const runProposal = async () => {
+    setPropLoading(true); setPropErr(''); setPropRes(null)
+    try {
+      setPropRes(await caAction('client_proposal', {
+        firm_name: propFirm, client_name: propClient, client_industry: propIndustry,
+        client_turnover: propTurnover, ca_name: propCa, engagement_start: propStart,
+        fee_type: propFeeType, services: propServices,
+      }))
+    } catch (e: any) { setPropErr(e.message) }
+    finally { setPropLoading(false) }
+  }
   const runTds = async () => {
     setTdsLoading(true); setTdsErr(''); setTdsRes(null)
     try {
@@ -585,6 +610,7 @@ export default function CAPage() {
           { id: 'pl',                label: 'P&L Statement',              icon: '📊' },
           { id: 'loan',              label: 'MSME Loan Eligibility',      icon: '🏦' },
           { id: 'tds',               label: 'TDS Compliance Tracker',     icon: '📅' },
+          { id: 'proposal',          label: 'Client Proposal',            icon: '📋' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1978,6 +2004,136 @@ export default function CAPage() {
           </div>
         </TwoCol>
       )}
+      {/* ── CLIENT PROPOSAL GENERATOR (Round 15) ── */}
+      {tab === 'proposal' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="📋 Client Proposal Generator" sub="Professional engagement proposal + letter template for CA firms" />
+            <Input label="CA Firm Name" value={propFirm} onChange={setPropFirm} placeholder="e.g. Sharma & Associates, Chartered Accountants" />
+            <Input label="Client Company Name" value={propClient} onChange={setPropClient} placeholder="e.g. ABC Manufacturing Pvt Ltd" />
+            <Input label="Client Industry" value={propIndustry} onChange={setPropIndustry} placeholder="e.g. manufacturing, IT services, retail" />
+            <Input label="Approx. Annual Turnover" value={propTurnover} onChange={setPropTurnover} placeholder="e.g. ₹5 Cr – ₹10 Cr" />
+            <Input label="CA / Partner Name" value={propCa} onChange={setPropCa} placeholder="e.g. CA Rajesh Sharma" />
+            <Input label="Engagement Start Date" value={propStart} onChange={setPropStart} placeholder="e.g. 1st August 2025" />
+            <Select label="Fee Structure" value={propFeeType} onChange={setPropFeeType} options={[
+              { label: 'Monthly Retainer', value: 'monthly_retainer' },
+              { label: 'Annual Fee', value: 'annual_fee' },
+            ]} />
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 6 }}>Services to Include</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {[
+                  ['bookkeeping','Bookkeeping'],['gst_filing','GST Filing'],['tds_compliance','TDS'],
+                  ['income_tax','Income Tax'],['audit','Audit'],['roc_compliance','ROC'],
+                  ['payroll','Payroll'],['virtual_cfo','Virtual CFO'],['msme_advisory','MSME Advisory'],
+                ].map(([key, label]) => (
+                  <span key={key} onClick={() => toggleService(key)} style={{
+                    padding: '4px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer',
+                    background: propServices.includes(key) ? '#4f46e5' : '#1e2535',
+                    color: propServices.includes(key) ? '#fff' : '#6b7280',
+                  }}>{label}</span>
+                ))}
+              </div>
+            </div>
+            <Btn onClick={runProposal} disabled={propLoading}>{propLoading ? 'Generating…' : '📋 Generate Proposal'}</Btn>
+            {propErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{propErr}</div>}
+          </Card>
+          <Card>
+            {propRes ? (() => {
+              const r = propRes
+              const fs = r.fee_summary || {}
+              return (
+                <>
+                  {/* Fee summary banner */}
+                  <div style={{ background: '#0f172a', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #4f46e580' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>{r.firm_name}</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>Proposal for {r.client_name} · {r.client_industry}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div style={{ background: '#1e2535', borderRadius: 6, padding: 10, textAlign: 'center' }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: '#22c55e' }}>₹{fs.monthly_retainer_incl_gst?.toLocaleString()}</div>
+                        <div style={{ fontSize: 10, color: '#6b7280' }}>per month incl GST</div>
+                      </div>
+                      <div style={{ background: '#1e2535', borderRadius: 6, padding: 10, textAlign: 'center' }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: '#60a5fa' }}>₹{fs.annual_value_incl_gst?.toLocaleString()}</div>
+                        <div style={{ fontSize: 10, color: '#6b7280' }}>annual value incl GST</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* View switcher */}
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                    {(['proposal','letter','checklist'] as const).map(v => (
+                      <span key={v} onClick={() => setPropView(v)} style={{
+                        padding: '4px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+                        background: propView === v ? '#4f46e5' : '#1e2535',
+                        color: propView === v ? '#fff' : '#6b7280', fontWeight: propView === v ? 700 : 400,
+                      }}>{v === 'proposal' ? '📋 Proposal' : v === 'letter' ? '📄 Eng. Letter' : '✅ Doc Checklist'}</span>
+                    ))}
+                  </div>
+
+                  {/* Proposal view */}
+                  {propView === 'proposal' && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12, lineHeight: 1.6 }}>{r.proposal_content?.executive_summary}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>SCOPE OF WORK ({r.services_selected?.length} services)</div>
+                      {(r.scope_items || []).map((svc: any, i: number) => (
+                        <div key={i} style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{svc.service}</span>
+                            <span style={{ fontSize: 11, color: '#22c55e' }}>₹{svc.fee?.toLocaleString()} {svc.unit}</span>
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {(svc.deliverables || []).map((d: string, j: number) => (
+                              <span key={j} style={{ background: '#1e2535', borderRadius: 4, padding: '2px 6px', fontSize: 10, color: '#6b7280' }}>{d}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6, marginTop: 12 }}>TIMELINE</div>
+                      {(r.proposal_content?.timeline || []).map((t: any, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: '1px solid #111827' }}>
+                          <span style={{ fontSize: 10, color: '#4f46e5', minWidth: 55, fontWeight: 700 }}>{t.week}</span>
+                          <span style={{ fontSize: 11, color: '#d1d5db' }}>{t.milestone}</span>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>WHY US</div>
+                        {(r.proposal_content?.value_propositions || []).map((vp: string, i: number) => (
+                          <div key={i} style={{ fontSize: 11, color: '#d1d5db', padding: '3px 0' }}>✓ {vp}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Engagement letter */}
+                  {propView === 'letter' && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#f59e0b', marginBottom: 8 }}>ENGAGEMENT LETTER — copy, customise & print on letterhead</div>
+                      <div style={{ background: '#0f172a', borderRadius: 6, padding: 14, fontSize: 11, color: '#d1d5db', whiteSpace: 'pre-wrap', lineHeight: 1.8, fontFamily: 'monospace', maxHeight: 500, overflowY: 'auto' }}>
+                        {r.engagement_letter}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Document checklist */}
+                  {propView === 'checklist' && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>Documents to collect from {r.client_name} at kick-off</div>
+                      {(r.document_checklist || []).map((doc: string, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #111827' }}>
+                          <span style={{ color: '#f59e0b', fontSize: 12 }}>📌</span>
+                          <span style={{ fontSize: 12, color: '#d1d5db' }}>{doc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill details and click Generate Proposal →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
       {/* ── TDS COMPLIANCE TRACKER (Round 14) ── */}
       {tab === 'tds' && (
         <TwoCol>

@@ -953,6 +953,18 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "client_proposal":
+        return generate_client_proposal(
+            firm_name=payload.get("firm_name", ""),
+            client_name=payload.get("client_name", ""),
+            client_industry=payload.get("client_industry", ""),
+            client_turnover=payload.get("client_turnover", ""),
+            services=payload.get("services", []),
+            fee_type=payload.get("fee_type", "monthly_retainer"),
+            engagement_start=payload.get("engagement_start", ""),
+            ca_name=payload.get("ca_name", ""),
+        )
+
     elif action == "tds_compliance_tracker":
         return generate_tds_compliance_tracker(
             company_name=payload.get("company_name", ""),
@@ -2060,6 +2072,221 @@ _GOVERNMENT_SUBSIDIES = [
         "apply_via":   "sidbi.in or SIDBI branch offices",
     },
 ]
+
+
+# ── Client Proposal Generator (Round 15) ─────────────────────────────────────
+
+_CA_SERVICES = {
+    "bookkeeping":       {"label": "Bookkeeping & Accounts Maintenance",    "deliverables": ["Monthly ledger reconciliation","Bank reconciliation statement","Accounts payable/receivable ledger","Monthly trial balance"], "typical_fee": (3000, 8000), "unit": "per month"},
+    "gst_filing":        {"label": "GST Compliance & Filing",               "deliverables": ["GSTR-1 filing (monthly/quarterly)","GSTR-3B filing","GST reconciliation","ITC matching","Annual GSTR-9"], "typical_fee": (2000, 6000), "unit": "per month"},
+    "tds_compliance":    {"label": "TDS Compliance",                        "deliverables": ["Monthly TDS deduction working","Challan payment","Quarterly 26Q/27Q/24Q filing","Form 16/16A issuance"], "typical_fee": (2000, 5000), "unit": "per month"},
+    "income_tax":        {"label": "Income Tax Return Filing",              "deliverables": ["ITR preparation and filing","Advance tax computation","Tax planning advisory","Tax audit (if applicable) — 3CA/3CB/3CD"], "typical_fee": (5000, 25000), "unit": "per year"},
+    "audit":             {"label": "Statutory Audit",                       "deliverables": ["Audit planning and execution","Management representation letter","Audit report (Form 3CA/3CB)","CARO 2020 reporting","UDIN generation"], "typical_fee": (15000, 75000), "unit": "per year"},
+    "roc_compliance":    {"label": "ROC & Company Law Compliance",          "deliverables": ["Annual Return filing (MGT-7)","Financial Statements filing (AOC-4)","Board meeting minutes","Director KYC (DIR-3)","Charge registration/satisfaction"], "typical_fee": (5000, 15000), "unit": "per year"},
+    "payroll":           {"label": "Payroll Processing",                    "deliverables": ["Monthly salary computation","PF/ESI compliance","Professional tax filing","Form 16 generation","Payroll MIS reports"], "typical_fee": (2000, 8000), "unit": "per month"},
+    "msme_advisory":     {"label": "MSME & Startup Advisory",              "deliverables": ["MSME/Udyam registration","Startup India recognition","Business plan preparation","CMA data preparation","Loan documentation support"], "typical_fee": (10000, 30000), "unit": "one-time"},
+    "virtual_cfo":       {"label": "Virtual CFO Services",                  "deliverables": ["Monthly MIS reports","Cash flow forecasting","Budget vs actual analysis","Investor-ready financials","Board reporting"], "typical_fee": (15000, 50000), "unit": "per month"},
+    "gst_notice":        {"label": "GST Notice & Litigation",               "deliverables": ["Notice analysis and reply drafting","SCN (Show Cause Notice) response","Assessment representation","Appeal filing if required"], "typical_fee": (5000, 25000), "unit": "per matter"},
+}
+
+_ENGAGEMENT_LETTER_TEMPLATE = """ENGAGEMENT LETTER
+
+Date: {date}
+From: {firm_name}
+To: {client_name}
+
+Dear {client_contact},
+
+Re: Engagement for Professional Services
+
+We are pleased to confirm our engagement to provide the following professional services to {client_name} ("the Client") commencing {start_date}.
+
+SCOPE OF SERVICES:
+{scope_text}
+
+PROFESSIONAL FEES:
+{fee_text}
+
+TERMS & CONDITIONS:
+1. The Client shall provide all necessary documents and information in a timely manner.
+2. Any delay in providing information may result in delays in deliverables and may attract additional charges.
+3. Fees are payable within 15 days of invoice date. Late payment attracts interest at 18% p.a.
+4. This engagement may be terminated by either party with 30 days' written notice.
+5. All work product remains property of {firm_name} until fees are paid in full.
+6. Professional fees are exclusive of applicable GST (currently 18%).
+7. Out-of-pocket expenses (courier, filing fees, travel) will be charged at actuals.
+
+CONFIDENTIALITY:
+Both parties agree to maintain strict confidentiality of information shared during this engagement.
+
+GOVERNING LAW:
+This engagement shall be governed by the laws of India.
+
+Please sign and return a copy of this letter to confirm your acceptance.
+
+Yours faithfully,
+{ca_name}
+Proprietor / Partner
+{firm_name}
+
+Accepted on behalf of {client_name}:
+Signature: _______________
+Name: _______________
+Designation: _______________
+Date: _______________
+"""
+
+_PROPOSAL_SECTIONS = [
+    "executive_summary",
+    "about_firm",
+    "scope_of_work",
+    "our_approach",
+    "fee_schedule",
+    "timeline",
+    "team",
+    "why_us",
+    "next_steps",
+]
+
+
+def generate_client_proposal(
+    firm_name: str,
+    client_name: str,
+    client_industry: str,
+    client_turnover: str,
+    services: list,
+    fee_type: str,
+    engagement_start: str,
+    ca_name: str,
+) -> dict:
+    import datetime
+    firm = firm_name or "Sharma & Associates, Chartered Accountants"
+    client = client_name or "ABC Pvt Ltd"
+    industry = client_industry or "manufacturing"
+    turnover = client_turnover or "₹5 Cr – ₹10 Cr"
+    ca = ca_name or "CA Rajesh Sharma"
+    today = datetime.date.today()
+    start = engagement_start or f"1st {today.strftime('%B %Y')}" if today.day > 15 else f"1st {today.strftime('%B %Y')}"
+
+    selected_services = services if services else ["bookkeeping", "gst_filing", "tds_compliance", "income_tax"]
+
+    scope_items = []
+    deliverables_all = []
+    monthly_fee = 0
+    annual_fee = 0
+    one_time_fee = 0
+
+    for svc_key in selected_services:
+        if svc_key not in _CA_SERVICES:
+            continue
+        svc = _CA_SERVICES[svc_key]
+        low, high = svc["typical_fee"]
+        mid = (low + high) // 2
+        scope_items.append({
+            "service": svc["label"],
+            "key": svc_key,
+            "deliverables": svc["deliverables"],
+            "fee": mid,
+            "unit": svc["unit"],
+            "fee_range": f"₹{low:,} – ₹{high:,} {svc['unit']}",
+        })
+        deliverables_all.extend(svc["deliverables"])
+        if svc["unit"] == "per month":
+            monthly_fee += mid
+        elif svc["unit"] == "per year":
+            annual_fee += mid
+        else:
+            one_time_fee += mid
+
+    total_monthly = monthly_fee
+    total_annual = annual_fee + (monthly_fee * 12)
+    total_with_gst_monthly = round(monthly_fee * 1.18)
+    total_with_gst_annual = round(total_annual * 1.18)
+
+    scope_text = "\n".join([f"  {i+1}. {s['service']}" for i, s in enumerate(scope_items)])
+    if fee_type == "monthly_retainer":
+        fee_text = f"  Monthly Retainer: ₹{total_monthly:,} + GST 18% = ₹{total_with_gst_monthly:,} per month\n  Annual Value: ₹{total_with_gst_annual:,} (incl. GST)"
+    else:
+        fee_text = f"  Annual Fee: ₹{total_annual:,} + GST 18% = ₹{total_with_gst_annual:,} per year"
+
+    engagement_letter = _ENGAGEMENT_LETTER_TEMPLATE.format(
+        date=today.strftime("%d %B %Y"),
+        firm_name=firm,
+        client_name=client,
+        client_contact=f"The Management, {client}",
+        start_date=start,
+        scope_text=scope_text,
+        fee_text=fee_text,
+        ca_name=ca,
+    )
+
+    timeline = [
+        {"week": "Week 1", "milestone": "Engagement kick-off meeting + document collection", "owner": "Both parties"},
+        {"week": "Week 2", "milestone": "Data onboarding, accounting software setup, opening balance verification", "owner": firm},
+        {"week": "Week 3", "milestone": "First deliverable: GST/TDS working for current month", "owner": firm},
+        {"week": "Week 4", "milestone": "Review meeting — confirm processes, flag gaps, align on workflows", "owner": "Both parties"},
+        {"week": "Month 2", "milestone": "Full cadence established — all recurring services running", "owner": firm},
+    ]
+
+    value_propositions = [
+        f"Dedicated CA with {industry} sector experience — not a junior executive",
+        "UDIN-enabled deliverables — every certificate is verifiable by your stakeholders",
+        "Proactive compliance alerts — you won't miss a deadline again",
+        "Direct partner access — call/WhatsApp CA directly, not a helpdesk",
+        f"Fixed monthly fee, no surprise bills — budgetable professional cost for {client}",
+        "Digital-first practice — cloud accounting, e-signatures, online dashboards",
+    ]
+
+    document_checklist = [
+        "Company PAN and TAN card",
+        "GST Registration Certificate",
+        "MOA/AOA + Certificate of Incorporation",
+        "Last 3 years ITR and financial statements",
+        "Bank statements (all accounts, last 12 months)",
+        "Previous auditor's reports (if any)",
+        "Tally/accounting data backup or access",
+        "All contracts, agreements, and vendor MSAs",
+        "Payroll data and employee list",
+        "Fixed asset register",
+    ]
+
+    proposal_content = {
+        "executive_summary": f"{firm} is pleased to present this proposal to {client} for professional accounting and compliance services. With expertise in the {industry} sector and a client base of {industry}-focused businesses with turnover ranging from ₹1 Cr to ₹50 Cr, we bring deep domain knowledge to your specific compliance needs. Our engagement will ensure {client} remains fully compliant, with clean books and proactive tax planning.",
+        "scope_of_work": scope_items,
+        "fee_schedule": {
+            "monthly_fee": monthly_fee,
+            "annual_fee": annual_fee,
+            "one_time_fee": one_time_fee,
+            "total_monthly_ex_gst": monthly_fee,
+            "total_monthly_incl_gst": total_with_gst_monthly,
+            "total_annual_incl_gst": total_with_gst_annual,
+            "fee_type": fee_type,
+        },
+        "timeline": timeline,
+        "value_propositions": value_propositions,
+        "document_checklist": document_checklist,
+        "total_deliverables": len(deliverables_all),
+    }
+
+    return {
+        "action":              "client_proposal",
+        "firm_name":           firm,
+        "client_name":         client,
+        "client_industry":     industry,
+        "ca_name":             ca,
+        "engagement_start":    start,
+        "services_selected":   [_CA_SERVICES[k]["label"] for k in selected_services if k in _CA_SERVICES],
+        "proposal_content":    proposal_content,
+        "engagement_letter":   engagement_letter,
+        "scope_items":         scope_items,
+        "fee_summary": {
+            "monthly_retainer_excl_gst": monthly_fee,
+            "monthly_retainer_incl_gst": total_with_gst_monthly,
+            "annual_value_incl_gst":     total_with_gst_annual,
+        },
+        "document_checklist":  document_checklist,
+        "summary":             f"Proposal for {client} ({industry}) — {len(scope_items)} services. Monthly retainer: ₹{total_with_gst_monthly:,}/month incl GST. Annual value: ₹{total_with_gst_annual:,}.",
+    }
 
 
 # ── TDS Compliance Tracker (Round 14) ────────────────────────────────────────

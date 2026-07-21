@@ -560,6 +560,17 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "onboarding_sequence":
+            return _onboarding_sequence_builder(
+                business_name=payload.get("business_name", ""),
+                product_name=payload.get("product_name", ""),
+                industry=payload.get("industry", "saas"),
+                customer_type=payload.get("customer_type", "smb"),
+                key_features=payload.get("key_features", []),
+                success_metric=payload.get("success_metric", ""),
+                cs_rep_name=payload.get("cs_rep_name", ""),
+            )
+
         elif action == "nps_campaign_builder":
             return _nps_campaign_builder(
                 business_name=payload.get("business_name", ""),
@@ -2369,4 +2380,286 @@ def _nps_campaign_builder(
         "survey_template":  survey_template,
         "segment_playbooks": {k: v for k, v in _NPS_FOLLOW_UP.items()},
         "summary":          f"{company} NPS: {nps_score} ({vs_benchmark.replace('_',' ').title()}). {promoters} promoters, {passives} passives, {detractors} detractors from {total} responses. Top themes: {', '.join(themes[:3]) if themes else 'none detected'}.",
+    }
+
+
+# ── Customer Onboarding Sequence Builder (Round 15) ───────────────────────────
+
+_ONBOARDING_MILESTONES = {
+    "day_0":  {"label": "Day 0 — Welcome",            "goal": "Make them feel great about their decision. First impression sets the tone for the whole relationship."},
+    "day_1":  {"label": "Day 1 — Quick Win",           "goal": "Get them to their first moment of value in under 15 minutes. Aha moment = retention."},
+    "day_7":  {"label": "Day 7 — Check-in",            "goal": "Catch early struggles before they become cancellation reasons. Most churn intent forms in week 1."},
+    "day_14": {"label": "Day 14 — Depth",              "goal": "Introduce intermediate features. Customer has survived week 1 — now build habits."},
+    "day_30": {"label": "Day 30 — Value Review",       "goal": "Show them what they have achieved. Quantify value delivered. Plant the expansion seed."},
+    "day_60": {"label": "Day 60 — Expansion",          "goal": "Introduce upsell/cross-sell. Customer is now an established user — conversion rates are highest here."},
+    "day_90": {"label": "Day 90 — Advocacy",           "goal": "Happy customers at 90 days stay for 2+ years. Ask for referrals, reviews, and case study participation."},
+}
+
+_CUSTOMER_TYPE_CONTEXT = {
+    "smb":        {"tone": "friendly and direct", "channel": "email + WhatsApp", "response_sla": "4 hours", "check_in": "video call"},
+    "enterprise": {"tone": "professional and thorough", "channel": "email + dedicated Slack", "response_sla": "2 hours", "check_in": "formal QBR"},
+    "startup":    {"tone": "casual and fast-moving", "channel": "Slack + email", "response_sla": "1 hour", "check_in": "async Loom"},
+    "individual": {"tone": "personal and encouraging", "channel": "email + in-app", "response_sla": "24 hours", "check_in": "email"},
+}
+
+_RISK_SIGNALS = [
+    {"signal": "No login in 7 days after sign-up",         "risk": "high",   "action": "Day-8 personal email from CS rep + offer 30-min setup call"},
+    {"signal": "Completed setup but never used core feature","risk": "high",   "action": "Targeted in-app prompt + how-to video for core feature"},
+    {"signal": "Only 1 user active (for multi-seat plan)",  "risk": "medium", "action": "Send team invite email template + adoption guide"},
+    {"signal": "Support ticket opened in first 7 days",     "risk": "medium", "action": "Priority resolve + CS manager follow-up after ticket closes"},
+    {"signal": "Haven't exported/shared any output",        "risk": "medium", "action": "Show success story of similar customer + one-click share feature demo"},
+    {"signal": "Downgrade or cancellation page visited",    "risk": "critical","action": "Immediate CS rep outreach — call first, email as backup"},
+    {"signal": "No response to day-7 check-in email",       "risk": "medium", "action": "WhatsApp follow-up on day 9, then personal call on day 11"},
+    {"signal": "NPS score 0-6 within first 30 days",        "risk": "critical","action": "Escalate to CS Lead within 24 hours. Recovery protocol."},
+]
+
+_SUCCESS_METRICS_BY_INDUSTRY = {
+    "saas":       ["Daily Active Users", "Feature adoption rate (target: 3+ features used in 30 days)", "Time to first meaningful output", "Support tickets per user per month"],
+    "ecommerce":  ["First order placed", "Catalogue items uploaded", "Payment gateway connected", "First sale via platform"],
+    "fintech":    ["KYC completed", "First transaction processed", "Limit utilised %", "Reports downloaded"],
+    "healthcare": ["Patient records entered", "First appointment booked", "Staff trained", "First billing processed"],
+    "logistics":  ["First shipment created", "Integration connected", "Label printed", "Tracking shared with customer"],
+    "general":    ["Core workflow completed", "Integration connected", "First output created", "Team member invited"],
+}
+
+
+def _onboarding_sequence_builder(
+    business_name: str,
+    product_name: str,
+    industry: str,
+    customer_type: str,
+    key_features: list,
+    success_metric: str,
+    cs_rep_name: str,
+) -> dict:
+    company = business_name or "Your Company"
+    product = product_name or "Your Product"
+    ind_key = industry if industry in _SUCCESS_METRICS_BY_INDUSTRY else "general"
+    ctype = customer_type if customer_type in _CUSTOMER_TYPE_CONTEXT else "smb"
+    ctx = _CUSTOMER_TYPE_CONTEXT[ctype]
+    cs_rep = cs_rep_name or "Your CS Team"
+
+    demo_features = key_features if key_features else [
+        f"Core dashboard and reporting",
+        f"Team collaboration and sharing",
+        f"Integrations with existing tools",
+        f"Automated workflows",
+        f"Analytics and insights",
+    ]
+
+    default_metric = success_metric or _SUCCESS_METRICS_BY_INDUSTRY[ind_key][0]
+
+    email_sequence = []
+
+    email_templates = {
+        "day_0": {
+            "subject":   f"Welcome to {product}! Here's your quick-start guide 🚀",
+            "body":      f"""Hi [First Name],
+
+Welcome to {product}! We're genuinely excited to have {'{'}company{'}'} on board.
+
+You made a great decision. Here's how to get the most out of your first 24 hours:
+
+✅ Step 1: [Complete your profile / Set up your account]
+✅ Step 2: [Do the core action that delivers first value — e.g., create your first project]
+✅ Step 3: [Invite your team / Connect your first integration]
+
+Your quick-start video (3 minutes): [Link]
+
+I'm {cs_rep}, your dedicated success manager. I'm here to make sure {'{'}company{'}'} gets incredible value from {product}.
+
+Reply to this email anytime — I read every message personally.
+
+Let's make this work,
+{cs_rep}
+{company}
+
+P.S. Most teams that get started in the first 24 hours see [key benefit] within their first week. Don't wait — the setup takes less than 15 minutes.""",
+            "send_time": "Immediately on sign-up",
+            "goal":      _ONBOARDING_MILESTONES["day_0"]["goal"],
+            "checklist": ["Account created", "Welcome email sent", "CS rep assigned", "Slack/WhatsApp connected"],
+        },
+        "day_1": {
+            "subject":   f"Your first [key action] in {product} — step by step",
+            "body":      f"""Hi [First Name],
+
+You've set up your account — great start!
+
+Today's goal: Get to your first [key outcome] in under 15 minutes.
+
+Here's exactly how:
+
+1. Go to [Feature Name] → click [Button]
+2. [Step 2 — specific action]
+3. [Step 3 — complete the first core workflow]
+
+When you've done this, you'll have [specific outcome]. That's when {product} really starts saving you time.
+
+Here's a 2-minute video showing exactly how: [Link]
+
+Stuck? Reply to this email or [WhatsApp/Slack] me directly.
+
+{cs_rep}""",
+            "send_time": "Day 1 — 9 AM customer timezone",
+            "goal":      _ONBOARDING_MILESTONES["day_1"]["goal"],
+            "checklist": ["First login confirmed", "Core feature introduced", "Tutorial link sent"],
+        },
+        "day_7": {
+            "subject":   "Quick check-in — how's {product} working for you?",
+            "body":      f"""Hi [First Name],
+
+It's been a week — how are things going with {product}?
+
+I wanted to check in personally because the first week is the most important. Teams that get set up properly in week 1 typically see [key metric] improve by [X%] within 30 days.
+
+Quick question: What's one thing that's been unclear or frustrating so far?
+
+Even if everything's going great, I'd love to know. It takes 30 seconds to reply and helps me make sure you're on the right track.
+
+Also — here are 3 features most teams discover in week 2 that save hours:
+→ {demo_features[1] if len(demo_features) > 1 else '[Feature 2]'}
+→ {demo_features[2] if len(demo_features) > 2 else '[Feature 3]'}
+→ {demo_features[3] if len(demo_features) > 3 else '[Feature 4]'}
+
+Want a 15-minute call to walk through these? Pick a time here: [Calendly link]
+
+{cs_rep}""",
+            "send_time": "Day 7 — 10 AM customer timezone",
+            "goal":      _ONBOARDING_MILESTONES["day_7"]["goal"],
+            "checklist": ["Usage data reviewed", "Check-in email sent", "Risk signals checked"],
+        },
+        "day_14": {
+            "subject":   f"The {product} features your team isn't using yet (but should be)",
+            "body":      f"""Hi [First Name],
+
+You've been using {product} for two weeks — you've got the basics down.
+
+Now let's go deeper. Here are the features that teams like yours use to [get even more value]:
+
+🔧 {demo_features[1] if len(demo_features) > 1 else 'Advanced Feature 1'}: [1-line benefit + link to guide]
+⚡ {demo_features[2] if len(demo_features) > 2 else 'Advanced Feature 2'}: [1-line benefit + link to guide]
+🔗 {demo_features[3] if len(demo_features) > 3 else 'Integration Feature'}: [1-line benefit + link to guide]
+
+Most teams that activate these 3 features see [key metric] improve within 2 weeks.
+
+I've prepared a personalised setup guide for {'{'}company{'}'} based on how you've been using {product}: [Personalised link]
+
+{cs_rep}""",
+            "send_time": "Day 14 — 9 AM customer timezone",
+            "goal":      _ONBOARDING_MILESTONES["day_14"]["goal"],
+            "checklist": ["Feature adoption reviewed", "Advanced features introduced", "Personal guide sent"],
+        },
+        "day_30": {
+            "subject":   f"[First Name], your {product} impact report — Month 1",
+            "body":      f"""Hi [First Name],
+
+One month in — let's look at what {'{'}company{'}'} has achieved with {product}:
+
+📊 [Key metric 1]: [value]
+📊 [Key metric 2]: [value]
+⏱️ Time saved: [estimated hours]
+💰 Value delivered: [calculated ROI or outcome]
+
+[Screenshot or data visual of their actual usage]
+
+You're in the top [X%] of customers in your first month. Seriously — this is a great start.
+
+For month 2, here's what I recommend focusing on:
+1. [Next level goal based on their usage]
+2. [Feature they haven't tried yet]
+3. [Integration that would add value]
+
+15-minute review call? I'll show you exactly what to focus on next: [Calendly link]
+
+{cs_rep}""",
+            "send_time": "Day 30 — 10 AM customer timezone",
+            "goal":      _ONBOARDING_MILESTONES["day_30"]["goal"],
+            "checklist": ["30-day usage report pulled", "ROI calculated", "Expansion opportunity identified"],
+        },
+        "day_60": {
+            "subject":   f"Scaling {product} across your team — here's how",
+            "body":      f"""Hi [First Name],
+
+Two months in and {'{'}company{'}'} is clearly getting value from {product}.
+
+A few teams similar to yours have recently expanded and seen [specific outcome]. Here's what they did differently:
+
+1. [Expansion use case 1]
+2. [Expansion use case 2]
+3. [Add-on or higher tier benefit]
+
+Would it make sense to explore this for {'{'}company{'}'} too?
+
+I've prepared a quick expansion proposal: [Link] — it takes 2 minutes to review.
+
+Happy to walk through it on a call: [Calendly]
+
+{cs_rep}""",
+            "send_time": "Day 60 — 10 AM customer timezone",
+            "goal":      _ONBOARDING_MILESTONES["day_60"]["goal"],
+            "checklist": ["Expansion opportunity qualified", "Proposal prepared", "Success story ready"],
+        },
+        "day_90": {
+            "subject":   f"[First Name] — 3 months with {product}. Thank you 🙏",
+            "body":      f"""Hi [First Name],
+
+Three months. That's a milestone worth celebrating.
+
+Here's a snapshot of {'{'}company{'}'}'s journey with {product}:
+[90-day impact summary with key metrics]
+
+You're now one of our established customers — and I have a small ask.
+
+Would you be open to:
+→ A 5-minute G2/Capterra review? [Link] — your words help others make better decisions
+→ A quick case study? We'd love to feature {'{'}company{'}'}'s story (takes 20 minutes, we write the whole thing)
+→ An introduction to someone in your network who might benefit from {product}?
+
+Any one of these would mean a lot to us.
+
+And of course — if you ever need anything, I'm always here.
+
+Thank you for being a {product} customer,
+{cs_rep}
+{company}""",
+            "send_time": "Day 90 — 10 AM customer timezone",
+            "goal":      _ONBOARDING_MILESTONES["day_90"]["goal"],
+            "checklist": ["90-day report prepared", "Review request sent", "Referral ask made", "Renewal date noted"],
+        },
+    }
+
+    for day_key, milestone in _ONBOARDING_MILESTONES.items():
+        template = email_templates.get(day_key, {})
+        email_sequence.append({
+            "day":       day_key,
+            "milestone": milestone["label"],
+            "goal":      milestone["goal"],
+            "subject":   template.get("subject", f"[{milestone['label']}] — {product}"),
+            "body":      template.get("body", f"Email body for {milestone['label']}"),
+            "send_time": template.get("send_time", f"{day_key.replace('_',' ').title()} after sign-up"),
+            "checklist": template.get("checklist", []),
+            "channel":   ctx["channel"],
+        })
+
+    success_metrics = _SUCCESS_METRICS_BY_INDUSTRY[ind_key]
+
+    return {
+        "action":              "onboarding_sequence",
+        "business_name":       company,
+        "product_name":        product,
+        "industry":            ind_key,
+        "customer_type":       ctype,
+        "cs_rep":              cs_rep,
+        "total_touchpoints":   len(email_sequence),
+        "email_sequence":      email_sequence,
+        "risk_signals":        _RISK_SIGNALS,
+        "success_metrics":     success_metrics,
+        "primary_metric":      default_metric,
+        "key_features":        demo_features,
+        "channel":             ctx["channel"],
+        "tone":                ctx["tone"],
+        "response_sla":        ctx["response_sla"],
+        "check_in_format":     ctx["check_in"],
+        "onboarding_milestones": list(_ONBOARDING_MILESTONES.values()),
+        "summary":             f"7-touchpoint onboarding sequence for {product} ({ctype} customers). Covers Day 0/1/7/14/30/60/90. Primary success metric: {default_metric}. {len(_RISK_SIGNALS)} risk signals monitored.",
     }
