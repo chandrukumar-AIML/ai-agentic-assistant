@@ -498,7 +498,62 @@ async def cs_agent(action: str, payload: dict, language: str = "en") -> dict:
                 business_name=payload.get("business_name", "Our Business"),
                 language=language,
             )
+
+        elif action == "send_whatsapp":
+            # Direct WhatsApp send via Twilio — requires TWILIO_ACCOUNT_SID env var
+            to_number = payload.get("to_number", "").strip()
+            message   = payload.get("message", "").strip()
+            if not to_number:
+                return {"error": "to_number is required (e.g. +919876543210)"}
+            if not message:
+                return {"error": "message is required"}
+            # Normalise number — add country code if missing
+            if not to_number.startswith("+"):
+                to_number = "+91" + to_number.lstrip("0")
+            from backend.commerce.commerce_agent import send_whatsapp as _send_wa
+            result = await _send_wa(to_number=to_number, message=message)
+            return {
+                "action": "send_whatsapp",
+                "to": to_number,
+                "message_preview": message[:120],
+                **result,
+            }
+
+        elif action == "suggest_canned_response":
+            # AI suggests a canned response category + text based on incoming message
+            incoming = payload.get("incoming_message", "")
+            business = payload.get("business_name", "Our Business")
+            existing = payload.get("existing_templates", [])
+            if not incoming:
+                return {"error": "incoming_message is required"}
+            sys_prompt = LANG_SYSTEM.get(language, LANG_SYSTEM["en"])
+            existing_str = "\n".join(f"- [{t.get('category','')}] {t.get('text','')}" for t in existing[:10]) if existing else "None yet"
+            prompt = f"""Customer message: "{incoming}"
+Business: {business}
+Existing canned responses:\n{existing_str}
+
+Suggest the best canned response for this message.
+If an existing template fits well, recommend it.
+If not, draft a new one.
+
+Output JSON:
+{{
+  "matched_existing": true|false,
+  "matched_template": "exact text if matched, else null",
+  "suggested_text": "ready-to-send response text (under 200 chars for WhatsApp)",
+  "category": "greeting|faq|pricing|complaint|follow_up|thank_you|escalation|other",
+  "confidence": "high|medium|low",
+  "reason": "why this response fits"
+}}"""
+            raw = _llm(prompt, system=sys_prompt)
+            try:
+                start = raw.index("{"); end = raw.rindex("}") + 1
+                data = json.loads(raw[start:end])
+            except Exception:
+                data = {"suggested_text": raw[:200], "category": "other", "confidence": "low"}
+            return {"action": "suggest_canned_response", "incoming": incoming, **data}
+
         else:
-            return {"error": f"Unknown action: {action}. Valid: faq_bot|qualify_lead|draft_whatsapp|analyze_sentiment|handle_complaint|summarize_ticket|response_template|weekly_report|kb_answer"}
+            return {"error": f"Unknown action: {action}"}
     except Exception as e:
         return {"error": str(e), "action": action}

@@ -39,7 +39,7 @@ const LANG_OPTIONS = [
 
 const TABS = [
   { id: 'faq',        label: 'FAQ Bot' },
-  { id: 'whatsapp',   label: 'WhatsApp Drafter' },
+  { id: 'whatsapp',   label: 'WhatsApp Send' },
   { id: 'sentiment',  label: 'Sentiment' },
   { id: 'complaint',  label: 'Complaint Handler' },
   { id: 'lead',       label: 'Lead Qualifier' },
@@ -47,6 +47,7 @@ const TABS = [
   { id: 'template',   label: 'Response Templates' },
   { id: 'kb',         label: 'Knowledge Base' },
   { id: 'report',     label: 'Weekly Report' },
+  { id: 'canned',     label: 'Canned Responses' },
 ]
 
 const WA_TYPES = [
@@ -164,44 +165,94 @@ function WhatsAppTab({ lang }: { lang: Lang }) {
   const [loading, setLoading]   = useState(false)
   const [err, setErr]           = useState('')
 
-  const run = async () => {
+  // Direct send
+  const [toNumber, setToNumber] = useState('')
+  const [sendMsg, setSendMsg]   = useState('')
+  const [sending, setSending]   = useState(false)
+  const [sendRes, setSendRes]   = useState<any>(null)
+  const [sendErr, setSendErr]   = useState('')
+
+  const draft = async () => {
     setLoading(true); setErr(''); setRes(null)
     try {
-      setRes(await csAction('draft_whatsapp', {
+      const r = await csAction('draft_whatsapp', {
         message_type: msgType, customer_name: custName || 'Customer',
         business_name: bizName || 'Our Business', context,
-      }, lang))
+      }, lang)
+      setRes(r)
+      if (r.message) setSendMsg(r.message)
     } catch (e: any) { setErr(e.message) }
     setLoading(false)
+  }
+
+  const send = async () => {
+    setSending(true); setSendErr(''); setSendRes(null)
+    try {
+      setSendRes(await csAction('send_whatsapp', { to_number: toNumber, message: sendMsg }, lang))
+    } catch (e: any) { setSendErr(e.message) }
+    setSending(false)
   }
 
   return (
     <Row>
       <Card>
-        <SectionHead title="WhatsApp Message Drafter" sub="Generate ready-to-send WhatsApp messages" />
+        <SectionHead title="WhatsApp Draft + Send" sub="AI drafts the message — you review and send directly" />
         <Select label="Message Type" value={msgType} onChange={setMsgType} options={WA_TYPES} />
         <Input label="Customer Name" value={custName} onChange={setCustName} placeholder="Priya" />
         <Input label="Business Name" value={bizName} onChange={setBizName} placeholder="Sri Lakshmi Stores" />
         <div style={{ marginTop: 14 }}>
           <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 4 }}>Context / Details</div>
-          <TA value={context} onChange={setContext} placeholder="e.g. Order delivered yesterday, asking for review..." rows={4} />
+          <TA value={context} onChange={setContext} placeholder="e.g. Order delivered yesterday, asking for review..." rows={3} />
         </div>
-        <Btn onClick={run} loading={loading} style={{ marginTop: 14, width: '100%' }}>Draft Message</Btn>
+        <Btn onClick={draft} loading={loading} style={{ marginTop: 14, width: '100%' }}>Draft Message</Btn>
         {err && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{err}</div>}
+
+        {/* Send panel — shown after draft */}
+        {res && (
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #1e2535' }}>
+            <SectionHead title="Send via WhatsApp" sub="Requires TWILIO_ACCOUNT_SID in backend env" />
+            <Input label="To Number" value={toNumber} onChange={setToNumber} placeholder="+919876543210" />
+            <div style={{ marginTop: 10 }}>
+              <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 4 }}>Message (editable)</div>
+              <TA value={sendMsg} onChange={setSendMsg} rows={4} />
+            </div>
+            <div style={{ padding: '8px 12px', background: 'rgba(37,211,102,0.06)', border: '1px solid #25d36633', borderRadius: 6, fontSize: 11, color: '#4ade80', marginBottom: 10 }}>
+              Mock mode: send works without Twilio — set TWILIO_ACCOUNT_SID to go live
+            </div>
+            <Btn onClick={send} loading={sending} disabled={!toNumber || !sendMsg} style={{ width: '100%' }}>
+              Send WhatsApp
+            </Btn>
+            {sendErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{sendErr}</div>}
+            {sendRes && (
+              <div style={{
+                marginTop: 10, padding: '10px 14px', borderRadius: 8,
+                background: sendRes.success ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                border: `1px solid ${sendRes.success ? '#10b98144' : '#ef444444'}`,
+              }}>
+                <div style={{ color: sendRes.success ? '#10b981' : '#ef4444', fontWeight: 600, fontSize: 13 }}>
+                  {sendRes.success ? (sendRes.mock ? 'Sent (Mock Mode)' : 'Delivered!') : 'Send Failed'}
+                </div>
+                {sendRes.sid && <div style={{ color: '#6b7280', fontSize: 11, marginTop: 4 }}>SID: {sendRes.sid}</div>}
+                {sendRes.error && <div style={{ color: '#fca5a5', fontSize: 11, marginTop: 4 }}>{sendRes.error}</div>}
+              </div>
+            )}
+          </div>
+        )}
       </Card>
+
       <Card>
-        <SectionHead title="WhatsApp Message" />
+        <SectionHead title="Drafted Message" />
         {res ? (
           <div>
             <div style={{ background: '#075e54', borderRadius: 12, padding: '16px 18px', color: '#ecfdf5', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: 12, fontFamily: 'system-ui' }}>
               {res.message}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Badge label={res.word_count + ' words'} color="#6b7280" />
+              <Badge label={(res.word_count || '') + ' words'} color="#6b7280" />
               <Badge label={res.channel || 'WhatsApp'} color="#25d366" />
             </div>
           </div>
-        ) : <Empty text="WhatsApp message will appear here..." />}
+        ) : <Empty text="Drafted message will appear here. Then send directly below." />}
       </Card>
     </Row>
   )
@@ -723,6 +774,138 @@ function ReportTab({ lang }: { lang: Lang }) {
   )
 }
 
+const CANNED_CATS = ['General', 'Billing', 'Delivery', 'Technical', 'Refund', 'Greeting', 'Escalation']
+
+interface CannedItem { id: string; category: string; trigger: string; body: string }
+
+function CannedTab({ lang }: { lang: Lang }) {
+  const STORAGE_KEY = 'cs_canned_responses'
+  const load = (): CannedItem[] => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') } catch { return [] }
+  }
+  const [items, setItems]       = useState<CannedItem[]>(load)
+  const [catFilter, setCatFilter] = useState('All')
+  const [editing, setEditing]   = useState<CannedItem | null>(null)
+  const [form, setForm]         = useState({ category: 'General', trigger: '', body: '' })
+  const [incomingMsg, setIncoming] = useState('')
+  const [bizName, setBizName]   = useState('')
+  const [aiRes, setAiRes]       = useState<any>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiErr, setAiErr]       = useState('')
+
+  const save = (list: CannedItem[]) => { setItems(list); localStorage.setItem(STORAGE_KEY, JSON.stringify(list)) }
+
+  const addOrUpdate = () => {
+    if (!form.trigger || !form.body) return
+    if (editing) {
+      save(items.map(i => i.id === editing.id ? { ...editing, ...form } : i))
+      setEditing(null)
+    } else {
+      save([...items, { id: Date.now().toString(), ...form }])
+    }
+    setForm({ category: 'General', trigger: '', body: '' })
+  }
+
+  const del = (id: string) => save(items.filter(i => i.id !== id))
+
+  const startEdit = (item: CannedItem) => { setEditing(item); setForm({ category: item.category, trigger: item.trigger, body: item.body }) }
+
+  const aiSuggest = async () => {
+    setAiLoading(true); setAiErr(''); setAiRes(null)
+    try {
+      setAiRes(await csAction('suggest_canned_response', {
+        incoming_message: incomingMsg,
+        business_name: bizName || 'Our Business',
+        existing_templates: items.map(i => ({ trigger: i.trigger, body: i.body })),
+      }, lang))
+    } catch (e: any) { setAiErr(e.message) }
+    setAiLoading(false)
+  }
+
+  const saveAiSuggestion = () => {
+    if (!aiRes?.suggested_text) return
+    save([...items, { id: Date.now().toString(), category: aiRes.category || 'General', trigger: incomingMsg.slice(0, 60), body: aiRes.suggested_text }])
+    setAiRes(null); setIncoming('')
+  }
+
+  const filtered = catFilter === 'All' ? items : items.filter(i => i.category === catFilter)
+  const CAT_COLOR: Record<string, string> = { Billing: '#f59e0b', Delivery: '#3b82f6', Technical: '#8b5cf6', Refund: '#ef4444', Greeting: '#10b981', Escalation: '#ec4899', General: '#6b7280' }
+
+  return (
+    <Row>
+      <Card style={{ flex: '0 0 340px' }}>
+        <SectionHead title="Add / Edit Template" sub="Save reusable canned responses" />
+        <Select label="Category" value={form.category} onChange={v => setForm(f => ({ ...f, category: v }))} options={CANNED_CATS.map(c => ({ value: c, label: c }))} />
+        <Input label="Trigger / Short Name" value={form.trigger} onChange={v => setForm(f => ({ ...f, trigger: v }))} placeholder="e.g. Order not received" />
+        <div style={{ marginTop: 14 }}>
+          <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 4 }}>Response Body</div>
+          <TA value={form.body} onChange={v => setForm(f => ({ ...f, body: v }))} rows={5} placeholder="Dear [Customer Name], Thank you for reaching out..." />
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <Btn onClick={addOrUpdate} style={{ flex: 1 }}>{editing ? 'Update Template' : 'Save Template'}</Btn>
+          {editing && <Btn onClick={() => { setEditing(null); setForm({ category: 'General', trigger: '', body: '' }) }} style={{ background: '#374151' }}>Cancel</Btn>}
+        </div>
+
+        <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #1e2535' }}>
+          <SectionHead title="AI Suggest" sub="AI matches message to existing or writes new" />
+          <Input label="Business Name" value={bizName} onChange={setBizName} placeholder="Sri Lakshmi Stores" />
+          <div style={{ marginTop: 10 }}>
+            <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 4 }}>Incoming Message</div>
+            <TA value={incomingMsg} onChange={setIncoming} rows={3} placeholder="Customer: My order hasn't arrived yet and it's been 5 days..." />
+          </div>
+          <Btn onClick={aiSuggest} loading={aiLoading} disabled={!incomingMsg} style={{ marginTop: 10, width: '100%' }}>
+            AI Suggest Response
+          </Btn>
+          {aiErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 6 }}>{aiErr}</div>}
+          {aiRes && (
+            <div style={{ marginTop: 10, background: '#0f1117', borderRadius: 8, padding: '12px 14px', border: '1px solid #10b98133' }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <Badge label={aiRes.category || 'General'} color={CAT_COLOR[aiRes.category] || '#6b7280'} />
+                <Badge label={`${Math.round((aiRes.confidence || 0) * 100)}% confidence`} color="#3b82f6" />
+                {aiRes.matched_existing && <Badge label="Matched existing" color="#10b981" />}
+              </div>
+              <div style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.6, marginBottom: 8 }}>{aiRes.suggested_text}</div>
+              {aiRes.reason && <div style={{ color: '#6b7280', fontSize: 11, marginBottom: 8 }}>{aiRes.reason}</div>}
+              <Btn onClick={saveAiSuggestion} style={{ width: '100%', fontSize: 12 }}>Save to Library</Btn>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <SectionHead title={`Canned Library (${items.length})`} sub="Click to copy, edit, or delete" />
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+          {['All', ...CANNED_CATS].map(c => (
+            <span key={c} onClick={() => setCatFilter(c)} style={{ cursor: 'pointer', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: catFilter === c ? (CAT_COLOR[c] || '#10b981') : '#1e2535', color: catFilter === c ? '#fff' : '#9ca3af', transition: 'all .15s' }}>{c}</span>
+          ))}
+        </div>
+        {filtered.length === 0 ? <Empty text="No templates yet — add one on the left or use AI Suggest." /> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filtered.map(item => (
+              <div key={item.id} style={{ background: '#0f1117', borderRadius: 8, padding: '12px 14px', border: '1px solid #1e2535' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ background: CAT_COLOR[item.category] || '#6b7280', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 4, padding: '2px 7px' }}>{item.category}</span>
+                    <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{item.trigger}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span onClick={() => navigator.clipboard?.writeText(item.body)} title="Copy" style={{ cursor: 'pointer', color: '#6b7280', fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#1e2535' }}>Copy</span>
+                    <span onClick={() => startEdit(item)} title="Edit" style={{ cursor: 'pointer', color: '#6b7280', fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#1e2535' }}>Edit</span>
+                    <span onClick={() => del(item.id)} title="Delete" style={{ cursor: 'pointer', color: '#ef444480', fontSize: 12, padding: '2px 6px', borderRadius: 4, background: '#1e2535' }}>Del</span>
+                  </div>
+                </div>
+                <div style={{ color: '#9ca3af', fontSize: 12, lineHeight: 1.5, maxHeight: 56, overflow: 'hidden' }}>{item.body}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </Row>
+  )
+}
+
 export default function CustomerSupportPage() {
   const [tab, setTab]   = useState('faq')
   const [lang, setLang] = useState<Lang>('en')
@@ -755,6 +938,7 @@ export default function CustomerSupportPage() {
         {tab === 'template'  && <TemplateTab lang={lang} />}
         {tab === 'kb'        && <KBTab lang={lang} />}
         {tab === 'report'    && <ReportTab lang={lang} />}
+        {tab === 'canned'    && <CannedTab lang={lang} />}
       </div>
     </PageShell>
   )
