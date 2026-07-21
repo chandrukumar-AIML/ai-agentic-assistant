@@ -2058,4 +2058,129 @@ async def social_agent(
             tone=payload.get("tone", "friendly"),
         )
 
+    elif action == "content_scheduler":
+        return await plan_content_scheduler(
+            brand_name=payload.get("brand_name", ""),
+            industry=payload.get("industry", ""),
+            platforms=payload.get("platforms", ["instagram", "linkedin"]),
+            days=int(payload.get("days", 7)),
+            goal=payload.get("goal", "brand awareness"),
+            audience=payload.get("audience", "general"),
+            language=language,
+        )
+
     return {"error": f"Unknown social action: {action}"}
+
+
+# ── AI Content Scheduler (Round 4) ───────────────────────────────────────────
+
+OPTIMAL_TIMES = {
+    "instagram":  [("08:00", "Morning scroll"), ("12:30", "Lunch break"), ("19:00", "Evening prime")],
+    "linkedin":   [("08:30", "Pre-work"), ("12:00", "Lunch"), ("17:30", "End of day")],
+    "twitter":    [("09:00", "Morning"), ("13:00", "Afternoon"), ("20:00", "Night")],
+    "facebook":   [("09:00", "Morning"), ("15:00", "Afternoon"), ("21:00", "Night")],
+    "youtube":    [("14:00", "Afternoon"), ("20:00", "Prime time")],
+}
+
+CONTENT_PILLARS = ["Educational", "Promotional", "Engagement", "Behind-the-Scenes", "User Stories", "Trending"]
+
+
+async def plan_content_scheduler(
+    brand_name: str,
+    industry:   str,
+    platforms:  list[str],
+    days:       int = 7,
+    goal:       str = "brand awareness",
+    audience:   str = "general",
+    language:   str = "en",
+) -> dict:
+    """Rich AI content scheduler with optimal times, captions, and pillar distribution."""
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from datetime import datetime, timedelta, timezone
+    import json
+
+    today = datetime.now(timezone.utc)
+    platform_str = ", ".join(platforms)
+
+    system = f"""You are an expert social media strategist for Indian businesses.
+Generate a {days}-day content schedule for {brand_name} ({industry}).
+Platforms: {platform_str}. Goal: {goal}. Audience: {audience}. Language: {language}.
+
+Return JSON with this structure:
+{{
+  "summary": "one-line schedule overview",
+  "pillar_distribution": {{"Educational": 30, "Promotional": 20, "Engagement": 25, "Behind-the-Scenes": 15, "Trending": 10}},
+  "schedule": [
+    {{
+      "day": 1,
+      "date": "Mon Jul 21",
+      "pillar": "Educational",
+      "topic": "specific topic for the day",
+      "posts": [
+        {{
+          "platform": "instagram",
+          "time": "19:00",
+          "time_label": "Evening prime",
+          "caption": "ready-to-post caption (2-3 sentences + emojis for the platform)",
+          "hashtags": ["#tag1", "#tag2"],
+          "content_tip": "one actionable tip for this post"
+        }}
+      ]
+    }}
+  ]
+}}
+Return ONLY valid JSON."""
+
+    try:
+        raw = await ollama_chat_completion(
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user",   "content": f"Create {days}-day schedule starting {today.strftime('%a %b %d')}."},
+            ],
+            model=OLLAMA_MODEL,
+            max_tokens=2000,
+        )
+        raw = raw.strip()
+        if "{" in raw:
+            raw = raw[raw.index("{"):]
+            if "}" in raw:
+                raw = raw[:raw.rindex("}") + 1]
+        result = json.loads(raw)
+        if "schedule" not in result:
+            raise ValueError("missing schedule key")
+        return {"action": "content_scheduler", **result, "days": days, "platforms": platforms}
+    except Exception as e:
+        logger.error("Content scheduler failed: %s", e)
+        pillars = CONTENT_PILLARS[:days]
+        schedule = []
+        for i in range(days):
+            day_dt = today + timedelta(days=i + 1)
+            pillar = pillars[i % len(pillars)]
+            posts = []
+            for plat in platforms:
+                times = OPTIMAL_TIMES.get(plat, [("12:00", "Midday")])
+                t = times[0]
+                posts.append({
+                    "platform": plat,
+                    "time": t[0],
+                    "time_label": t[1],
+                    "caption": f"[{brand_name}] {pillar} post for {industry} — {day_dt.strftime('%a')} 🚀",
+                    "hashtags": [f"#{industry.replace(' ', '')}", f"#{brand_name.replace(' ', '')}"],
+                    "content_tip": f"Keep {pillar.lower()} content under 150 words for best engagement.",
+                })
+            schedule.append({
+                "day": i + 1,
+                "date": day_dt.strftime("%a %b %d"),
+                "pillar": pillar,
+                "topic": f"{brand_name} — {pillar} content",
+                "posts": posts,
+            })
+        return {
+            "action": "content_scheduler",
+            "summary": f"{days}-day schedule for {brand_name} across {platform_str}",
+            "pillar_distribution": {"Educational": 30, "Promotional": 20, "Engagement": 25, "Behind-the-Scenes": 15, "Trending": 10},
+            "schedule": schedule,
+            "days": days,
+            "platforms": platforms,
+            "demo_mode": True,
+        }

@@ -263,6 +263,34 @@ export default function SocialPage() {
   const [bridgeResult, setBridgeResult] = useState('')
   const bridgeApi = useApi()
 
+  // ── AI Content Scheduler (Round 4) ──
+  const [schBrand, setSchBrand]       = useState('')
+  const [schIndustry, setSchIndustry] = useState('')
+  const [schDays, setSchDays]         = useState('7')
+  const [schGoal, setSchGoal]         = useState('brand awareness')
+  const [schAudience, setSchAudience] = useState('small business owners')
+  const [schPlatforms, setSchPlatforms] = useState<string[]>(['instagram', 'linkedin'])
+  const [schRes, setSchRes]           = useState<any>(null)
+  const [schLoading, setSchLoading]   = useState(false)
+  const [schErr, setSchErr]           = useState('')
+  const [schExpandDay, setSchExpandDay] = useState<number | null>(0)
+
+  const toggleSchPlatform = (p: string) =>
+    setSchPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+
+  const runScheduler = async () => {
+    setSchLoading(true); setSchErr(''); setSchRes(null)
+    try {
+      setSchRes(await socialAction('content_scheduler', {
+        brand_name: schBrand, industry: schIndustry,
+        platforms: schPlatforms, days: parseInt(schDays),
+        goal: schGoal, audience: schAudience,
+      }))
+      setSchExpandDay(0)
+    } catch (e: any) { setSchErr(e.message) }
+    setSchLoading(false)
+  }
+
   // ── Preview state (enhancement to Content tab) ──
   const [previewText, setPreviewText] = useState('')
   const [previewPlatform, setPreviewPlatform] = useState('linkedin')
@@ -320,6 +348,7 @@ export default function SocialPage() {
           { id: 'calendar',   label: 'Calendar & Queue', icon: '📅' },
           { id: 'monitor',    label: 'Monitor',         icon: '👁️' },
           { id: 'bridge',     label: 'Content Bridge',  icon: '🔗' },
+          { id: 'scheduler',  label: 'AI Scheduler',    icon: '🗓️' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1427,6 +1456,98 @@ export default function SocialPage() {
             </Card>
             <ResultBox data={bridgeApi.data ? { post: bridgeApi.data.post } : null} loading={bridgeApi.loading} error={bridgeApi.error} title="Generated Social Post" />
           </div>
+        </TwoCol>
+      )}
+
+      {/* ── AI CONTENT SCHEDULER ── */}
+      {tab === 'scheduler' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="AI Content Scheduler" sub="Generate a full week/month schedule with optimal times & ready captions" />
+            <Input label="Brand Name" value={schBrand} onChange={setSchBrand} placeholder="Sri Lakshmi Stores" />
+            <Input label="Industry" value={schIndustry} onChange={setSchIndustry} placeholder="e.g. Retail, SaaS, Food, Education" />
+            <Input label="Campaign Goal" value={schGoal} onChange={setSchGoal} placeholder="e.g. brand awareness, lead gen, sales" />
+            <Input label="Target Audience" value={schAudience} onChange={setSchAudience} placeholder="e.g. small business owners in Tamil Nadu" />
+            <Select label="Days to Schedule" value={schDays} onChange={setSchDays} options={[{ label: '7 days', value: '7' }, { label: '14 days', value: '14' }, { label: '30 days', value: '30' }]} />
+            <div style={{ marginTop: 14 }}>
+              <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 8 }}>Platforms</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {CAL_PLATFORMS.map(p => (
+                  <span key={p} onClick={() => toggleSchPlatform(p)} style={{ cursor: 'pointer', padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, textTransform: 'capitalize', background: schPlatforms.includes(p) ? '#818cf8' : '#1e2535', color: schPlatforms.includes(p) ? '#fff' : '#9ca3af', border: schPlatforms.includes(p) ? '1px solid #818cf8' : '1px solid #374151', transition: 'all .15s' }}>{p}</span>
+                ))}
+              </div>
+            </div>
+            <Btn onClick={runScheduler} loading={schLoading} style={{ marginTop: 16, width: '100%' }}>Generate Schedule</Btn>
+            {schErr && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{schErr}</div>}
+
+            {schRes?.pillar_distribution && (
+              <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #1e2535' }}>
+                <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 10 }}>Content Pillar Mix</div>
+                {Object.entries(schRes.pillar_distribution).map(([pillar, pct]: any) => (
+                  <div key={pillar} style={{ marginBottom: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <span style={{ color: '#e2e8f0', fontSize: 12 }}>{pillar}</span>
+                      <span style={{ color: '#818cf8', fontSize: 12, fontWeight: 600 }}>{pct}%</span>
+                    </div>
+                    <div style={{ height: 4, background: '#1e2535', borderRadius: 2 }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: '#818cf8', borderRadius: 2 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <SectionHead title="Your Content Schedule" sub={schRes ? `${schRes.days} days · ${schRes.platforms?.join(', ')}` : ''} />
+            {schRes?.schedule ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {schRes.summary && <div style={{ color: '#818cf8', fontSize: 13, marginBottom: 10, padding: '8px 12px', background: 'rgba(129,140,248,0.08)', borderRadius: 6 }}>{schRes.summary}</div>}
+                {(schRes.schedule as any[]).map((day: any, di: number) => {
+                  const open = schExpandDay === di
+                  return (
+                    <div key={di} style={{ background: '#0f1117', borderRadius: 8, overflow: 'hidden', border: '1px solid #1e2535' }}>
+                      <div onClick={() => setSchExpandDay(open ? null : di)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          <span style={{ color: '#818cf8', fontWeight: 700, fontSize: 13 }}>Day {day.day}</span>
+                          <span style={{ color: '#6b7280', fontSize: 12 }}>{day.date}</span>
+                          <span style={{ background: '#1e2535', color: '#a5b4fc', fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>{day.pillar}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <span style={{ color: '#6b7280', fontSize: 11 }}>{day.posts?.length} posts</span>
+                          <span style={{ color: '#6b7280', fontSize: 14 }}>{open ? '▲' : '▼'}</span>
+                        </div>
+                      </div>
+                      {open && (
+                        <div style={{ padding: '0 14px 14px' }}>
+                          {day.topic && <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 10, fontStyle: 'italic' }}>Topic: {day.topic}</div>}
+                          {(day.posts || []).map((post: any, pi: number) => (
+                            <div key={pi} style={{ background: '#161b27', borderRadius: 8, padding: '10px 12px', marginBottom: 8, border: '1px solid #1e2535' }}>
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                                <Badge label={post.platform} color="#818cf8" />
+                                <span style={{ color: '#f59e0b', fontSize: 12, fontWeight: 600 }}>⏰ {post.time}</span>
+                                <span style={{ color: '#6b7280', fontSize: 11 }}>{post.time_label}</span>
+                              </div>
+                              <div style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.6, marginBottom: 6 }}>{post.caption}</div>
+                              {post.hashtags?.length > 0 && (
+                                <div style={{ color: '#818cf8', fontSize: 11, marginBottom: 4 }}>{post.hashtags.join(' ')}</div>
+                              )}
+                              {post.content_tip && (
+                                <div style={{ color: '#10b981', fontSize: 11, fontStyle: 'italic' }}>💡 {post.content_tip}</div>
+                              )}
+                              <div style={{ marginTop: 6 }}>
+                                <span onClick={() => navigator.clipboard?.writeText(post.caption)} style={{ cursor: 'pointer', color: '#6b7280', fontSize: 11, padding: '2px 8px', background: '#1e2535', borderRadius: 4 }}>Copy Caption</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill in the form and click Generate Schedule →</div>}
+          </Card>
         </TwoCol>
       )}
 

@@ -438,14 +438,14 @@ export default function CAPage() {
       {tab === 'invoice' && (
         <TwoCol>
           <Card>
-            <SectionHead title="GST Invoice Drafter" sub="CGST+SGST or IGST auto-calculated based on supply type" />
+            <SectionHead title="GST Invoice Generator" sub="Math-accurate CGST/SGST or IGST — auto-detected from states" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <Input label="Seller Name"  value={invSeller}    onChange={setInvSeller}    placeholder="Your business name" />
-              <Input label="Seller GSTIN" value={invSellerGst} onChange={setInvSellerGst} placeholder="27XXXXX..." />
-              <Input label="Buyer Name"   value={invBuyer}     onChange={setInvBuyer}     placeholder="Client/Customer name" />
-              <Input label="Buyer GSTIN"  value={invBuyerGst}  onChange={setInvBuyerGst}  placeholder="Optional" />
-              <Input label="Seller State" value={invState}     onChange={setInvState}     placeholder="e.g. Tamil Nadu" />
-              <Input label="Place of Supply" value={invPOS}    onChange={setInvPOS}       placeholder="e.g. Karnataka (interstate)" />
+              <Input label="Seller Name"     value={invSeller}    onChange={setInvSeller}    placeholder="Your business name" />
+              <Input label="Seller GSTIN"    value={invSellerGst} onChange={setInvSellerGst} placeholder="27XXXXX..." />
+              <Input label="Seller State"    value={invState}     onChange={setInvState}     placeholder="e.g. Tamil Nadu" />
+              <Input label="Seller Address"  value={invPOS}       onChange={setInvPOS}       placeholder="e.g. 42 Anna Salai, Chennai" />
+              <Input label="Buyer Name"      value={invBuyer}     onChange={setInvBuyer}     placeholder="Client/Customer name" />
+              <Input label="Buyer GSTIN"     value={invBuyerGst}  onChange={setInvBuyerGst}  placeholder="Optional" />
             </div>
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Line Items</div>
@@ -478,20 +478,26 @@ export default function CAPage() {
               }}>+ Add Line Item</button>
             </div>
             <Input label="Notes (optional)" value={invNotes} onChange={setInvNotes} placeholder="e.g. Payment due within 30 days" />
-            <Btn onClick={() => invoiceApi.call(() => caAction('invoice', {
-              seller_name: invSeller, seller_gstin: invSellerGst,
-              buyer_name: invBuyer,  buyer_gstin: invBuyerGst,
-              seller_state: invState, place_of_supply: invPOS,
-              items: invItems.map(i => ({ ...i, rate: parseFloat(i.rate as string) || 0 })),
+            <Btn onClick={() => invoiceApi.call(() => caAction('generate_invoice', {
+              seller: { name: invSeller, gstin: invSellerGst, state: invState, address: invPOS },
+              buyer:  { name: invBuyer,  gstin: invBuyerGst },
+              items: invItems.map(i => ({
+                description: i.desc, hsn: i.hsn_sac,
+                qty: i.qty, rate: parseFloat(i.rate as string) || 0,
+                gst_rate: i.gst_rate,
+              })),
               notes: invNotes,
-            }, language))} loading={invoiceApi.loading}>🧾 Calculate Invoice</Btn>
+            }, language))} loading={invoiceApi.loading}>🧾 Generate Invoice</Btn>
           </Card>
           <div>
             {invoiceApi.data && !invoiceApi.loading && !invoiceApi.data.error && (
               <Card style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <SectionHead title="Invoice Summary" />
-                  <Badge text={invoiceApi.data.tax_type} color={invoiceApi.data.tax_type === 'IGST' ? 'purple' : 'blue'} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div>
+                    <SectionHead title="Invoice Summary" />
+                    {invoiceApi.data.invoice_no && <div style={{ color: '#6b7280', fontSize: 11, marginTop: -8 }}>No: {invoiceApi.data.invoice_no} · {invoiceApi.data.invoice_date}</div>}
+                  </div>
+                  <Badge text={invoiceApi.data.supply_type === 'inter' ? 'IGST (Inter-State)' : 'CGST+SGST (Intra-State)'} color={invoiceApi.data.supply_type === 'inter' ? 'purple' : 'blue'} />
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -505,12 +511,12 @@ export default function CAPage() {
                     <tbody>
                       {(invoiceApi.data.line_items || []).map((item: any, i: number) => (
                         <tr key={i} style={{ borderBottom: '1px solid #0f1117' }}>
-                          <td style={{ padding: '6px 8px', color: '#e2e8f0' }}>{item.desc}</td>
+                          <td style={{ padding: '6px 8px', color: '#e2e8f0' }}>{item.description || item.desc}</td>
                           <td style={{ padding: '6px 8px', color: '#e2e8f0' }}>{item.qty}</td>
                           <td style={{ padding: '6px 8px', color: '#e2e8f0' }}>₹{parseFloat(item.rate || 0).toLocaleString('en-IN')}</td>
                           <td style={{ padding: '6px 8px', color: '#e2e8f0' }}>₹{(item.taxable || 0).toLocaleString('en-IN')}</td>
                           <td style={{ padding: '6px 8px', color: '#4f8ef7' }}>
-                            {invoiceApi.data.tax_type === 'IGST'
+                            {invoiceApi.data.supply_type === 'inter'
                               ? `IGST ₹${(item.igst || 0).toLocaleString('en-IN')}`
                               : `CGST ₹${(item.cgst || 0).toLocaleString('en-IN')} + SGST ₹${(item.sgst || 0).toLocaleString('en-IN')}`}
                           </td>
@@ -522,7 +528,7 @@ export default function CAPage() {
                 <div style={{ marginTop: 12, padding: 12, background: '#0f1117', borderRadius: 8 }}>
                   {[
                     ['Subtotal (Taxable)', `₹${(invoiceApi.data.subtotal || 0).toLocaleString('en-IN')}`],
-                    ['Total Tax', `₹${(invoiceApi.data.total_tax || 0).toLocaleString('en-IN')}`],
+                    ['Total GST', `₹${(invoiceApi.data.total_gst || 0).toLocaleString('en-IN')}`],
                     ['Grand Total', `₹${(invoiceApi.data.grand_total || 0).toLocaleString('en-IN')}`],
                   ].map(([l, v]) => (
                     <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #1e2535' }}>

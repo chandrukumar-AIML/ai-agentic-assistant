@@ -48,6 +48,7 @@ const TABS = [
   { id: 'kb',         label: 'Knowledge Base' },
   { id: 'report',     label: 'Weekly Report' },
   { id: 'canned',     label: 'Canned Responses' },
+  { id: 'sla',        label: 'SLA Tracker' },
 ]
 
 const WA_TYPES = [
@@ -774,6 +775,143 @@ function ReportTab({ lang }: { lang: Lang }) {
   )
 }
 
+// ── SLA Tracker ───────────────────────────────────────────────────────────────
+
+const PRIORITY_COLORS: Record<string, string> = { critical: '#ef4444', high: '#f59e0b', medium: '#3b82f6', low: '#10b981' }
+const DEMO_TICKETS = [
+  { id: 'TKT-001', subject: 'Payment not processed', priority: 'critical', created_at: new Date(Date.now() - 2 * 3600000).toISOString(), first_response_at: null, resolved_at: null, assignee: 'Ravi' },
+  { id: 'TKT-002', subject: 'Order stuck in processing', priority: 'high', created_at: new Date(Date.now() - 20 * 3600000).toISOString(), first_response_at: new Date(Date.now() - 18 * 3600000).toISOString(), resolved_at: null, assignee: 'Priya' },
+  { id: 'TKT-003', subject: 'GST invoice not received', priority: 'medium', created_at: new Date(Date.now() - 10 * 3600000).toISOString(), first_response_at: new Date(Date.now() - 9 * 3600000).toISOString(), resolved_at: null, assignee: 'Ravi' },
+  { id: 'TKT-004', subject: 'Login issue', priority: 'low', created_at: new Date(Date.now() - 5 * 3600000).toISOString(), first_response_at: new Date(Date.now() - 4.5 * 3600000).toISOString(), resolved_at: new Date(Date.now() - 1 * 3600000).toISOString(), assignee: 'Meena' },
+  { id: 'TKT-005', subject: 'Refund not credited', priority: 'high', created_at: new Date(Date.now() - 30 * 3600000).toISOString(), first_response_at: null, resolved_at: null, assignee: 'Priya' },
+]
+
+function SlaTab({ lang }: { lang: Lang }) {
+  const [ticketJson, setTicketJson] = useState(JSON.stringify(DEMO_TICKETS, null, 2))
+  const [bizName, setBizName]       = useState('')
+  const [res, setRes]               = useState<any>(null)
+  const [loading, setLoading]       = useState(false)
+  const [err, setErr]               = useState('')
+  const [view, setView]             = useState<'breaches' | 'at_risk' | 'on_track' | 'assignees'>('breaches')
+
+  const analyze = async () => {
+    setLoading(true); setErr(''); setRes(null)
+    try {
+      const tickets = JSON.parse(ticketJson)
+      setRes(await csAction('analyze_sla', { tickets, business_name: bizName || 'My Business' }, lang))
+    } catch (e: any) { setErr(e.message) }
+    setLoading(false)
+  }
+
+  const HEALTH_COLOR: Record<string, string> = { Healthy: '#10b981', 'At Risk': '#f59e0b', Critical: '#ef4444' }
+
+  return (
+    <Row>
+      <Card style={{ flex: '0 0 380px' }}>
+        <SectionHead title="SLA Tracker" sub="Paste ticket data (JSON) — AI flags breaches and risk" />
+        <Input label="Business Name" value={bizName} onChange={setBizName} placeholder="Sri Lakshmi Stores" />
+        <div style={{ marginTop: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <div style={{ color: '#9ca3af', fontSize: 12 }}>Tickets (JSON array)</div>
+            <span onClick={() => setTicketJson(JSON.stringify(DEMO_TICKETS, null, 2))} style={{ cursor: 'pointer', color: '#818cf8', fontSize: 11 }}>Load Demo</span>
+          </div>
+          <TA value={ticketJson} onChange={setTicketJson} rows={12} placeholder='[{"id":"T1","subject":"...","priority":"high","created_at":"ISO","assignee":"Ravi"}]' />
+        </div>
+        <div style={{ padding: '8px 12px', background: 'rgba(129,140,248,0.06)', border: '1px solid #818cf833', borderRadius: 6, fontSize: 11, color: '#a5b4fc', marginTop: 8, marginBottom: 8 }}>
+          Fields: id, subject, priority (critical/high/medium/low), created_at (ISO), first_response_at (ISO or null), resolved_at (ISO or null), assignee
+        </div>
+        <Btn onClick={analyze} loading={loading} style={{ width: '100%' }}>Analyze SLA</Btn>
+        {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 6 }}>{err}</div>}
+      </Card>
+
+      <Card>
+        {res ? (
+          <div>
+            {/* Health + KPIs */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ padding: '6px 16px', borderRadius: 20, background: (HEALTH_COLOR[res.sla_health] || '#6b7280') + '22', color: HEALTH_COLOR[res.sla_health] || '#6b7280', fontWeight: 700, fontSize: 13 }}>
+                {res.sla_health === 'Critical' ? '🔴' : res.sla_health === 'At Risk' ? '🟡' : '🟢'} {res.sla_health}
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 16 }}>
+              {[
+                { label: 'Total', value: res.stats.total, color: '#6b7280' },
+                { label: 'Breached', value: res.stats.breached, color: '#ef4444' },
+                { label: 'At Risk', value: res.stats.at_risk, color: '#f59e0b' },
+                { label: 'Resolved', value: res.stats.resolved, color: '#10b981' },
+              ].map(kpi => (
+                <div key={kpi.label} style={{ background: '#0f1117', borderRadius: 8, padding: '10px 12px', textAlign: 'center', border: `1px solid ${kpi.color}33` }}>
+                  <div style={{ color: kpi.color, fontSize: 22, fontWeight: 700 }}>{kpi.value}</div>
+                  <div style={{ color: '#6b7280', fontSize: 11 }}>{kpi.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* View toggle */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+              {(['breaches', 'at_risk', 'on_track', 'assignees'] as const).map(v => (
+                <span key={v} onClick={() => setView(v)} style={{ cursor: 'pointer', padding: '4px 12px', borderRadius: 16, fontSize: 12, fontWeight: 600, textTransform: 'capitalize',
+                  background: view === v ? '#818cf8' : '#1e2535', color: view === v ? '#fff' : '#9ca3af' }}>
+                  {v === 'at_risk' ? 'At Risk' : v === 'on_track' ? 'On Track' : v.charAt(0).toUpperCase() + v.slice(1)}
+                  {v === 'breaches' && res.breaches.length > 0 && <span style={{ marginLeft: 6, background: '#ef4444', color: '#fff', fontSize: 10, borderRadius: 10, padding: '1px 5px' }}>{res.breaches.length}</span>}
+                  {v === 'at_risk' && res.at_risk.length > 0 && <span style={{ marginLeft: 6, background: '#f59e0b', color: '#fff', fontSize: 10, borderRadius: 10, padding: '1px 5px' }}>{res.at_risk.length}</span>}
+                </span>
+              ))}
+            </div>
+
+            {/* Ticket list */}
+            {view !== 'assignees' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {((view === 'breaches' ? res.breaches : view === 'at_risk' ? res.at_risk : res.on_track) as any[]).length === 0
+                  ? <Empty text={`No tickets in ${view} status`} />
+                  : ((view === 'breaches' ? res.breaches : view === 'at_risk' ? res.at_risk : res.on_track) as any[]).map((t: any) => (
+                    <div key={t.id} style={{ background: '#0f1117', borderRadius: 8, padding: '10px 14px', border: `1px solid ${PRIORITY_COLORS[t.priority] || '#6b7280'}44` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <span style={{ color: '#6b7280', fontSize: 11 }}>{t.id}</span>
+                          <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>{t.subject}</span>
+                        </div>
+                        <Badge label={t.priority} color={PRIORITY_COLORS[t.priority] || '#6b7280'} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <span style={{ color: '#6b7280', fontSize: 11 }}>👤 {t.assignee}</span>
+                        <span style={{ color: '#6b7280', fontSize: 11 }}>⏱ {t.age_hrs}h old</span>
+                        {t.responded && <span style={{ color: '#10b981', fontSize: 11 }}>✓ Responded {t.resp_time_hrs}h</span>}
+                        {!t.responded && <span style={{ color: '#ef4444', fontSize: 11 }}>⚠ No response yet</span>}
+                        {t.resolved && <span style={{ color: '#10b981', fontSize: 11 }}>✓ Resolved {t.resolution_time_hrs}h</span>}
+                      </div>
+                      {(t.breach_reason || t.risk_reason) && (
+                        <div style={{ marginTop: 4, color: view === 'breaches' ? '#fca5a5' : '#fcd34d', fontSize: 11 }}>
+                          {view === 'breaches' ? '🚨' : '⚠️'} {t.breach_reason || t.risk_reason}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            {/* Assignee summary */}
+            {view === 'assignees' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(res.assignee_summary as any[]).map((a: any) => (
+                  <div key={a.assignee} style={{ background: '#0f1117', borderRadius: 8, padding: '10px 14px', border: '1px solid #1e2535', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600 }}>👤 {a.assignee}</span>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <Badge label={`${a.total} tickets`} color="#6b7280" />
+                      {a.breached > 0 && <Badge label={`${a.breached} breached`} color="#ef4444" />}
+                      {a.resolved > 0 && <Badge label={`${a.resolved} resolved`} color="#10b981" />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : <Empty text="Paste ticket JSON and click Analyze SLA →" />}
+      </Card>
+    </Row>
+  )
+}
+
 const CANNED_CATS = ['General', 'Billing', 'Delivery', 'Technical', 'Refund', 'Greeting', 'Escalation']
 
 interface CannedItem { id: string; category: string; trigger: string; body: string }
@@ -939,6 +1077,7 @@ export default function CustomerSupportPage() {
         {tab === 'kb'        && <KBTab lang={lang} />}
         {tab === 'report'    && <ReportTab lang={lang} />}
         {tab === 'canned'    && <CannedTab lang={lang} />}
+        {tab === 'sla'       && <SlaTab lang={lang} />}
       </div>
     </PageShell>
   )

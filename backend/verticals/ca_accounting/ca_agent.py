@@ -941,4 +941,133 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "generate_invoice":
+        return await generate_gst_invoice(
+            seller=payload.get("seller", {}),
+            buyer=payload.get("buyer", {}),
+            items=payload.get("items", []),
+            invoice_no=payload.get("invoice_no", ""),
+            invoice_date=payload.get("invoice_date", ""),
+            payment_terms=payload.get("payment_terms", ""),
+            notes=payload.get("notes", ""),
+            language=language,
+        )
+
     return {"error": f"Unknown CA action: {action}"}
+
+
+# ── GST Invoice Generator (Round 4) ──────────────────────────────────────────
+
+GST_RATES = [0, 5, 12, 18, 28]
+
+
+def _calculate_gst(amount: float, gst_rate: float, supply_type: str = "intra") -> dict:
+    """Calculate CGST/SGST (intra-state) or IGST (inter-state)."""
+    gst_amount = round(amount * gst_rate / 100, 2)
+    if supply_type == "inter":
+        return {"igst": gst_amount, "cgst": 0.0, "sgst": 0.0, "total_gst": gst_amount}
+    half = round(gst_amount / 2, 2)
+    return {"igst": 0.0, "cgst": half, "sgst": gst_amount - half, "total_gst": gst_amount}
+
+
+async def generate_gst_invoice(
+    seller:        dict,
+    buyer:         dict,
+    items:         list[dict],
+    invoice_no:    str = "",
+    invoice_date:  str = "",
+    payment_terms: str = "Due on receipt",
+    notes:         str = "",
+    language:      str = "en",
+) -> dict:
+    """
+    Generate a GST-compliant invoice with line-item tax breakdown.
+    seller/buyer: {name, gstin, address, state}
+    items: [{description, hsn, qty, unit, rate, gst_rate}]
+    """
+    from datetime import datetime, timezone
+    import uuid
+
+    inv_no   = invoice_no  or f"INV-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
+    inv_date = invoice_date or datetime.now(timezone.utc).strftime("%d/%m/%Y")
+
+    # Determine supply type from states
+    seller_state = (seller.get("state") or "").strip().lower()
+    buyer_state  = (buyer.get("state")  or "").strip().lower()
+    supply_type  = "inter" if seller_state and buyer_state and seller_state != buyer_state else "intra"
+
+    line_items = []
+    subtotal = 0.0
+    total_cgst = total_sgst = total_igst = 0.0
+
+    for item in items:
+        qty      = float(item.get("qty", 1))
+        rate     = float(item.get("rate", 0))
+        gst_rate = float(item.get("gst_rate", 18))
+        taxable  = round(qty * rate, 2)
+        tax      = _calculate_gst(taxable, gst_rate, supply_type)
+        total_amount = round(taxable + tax["total_gst"], 2)
+
+        subtotal   += taxable
+        total_cgst += tax["cgst"]
+        total_sgst += tax["sgst"]
+        total_igst += tax["igst"]
+
+        line_items.append({
+            "description": item.get("description", ""),
+            "hsn":         item.get("hsn", ""),
+            "qty":         qty,
+            "unit":        item.get("unit", "Nos"),
+            "rate":        rate,
+            "taxable":     taxable,
+            "gst_rate":    gst_rate,
+            **tax,
+            "total_amount": total_amount,
+        })
+
+    subtotal    = round(subtotal, 2)
+    total_cgst  = round(total_cgst, 2)
+    total_sgst  = round(total_sgst, 2)
+    total_igst  = round(total_igst, 2)
+    grand_total = round(subtotal + total_cgst + total_sgst + total_igst, 2)
+
+    # Round off
+    rounded_total = round(grand_total)
+    round_off     = round(rounded_total - grand_total, 2)
+
+    # Amount in words (simple)
+    def _amount_words(n: int) -> str:
+        ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+                "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+                "Seventeen", "Eighteen", "Nineteen"]
+        tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+        if n == 0: return "Zero"
+        if n < 20: return ones[n]
+        if n < 100: return tens[n // 10] + ("" if n % 10 == 0 else " " + ones[n % 10])
+        if n < 1000: return ones[n // 100] + " Hundred" + ("" if n % 100 == 0 else " " + _amount_words(n % 100))
+        if n < 100000: return _amount_words(n // 1000) + " Thousand" + ("" if n % 1000 == 0 else " " + _amount_words(n % 1000))
+        if n < 10000000: return _amount_words(n // 100000) + " Lakh" + ("" if n % 100000 == 0 else " " + _amount_words(n % 100000))
+        return _amount_words(n // 10000000) + " Crore" + ("" if n % 10000000 == 0 else " " + _amount_words(n % 10000000))
+
+    amount_words = _amount_words(rounded_total) + " Rupees Only"
+
+    return {
+        "action": "generate_invoice",
+        "invoice_no":     inv_no,
+        "invoice_date":   inv_date,
+        "payment_terms":  payment_terms,
+        "supply_type":    supply_type,
+        "seller":         seller,
+        "buyer":          buyer,
+        "line_items":     line_items,
+        "subtotal":       subtotal,
+        "total_cgst":     total_cgst,
+        "total_sgst":     total_sgst,
+        "total_igst":     total_igst,
+        "total_gst":      round(total_cgst + total_sgst + total_igst, 2),
+        "round_off":      round_off,
+        "grand_total":    rounded_total,
+        "amount_in_words": amount_words,
+        "notes":          notes,
+        "gst_compliant":  True,
+    }

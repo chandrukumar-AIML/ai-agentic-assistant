@@ -553,7 +553,140 @@ Output JSON:
                 data = {"suggested_text": raw[:200], "category": "other", "confidence": "low"}
             return {"action": "suggest_canned_response", "incoming": incoming, **data}
 
+        elif action == "analyze_sla":
+            return _analyze_sla(
+                tickets=payload.get("tickets", []),
+                sla_rules=payload.get("sla_rules", {}),
+                business_name=payload.get("business_name", ""),
+            )
+
         else:
             return {"error": f"Unknown action: {action}"}
     except Exception as e:
         return {"error": str(e), "action": action}
+
+
+# ── SLA Tracker (Round 4) ─────────────────────────────────────────────────────
+
+_DEFAULT_SLA = {
+    "critical":  {"response_hrs": 1,  "resolution_hrs": 4},
+    "high":      {"response_hrs": 4,  "resolution_hrs": 24},
+    "medium":    {"response_hrs": 8,  "resolution_hrs": 48},
+    "low":       {"response_hrs": 24, "resolution_hrs": 72},
+}
+
+_PRIORITY_COLOR = {"critical": "#ef4444", "high": "#f59e0b", "medium": "#3b82f6", "low": "#10b981"}
+
+
+def _analyze_sla(tickets: list[dict], sla_rules: dict, business_name: str = "") -> dict:
+    """
+    Analyze ticket list against SLA rules.
+    Each ticket: {id, subject, priority, created_at (ISO), first_response_at (ISO|null), resolved_at (ISO|null), assignee}
+    sla_rules overrides _DEFAULT_SLA per priority.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    rules = {**_DEFAULT_SLA, **sla_rules}
+    now   = datetime.now(timezone.utc)
+
+    def parse_dt(s):
+        if not s: return None
+        try:
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            return datetime.fromisoformat(s)
+        except Exception:
+            return None
+
+    breaches   = []
+    at_risk    = []
+    on_track   = []
+    stats      = {"total": len(tickets), "breached": 0, "at_risk": 0, "on_track": 0, "resolved": 0}
+    priority_counts = {}
+
+    for t in tickets:
+        tid      = t.get("id", "")
+        subject  = t.get("subject", "Untitled")
+        priority = (t.get("priority") or "medium").lower()
+        assignee = t.get("assignee", "Unassigned")
+        created  = parse_dt(t.get("created_at"))
+        responded= parse_dt(t.get("first_response_at"))
+        resolved = parse_dt(t.get("resolved_at"))
+
+        rule = rules.get(priority, rules["medium"])
+        resp_sla_hrs  = rule["response_hrs"]
+        res_sla_hrs   = rule["resolution_hrs"]
+
+        priority_counts[priority] = priority_counts.get(priority, 0) + 1
+        if resolved:
+            stats["resolved"] += 1
+
+        if not created:
+            on_track.append({"id": tid, "subject": subject, "priority": priority, "status": "unknown"})
+            continue
+
+        age_hrs          = (now - created).total_seconds() / 3600
+        resp_sla_deadline= created + __import__("datetime").timedelta(hours=resp_sla_hrs)
+        res_sla_deadline = created + __import__("datetime").timedelta(hours=res_sla_hrs)
+
+        # Response SLA
+        resp_breached = not responded and now > resp_sla_deadline
+        resp_at_risk  = not responded and not resp_breached and (resp_sla_deadline - now).total_seconds() / 3600 < resp_sla_hrs * 0.25
+
+        # Resolution SLA
+        res_breached  = not resolved and now > res_sla_deadline
+        res_at_risk   = not resolved and not res_breached and (res_sla_deadline - now).total_seconds() / 3600 < res_sla_hrs * 0.25
+
+        entry = {
+            "id":                tid,
+            "subject":           subject,
+            "priority":          priority,
+            "assignee":          assignee,
+            "age_hrs":           round(age_hrs, 1),
+            "responded":         bool(responded),
+            "resolved":          bool(resolved),
+            "resp_sla_hrs":      resp_sla_hrs,
+            "res_sla_hrs":       res_sla_hrs,
+            "resp_breached":     resp_breached,
+            "res_breached":      res_breached,
+            "resp_time_hrs":     round((responded - created).total_seconds() / 3600, 1) if responded else None,
+            "resolution_time_hrs": round((resolved - created).total_seconds() / 3600, 1) if resolved else None,
+            "resp_sla_deadline": resp_sla_deadline.isoformat(),
+            "res_sla_deadline":  res_sla_deadline.isoformat(),
+            "color":             _PRIORITY_COLOR.get(priority, "#6b7280"),
+        }
+
+        if resp_breached or res_breached:
+            entry["breach_reason"] = ("Response SLA" if resp_breached else "") + (" + " if resp_breached and res_breached else "") + ("Resolution SLA" if res_breached else "")
+            breaches.append(entry)
+            stats["breached"] += 1
+        elif resp_at_risk or res_at_risk:
+            entry["risk_reason"] = "Approaching SLA limit"
+            at_risk.append(entry)
+            stats["at_risk"] += 1
+        else:
+            on_track.append(entry)
+            stats["on_track"] += 1
+
+    # Assignee leaderboard
+    assignee_map: dict = {}
+    for t_list in [breaches, at_risk, on_track]:
+        for t in t_list:
+            a = t.get("assignee", "Unassigned")
+            if a not in assignee_map:
+                assignee_map[a] = {"assignee": a, "total": 0, "breached": 0, "resolved": 0}
+            assignee_map[a]["total"] += 1
+            if t.get("res_breached"): assignee_map[a]["breached"] += 1
+            if t.get("resolved"):     assignee_map[a]["resolved"] += 1
+
+    return {
+        "action":           "analyze_sla",
+        "business_name":    business_name,
+        "stats":            stats,
+        "priority_counts":  priority_counts,
+        "breaches":         sorted(breaches, key=lambda x: x["priority"] in ("critical", "high"), reverse=True),
+        "at_risk":          at_risk,
+        "on_track":         on_track,
+        "assignee_summary": sorted(assignee_map.values(), key=lambda x: -x["breached"]),
+        "sla_health":       "Critical" if stats["breached"] > 0 else ("At Risk" if stats["at_risk"] > 0 else "Healthy"),
+    }
