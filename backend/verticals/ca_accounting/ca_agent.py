@@ -690,6 +690,135 @@ async def answer_client_query(
         return {"error": f"Query bot failed: {e}"}
 
 
+# ── Compliance Calendar — Visual deadline tracker ─────────────────────────────
+
+GST_DEADLINES = {
+    1:  [("GSTR-3B", "20-Jan", "Monthly filers"), ("GSTR-1", "11-Jan", "Monthly filers"), ("TDS Q3 advance", "15-Jan", "All deductors")],
+    2:  [("GSTR-3B", "20-Feb", "Monthly filers"), ("GSTR-1", "11-Feb", "Monthly filers")],
+    3:  [("GSTR-3B", "20-Mar", "Monthly filers"), ("GSTR-1", "11-Mar", "Monthly filers"), ("Advance Tax Q4", "15-Mar", "All taxpayers"), ("TDS Q3 return", "31-Mar", "All deductors")],
+    4:  [("GSTR-3B", "20-Apr", "Monthly filers"), ("GSTR-1", "11-Apr", "Monthly filers"), ("TDS Q4 advance", "15-Apr", "All deductors"), ("ITR FY deadline (extended)", "31-Jul", "Individuals")],
+    5:  [("GSTR-3B", "20-May", "Monthly filers"), ("GSTR-1", "11-May", "Monthly filers")],
+    6:  [("GSTR-3B", "20-Jun", "Monthly filers"), ("GSTR-1", "11-Jun", "Monthly filers"), ("Advance Tax Q1", "15-Jun", "All taxpayers")],
+    7:  [("GSTR-3B", "20-Jul", "Monthly filers"), ("GSTR-1", "11-Jul", "Monthly filers"), ("ITR Filing Deadline", "31-Jul", "Individuals/HUF"), ("TDS Q1 return", "31-Jul", "All deductors")],
+    8:  [("GSTR-3B", "20-Aug", "Monthly filers"), ("GSTR-1", "11-Aug", "Monthly filers")],
+    9:  [("GSTR-3B", "20-Sep", "Monthly filers"), ("GSTR-1", "11-Sep", "Monthly filers"), ("Advance Tax Q2", "15-Sep", "All taxpayers"), ("GSTR-9 Annual", "31-Dec", "Regular taxpayers")],
+    10: [("GSTR-3B", "20-Oct", "Monthly filers"), ("GSTR-1", "11-Oct", "Monthly filers"), ("TDS Q2 return", "31-Oct", "All deductors"), ("ITR Audit deadline", "30-Sep", "Audit cases")],
+    11: [("GSTR-3B", "20-Nov", "Monthly filers"), ("GSTR-1", "11-Nov", "Monthly filers")],
+    12: [("GSTR-3B", "20-Dec", "Monthly filers"), ("GSTR-1", "11-Dec", "Monthly filers"), ("Advance Tax Q3", "15-Dec", "All taxpayers"), ("GSTR-9 Annual", "31-Dec", "Regular taxpayers"), ("TDS Q3 return", "31-Jan-next", "All deductors")],
+}
+
+async def get_compliance_calendar(
+    months:        list,   # [1, 2, 3] — month numbers
+    taxpayer_type: str = "regular",   # regular | composition | quarterly
+    include_tds:   bool = True,
+    include_itr:   bool = True,
+    firm_name:     str = "",
+    language:      str = "en",
+) -> dict:
+    """Return structured compliance deadline calendar for selected months."""
+    import datetime
+
+    all_deadlines = []
+    for m in months:
+        month_items = GST_DEADLINES.get(m, [])
+        month_name = datetime.date(2024, m, 1).strftime("%B")
+        for form, date, who in month_items:
+            if not include_tds and "TDS" in form:
+                continue
+            if not include_itr and "ITR" in form:
+                continue
+            urgency = "high" if any(k in form for k in ["3B", "ITR", "Advance Tax"]) else "medium"
+            all_deadlines.append({
+                "month": month_name,
+                "month_num": m,
+                "form": form,
+                "due_date": date,
+                "applicable_to": who,
+                "urgency": urgency,
+                "penalty": _deadline_penalty(form),
+            })
+
+    summary = {
+        "total_deadlines": len(all_deadlines),
+        "high_priority": sum(1 for d in all_deadlines if d["urgency"] == "high"),
+        "months_covered": [datetime.date(2024, m, 1).strftime("%B") for m in months],
+        "firm": firm_name,
+    }
+    return {"action": "compliance_calendar", "calendar": all_deadlines, "summary": summary}
+
+
+def _deadline_penalty(form: str) -> str:
+    if "3B" in form: return "₹50/day late fee + 18% interest on tax"
+    if "GSTR-1" in form: return "₹50/day (nil return: ₹20/day)"
+    if "TDS" in form: return "₹200/day + 1.5%/month interest"
+    if "ITR" in form: return "₹5,000 late fee (₹1,000 if income < ₹5L)"
+    if "Advance Tax" in form: return "1% interest/month u/s 234B & 234C"
+    if "GSTR-9" in form: return "₹200/day (max 0.25% of turnover)"
+    return "As per applicable section"
+
+
+# ── Tally XML → AI GST Reconciliation ────────────────────────────────────────
+
+async def analyze_tally_export(
+    tally_data:    str,    # raw Tally XML or CSV text pasted by user
+    analysis_type: str = "gst_reconciliation",  # gst_reconciliation | tds_summary | profit_loss | outstanding
+    firm_name:     str = "",
+    fy:            str = "",
+    language:      str = "en",
+) -> dict:
+    """Parse Tally XML/CSV export and generate GST reconciliation or financial summary."""
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    import json
+
+    TYPE_DESC = {
+        "gst_reconciliation": "GST reconciliation — compare GSTR-1/3B with books, find mismatches",
+        "tds_summary":        "TDS deduction summary — section-wise breakdown, verify 26AS",
+        "profit_loss":        "P&L analysis — revenue, expenses, gross profit, net profit, ratios",
+        "outstanding":        "Outstanding debtors/creditors — aging analysis, overdue alerts",
+    }
+
+    system = (
+        f"You are a Chartered Accountant specializing in Tally ERP analysis for Indian businesses. "
+        f"Task: {TYPE_DESC.get(analysis_type, analysis_type)}. Language: {language}. "
+        "Parse the provided Tally export data and generate a structured CA-grade analysis."
+    )
+    data_preview = tally_data[:3000] if len(tally_data) > 3000 else tally_data
+    prompt = (
+        f"Firm: {firm_name or 'Client'} | FY: {fy or 'current'}\n"
+        f"Analysis requested: {analysis_type}\n\n"
+        f"Tally Export Data:\n{data_preview}\n\n"
+        "Generate a structured analysis:\n"
+        "1. DATA SUMMARY — what was detected (transaction count, date range, totals)\n"
+        "2. KEY FINDINGS — 5 most important observations\n"
+        "3. MISMATCHES / ISSUES — discrepancies, missing entries, errors\n"
+        "4. RISK FLAGS — items requiring immediate CA attention (with ₹ amounts)\n"
+        "5. RECOMMENDATIONS — specific actions to take before GST filing\n"
+        "6. READY-TO-FILE STATUS — yes/no with reason\n\n"
+        "Output as JSON: {data_summary, key_findings, mismatches, risk_flags, recommendations, ready_to_file, ready_reason}"
+    )
+    try:
+        raw = await ollama_chat_completion(
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+            model=OLLAMA_MODEL, max_tokens=1000, temperature=0.3,
+        )
+        import re
+        try:
+            match = re.search(r'\{.*\}', raw, re.DOTALL)
+            data = json.loads(match.group()) if match else {}
+        except Exception:
+            data = {}
+        return {
+            "action": "tally_analysis",
+            "analysis_type": analysis_type,
+            "firm": firm_name,
+            **data,
+            "raw": raw if not data else None,
+        }
+    except Exception as e:
+        logger.error("Tally analysis failed: %s", e)
+        return {"error": "Tally analysis failed.", "detail": str(e)}
+
+
 # ── Main dispatcher ───────────────────────────────────────────────────────────
 
 async def ca_agent(
@@ -790,6 +919,25 @@ async def ca_agent(
         return await answer_client_query(
             query=payload.get("query", ""),
             client_profile=payload.get("client_profile", ""),
+            language=language,
+        )
+
+    elif action == "compliance_calendar":
+        return await get_compliance_calendar(
+            months=payload.get("months", []),
+            taxpayer_type=payload.get("taxpayer_type", "regular"),
+            include_tds=bool(payload.get("include_tds", True)),
+            include_itr=bool(payload.get("include_itr", True)),
+            firm_name=payload.get("firm_name", ""),
+            language=language,
+        )
+
+    elif action == "tally_analysis":
+        return await analyze_tally_export(
+            tally_data=payload.get("tally_data", ""),
+            analysis_type=payload.get("analysis_type", "gst_reconciliation"),
+            firm_name=payload.get("firm_name", ""),
+            fy=payload.get("fy", ""),
             language=language,
         )
 

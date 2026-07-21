@@ -197,6 +197,33 @@ export default function CAPage() {
   const [cqProfile, setCqProfile]       = useState('')
   const cqApi = useApi()
 
+  // Tab 11: Compliance Calendar
+  const ALL_MONTHS = [
+    {label:'January',value:1},{label:'February',value:2},{label:'March',value:3},
+    {label:'April',value:4},{label:'May',value:5},{label:'June',value:6},
+    {label:'July',value:7},{label:'August',value:8},{label:'September',value:9},
+    {label:'October',value:10},{label:'November',value:11},{label:'December',value:12},
+  ]
+  const [ccMonths, setCcMonths]         = useState<number[]>([])
+  const [ccFirm, setCcFirm]             = useState('')
+  const [ccIncTds, setCcIncTds]         = useState(true)
+  const [ccIncItr, setCcIncItr]         = useState(true)
+  const ccApi = useApi()
+  const toggleCcMonth = (m: number) => setCcMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
+
+  // Tab 12: Tally Import & Analyse
+  const TALLY_TYPES = [
+    {label:'GST Reconciliation',value:'gst_reconciliation'},
+    {label:'TDS Summary',value:'tds_summary'},
+    {label:'Profit & Loss Analysis',value:'profit_loss'},
+    {label:'Outstanding Debtors/Creditors',value:'outstanding'},
+  ]
+  const [tallyData, setTallyData]       = useState('')
+  const [tallyType, setTallyType]       = useState('gst_reconciliation')
+  const [tallyFirm, setTallyFirm]       = useState('')
+  const [tallyFY, setTallyFY]           = useState('')
+  const tallyApi = useApi()
+
   const PRIORITY_COLORS: Record<string, string> = {
     critical: '#ef4444',
     high:     '#f59e0b',
@@ -227,8 +254,10 @@ export default function CAPage() {
           { id: 'audit',          label: 'Audit Checklist',      icon: '✅' },
           { id: 'reconciliation', label: 'GST Reconciliation',   icon: '⚖️' },
           { id: 'itr',            label: 'ITR Advisor',          icon: '📋' },
-          { id: 'ca_post',        label: 'CA Social Post',       icon: '📣' },
-          { id: 'client_query',   label: 'Client Query Bot',     icon: '💬' },
+          { id: 'ca_post',           label: 'CA Social Post',          icon: '📣' },
+          { id: 'client_query',      label: 'Client Query Bot',        icon: '💬' },
+          { id: 'compliance_cal',    label: 'Compliance Calendar',     icon: '🗓️' },
+          { id: 'tally_analysis',    label: 'Tally Import & Analyse',  icon: '📂' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -714,6 +743,140 @@ export default function CAPage() {
               </Card>
             )}
             <ResultBox data={cqApi.data} loading={cqApi.loading} error={cqApi.error} title="Client Answer" />
+          </div>
+        </TwoCol>
+      )}
+      {/* ── COMPLIANCE CALENDAR ── */}
+      {tab === 'compliance_cal' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Compliance Calendar" sub="GST / TDS / ITR deadline tracker — never miss a filing" />
+            <Input label="Firm Name (optional)" value={ccFirm} onChange={setCcFirm} placeholder="e.g. Raju & Associates" />
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, fontWeight: 600 }}>SELECT MONTHS</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {ALL_MONTHS.map(m => (
+                  <button key={m.value} onClick={() => toggleCcMonth(m.value)} style={{
+                    padding: '4px 12px', borderRadius: 20, fontSize: 11, cursor: 'pointer', border: 'none',
+                    background: ccMonths.includes(m.value) ? 'rgba(245,158,11,0.2)' : '#1e2535',
+                    color: ccMonths.includes(m.value) ? '#f59e0b' : '#6b7280',
+                    fontWeight: ccMonths.includes(m.value) ? 600 : 400,
+                  }}>{m.label}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9ca3af', cursor: 'pointer' }}>
+                <input type="checkbox" checked={ccIncTds} onChange={e => setCcIncTds(e.target.checked)} />
+                Include TDS deadlines
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9ca3af', cursor: 'pointer' }}>
+                <input type="checkbox" checked={ccIncItr} onChange={e => setCcIncItr(e.target.checked)} />
+                Include ITR deadlines
+              </label>
+            </div>
+            <Btn
+              onClick={() => ccApi.call(() => caAction('compliance_calendar', {
+                months: ccMonths, firm_name: ccFirm, include_tds: ccIncTds, include_itr: ccIncItr,
+              }, language))}
+              loading={ccApi.loading}
+              disabled={ccMonths.length === 0}
+            >Get Compliance Calendar</Btn>
+          </Card>
+          <div>
+            {ccApi.data?.calendar && !ccApi.loading && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                  <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 16px', flex: 1, textAlign: 'center' }}>
+                    <div style={{ color: '#f59e0b', fontSize: 22, fontWeight: 700 }}>{ccApi.data.summary?.total_deadlines}</div>
+                    <div style={{ color: '#6b7280', fontSize: 11 }}>Total Deadlines</div>
+                  </div>
+                  <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 16px', flex: 1, textAlign: 'center' }}>
+                    <div style={{ color: '#ef4444', fontSize: 22, fontWeight: 700 }}>{ccApi.data.summary?.high_priority}</div>
+                    <div style={{ color: '#6b7280', fontSize: 11 }}>High Priority</div>
+                  </div>
+                </div>
+                {ccApi.data.calendar.map((d: any, i: number) => (
+                  <div key={i} style={{
+                    background: '#161b27', border: `1px solid ${d.urgency === 'high' ? '#f59e0b44' : '#1e2535'}`,
+                    borderLeft: `3px solid ${d.urgency === 'high' ? '#f59e0b' : '#3b82f6'}`,
+                    borderRadius: 8, padding: '10px 14px',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 13 }}>{d.form}</span>
+                      <span style={{ color: d.urgency === 'high' ? '#f59e0b' : '#3b82f6', fontSize: 11, fontWeight: 700 }}>Due: {d.due_date}</span>
+                    </div>
+                    <div style={{ color: '#6b7280', fontSize: 11 }}>{d.applicable_to}</div>
+                    <div style={{ color: '#ef444488', fontSize: 10, marginTop: 4 }}>Penalty: {d.penalty}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!ccApi.data?.calendar && <ResultBox data={ccApi.data} loading={ccApi.loading} error={ccApi.error} title="Compliance Calendar" />}
+          </div>
+        </TwoCol>
+      )}
+
+      {/* ── TALLY IMPORT & ANALYSE ── */}
+      {tab === 'tally_analysis' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Tally Import & AI Analysis" sub="Paste Tally XML / CSV export — get GST reconciliation, TDS summary, or P&L" />
+            <Input label="Firm Name"         value={tallyFirm} onChange={setTallyFirm} placeholder="e.g. Raju Enterprises" />
+            <Input label="Financial Year"    value={tallyFY}   onChange={setTallyFY}   placeholder="e.g. 2024-25" />
+            <Select label="Analysis Type"   value={tallyType} onChange={setTallyType} options={TALLY_TYPES} />
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6, fontWeight: 600 }}>PASTE TALLY EXPORT DATA</div>
+              <textarea
+                value={tallyData}
+                onChange={e => setTallyData(e.target.value)}
+                placeholder="Paste your Tally XML export or CSV data here...&#10;&#10;Tip: In Tally → Reports → Export → XML/Excel, then paste the content here"
+                style={{
+                  width: '100%', minHeight: 160, padding: '10px 12px', boxSizing: 'border-box',
+                  background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8,
+                  color: '#e2e8f0', fontSize: 12, fontFamily: 'monospace', resize: 'vertical',
+                }}
+              />
+            </div>
+            <div style={{ padding: 8, background: 'rgba(245,158,11,0.06)', borderRadius: 6, marginBottom: 12, fontSize: 11, color: '#fbbf24' }}>
+              Supports Tally XML, CSV, and even plain copied text from Tally ERP. No file upload needed.
+            </div>
+            <Btn
+              onClick={() => tallyApi.call(() => caAction('tally_analysis', {
+                tally_data: tallyData, analysis_type: tallyType, firm_name: tallyFirm, fy: tallyFY,
+              }, language))}
+              loading={tallyApi.loading}
+              disabled={!tallyData.trim()}
+            >Analyse Tally Data</Btn>
+          </Card>
+          <div>
+            {tallyApi.data && !tallyApi.loading && !tallyApi.data.error && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {tallyApi.data.ready_to_file !== undefined && (
+                  <div style={{
+                    padding: '12px 16px', borderRadius: 8,
+                    background: tallyApi.data.ready_to_file ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                    border: `1px solid ${tallyApi.data.ready_to_file ? '#10b98144' : '#ef444444'}`,
+                  }}>
+                    <div style={{ color: tallyApi.data.ready_to_file ? '#10b981' : '#ef4444', fontWeight: 700, fontSize: 13 }}>
+                      {tallyApi.data.ready_to_file ? 'Ready to File' : 'Not Ready to File'}
+                    </div>
+                    {tallyApi.data.ready_reason && <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 4 }}>{tallyApi.data.ready_reason}</div>}
+                  </div>
+                )}
+                {tallyApi.data.risk_flags?.length > 0 && (
+                  <div style={{ background: '#161b27', border: '1px solid #ef444433', borderRadius: 8, padding: '12px 14px' }}>
+                    <div style={{ color: '#ef4444', fontWeight: 600, fontSize: 12, marginBottom: 8 }}>Risk Flags</div>
+                    {tallyApi.data.risk_flags.map((f: string, i: number) => (
+                      <div key={i} style={{ color: '#fca5a5', fontSize: 12, marginBottom: 4 }}>• {f}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <div style={{ marginTop: 12 }}>
+              <ResultBox data={tallyApi.data} loading={tallyApi.loading} error={tallyApi.error} title="Tally Analysis" />
+            </div>
           </div>
         </TwoCol>
       )}
