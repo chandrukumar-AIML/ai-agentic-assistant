@@ -560,6 +560,20 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "build_csat_survey":
+            return _build_csat_survey(
+                business_name=payload.get("business_name", ""),
+                business_type=payload.get("business_type", ""),
+                touchpoints=payload.get("touchpoints", []),
+                language=lang,
+            )
+
+        elif action == "analyze_csat":
+            return _analyze_csat(
+                responses=payload.get("responses", []),
+                business_name=payload.get("business_name", ""),
+            )
+
         else:
             return {"error": f"Unknown action: {action}"}
     except Exception as e:
@@ -689,4 +703,160 @@ def _analyze_sla(tickets: list[dict], sla_rules: dict, business_name: str = "") 
         "on_track":         on_track,
         "assignee_summary": sorted(assignee_map.values(), key=lambda x: -x["breached"]),
         "sla_health":       "Critical" if stats["breached"] > 0 else ("At Risk" if stats["at_risk"] > 0 else "Healthy"),
+    }
+
+
+# ── CSAT Survey Builder & Analyzer (Round 5) ──────────────────────────────────
+
+_DEFAULT_TOUCHPOINTS = ["purchase experience", "delivery", "product quality", "customer service", "overall satisfaction"]
+
+_CSAT_QUESTIONS = {
+    "purchase experience": [
+        "How easy was it to find what you were looking for?",
+        "How satisfied are you with the checkout/ordering process?",
+    ],
+    "delivery": [
+        "Was your order delivered on time?",
+        "How would you rate the packaging quality?",
+    ],
+    "product quality": [
+        "How satisfied are you with the quality of the product/service?",
+        "Did the product/service meet your expectations?",
+    ],
+    "customer service": [
+        "How quickly did our team respond to your query?",
+        "How helpful was our customer support team?",
+    ],
+    "overall satisfaction": [
+        "Overall, how satisfied are you with [Business Name]?",
+        "How likely are you to recommend us to a friend or colleague? (0-10)",
+    ],
+}
+
+
+def _build_csat_survey(
+    business_name: str,
+    business_type: str,
+    touchpoints:   list[str],
+    language:      str = "en",
+) -> dict:
+    """Generate a CSAT survey with NPS question and touchpoint-specific questions."""
+    if not touchpoints:
+        touchpoints = _DEFAULT_TOUCHPOINTS[:3]
+
+    questions = []
+    qid = 1
+
+    # NPS always first
+    questions.append({
+        "id": qid, "type": "nps", "scale": "0-10",
+        "text": f"How likely are you to recommend {business_name or 'us'} to a friend or colleague?",
+        "required": True,
+    })
+    qid += 1
+
+    # Overall CSAT
+    questions.append({
+        "id": qid, "type": "rating", "scale": "1-5",
+        "text": f"Overall, how satisfied are you with your experience at {business_name or 'our business'}?",
+        "required": True,
+    })
+    qid += 1
+
+    # Touchpoint questions
+    for tp in touchpoints:
+        pool = _CSAT_QUESTIONS.get(tp.lower(), [f"How satisfied are you with our {tp}?"])
+        for q in pool[:2]:
+            questions.append({
+                "id": qid, "type": "rating", "scale": "1-5",
+                "text": q.replace("[Business Name]", business_name or "us"),
+                "touchpoint": tp,
+                "required": False,
+            })
+            qid += 1
+
+    # Open ended
+    questions.append({
+        "id": qid, "type": "text",
+        "text": "What is the ONE thing we could do better? (Optional)",
+        "required": False,
+    })
+
+    return {
+        "action":        "build_csat_survey",
+        "business_name": business_name,
+        "business_type": business_type,
+        "language":      language,
+        "survey_title":  f"How are we doing? — {business_name or 'Customer Survey'}",
+        "estimated_time": f"{max(1, len(questions) // 3)} minute",
+        "questions":     questions,
+        "total_questions": len(questions),
+        "touchpoints":   touchpoints,
+        "share_tip":     "Send via WhatsApp, QR code at checkout, or post-purchase email for 30-60% higher response rates.",
+    }
+
+
+def _analyze_csat(responses: list[dict], business_name: str = "") -> dict:
+    """
+    Analyze CSAT survey responses.
+    Each response: {nps: 0-10, overall_rating: 1-5, scores: {touchpoint: 1-5}, comment: str}
+    """
+    if not responses:
+        return {"error": "No responses to analyze"}
+
+    n = len(responses)
+
+    # NPS
+    nps_scores   = [r.get("nps", 0) for r in responses if r.get("nps") is not None]
+    promoters    = sum(1 for s in nps_scores if s >= 9)
+    passives     = sum(1 for s in nps_scores if 7 <= s <= 8)
+    detractors   = sum(1 for s in nps_scores if s <= 6)
+    nps_score    = round(((promoters - detractors) / len(nps_scores)) * 100) if nps_scores else 0
+
+    # Overall CSAT %
+    overall      = [r.get("overall_rating", 0) for r in responses if r.get("overall_rating")]
+    csat_pct     = round(sum(1 for s in overall if s >= 4) / len(overall) * 100) if overall else 0
+    avg_rating   = round(sum(overall) / len(overall), 1) if overall else 0
+
+    # Per-touchpoint
+    touchpoint_scores: dict = {}
+    for r in responses:
+        for tp, score in (r.get("scores") or {}).items():
+            if tp not in touchpoint_scores:
+                touchpoint_scores[tp] = []
+            touchpoint_scores[tp].append(float(score))
+
+    touchpoint_summary = []
+    for tp, scores in touchpoint_scores.items():
+        avg = round(sum(scores) / len(scores), 2)
+        touchpoint_summary.append({
+            "touchpoint": tp,
+            "avg_score":  avg,
+            "out_of":     5,
+            "pct":        round(avg / 5 * 100),
+            "status":     "Good" if avg >= 4 else ("Needs Work" if avg >= 3 else "Critical"),
+        })
+    touchpoint_summary.sort(key=lambda x: x["avg_score"])
+
+    # Comments / pain points
+    comments = [r.get("comment", "").strip() for r in responses if r.get("comment", "").strip()]
+
+    # Pain areas
+    pain_areas = [t for t in touchpoint_summary if t["avg_score"] < 3.5]
+    strengths  = [t for t in touchpoint_summary if t["avg_score"] >= 4.5]
+
+    return {
+        "action":           "analyze_csat",
+        "business_name":    business_name,
+        "total_responses":  n,
+        "csat_score":       csat_pct,
+        "avg_rating":       avg_rating,
+        "nps_score":        nps_score,
+        "nps_breakdown":    {"promoters": promoters, "passives": passives, "detractors": detractors},
+        "touchpoint_summary": touchpoint_summary,
+        "pain_areas":       pain_areas,
+        "strengths":        strengths,
+        "comments":         comments[:20],
+        "health":           "Excellent" if csat_pct >= 80 else ("Good" if csat_pct >= 65 else ("Needs Attention" if csat_pct >= 50 else "Critical")),
+        "top_action":       f"Focus on '{pain_areas[0]['touchpoint']}' — lowest rated at {pain_areas[0]['avg_score']}/5" if pain_areas else "Maintain current quality across all touchpoints",
     }

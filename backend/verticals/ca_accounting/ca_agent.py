@@ -953,6 +953,17 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "gstr_filing_prep":
+        return await prepare_gstr_filing(
+            sales_data=payload.get("sales_data", []),
+            purchase_data=payload.get("purchase_data", []),
+            return_type=payload.get("return_type", "gstr3b"),
+            firm_name=payload.get("firm_name", ""),
+            gstin=payload.get("gstin", ""),
+            period=payload.get("period", ""),
+            language=language,
+        )
+
     return {"error": f"Unknown CA action: {action}"}
 
 
@@ -1070,4 +1081,142 @@ async def generate_gst_invoice(
         "amount_in_words": amount_words,
         "notes":          notes,
         "gst_compliant":  True,
+    }
+
+
+# ── GSTR Filing Prep (Round 5) ────────────────────────────────────────────────
+
+def _sum_by_rate(rows: list[dict], amount_key: str = "taxable_value") -> dict:
+    """Group sales/purchase rows by GST rate, sum taxable + taxes."""
+    buckets: dict = {}
+    for r in rows:
+        rate = float(r.get("gst_rate", 18))
+        taxable = float(r.get("taxable_value", 0) or r.get("taxable", 0))
+        cgst  = float(r.get("cgst", 0))
+        sgst  = float(r.get("sgst", 0))
+        igst  = float(r.get("igst", 0))
+        if rate not in buckets:
+            buckets[rate] = {"gst_rate": rate, "taxable": 0.0, "cgst": 0.0, "sgst": 0.0, "igst": 0.0, "total_tax": 0.0}
+        buckets[rate]["taxable"] += taxable
+        buckets[rate]["cgst"]    += cgst
+        buckets[rate]["sgst"]    += sgst
+        buckets[rate]["igst"]    += igst
+        # Auto-calculate if taxes not provided
+        if cgst == 0 and sgst == 0 and igst == 0:
+            half_tax = round(taxable * rate / 200, 2)
+            buckets[rate]["cgst"] += half_tax
+            buckets[rate]["sgst"] += half_tax
+        buckets[rate]["total_tax"] = round(buckets[rate]["cgst"] + buckets[rate]["sgst"] + buckets[rate]["igst"], 2)
+    for b in buckets.values():
+        b["taxable"]    = round(b["taxable"], 2)
+        b["cgst"]       = round(b["cgst"], 2)
+        b["sgst"]       = round(b["sgst"], 2)
+        b["igst"]       = round(b["igst"], 2)
+    return dict(sorted(buckets.items()))
+
+
+async def prepare_gstr_filing(
+    sales_data:    list[dict],
+    purchase_data: list[dict],
+    return_type:   str = "gstr3b",
+    firm_name:     str = "",
+    gstin:         str = "",
+    period:        str = "",
+    language:      str = "en",
+) -> dict:
+    """
+    Prepare GSTR-1 or GSTR-3B filing summary from sales/purchase line data.
+    sales_data:    [{taxable_value, gst_rate, cgst, sgst, igst, supply_type, b2b/b2c, hsn}]
+    purchase_data: [{taxable_value, gst_rate, cgst, sgst, igst, vendor_gstin}]
+    """
+    from datetime import datetime, timezone
+
+    period = period or datetime.now(timezone.utc).strftime("%b %Y")
+
+    # ── Sales summary ──
+    sales_by_rate    = _sum_by_rate(sales_data)
+    total_taxable    = round(sum(b["taxable"]   for b in sales_by_rate.values()), 2)
+    total_cgst_out   = round(sum(b["cgst"]      for b in sales_by_rate.values()), 2)
+    total_sgst_out   = round(sum(b["sgst"]      for b in sales_by_rate.values()), 2)
+    total_igst_out   = round(sum(b["igst"]      for b in sales_by_rate.values()), 2)
+    total_output_tax = round(total_cgst_out + total_sgst_out + total_igst_out, 2)
+
+    # ── ITC (Input Tax Credit) from purchases ──
+    purchase_by_rate = _sum_by_rate(purchase_data)
+    itc_cgst   = round(sum(b["cgst"]  for b in purchase_by_rate.values()), 2)
+    itc_sgst   = round(sum(b["sgst"]  for b in purchase_by_rate.values()), 2)
+    itc_igst   = round(sum(b["igst"]  for b in purchase_by_rate.values()), 2)
+    total_itc  = round(itc_cgst + itc_sgst + itc_igst, 2)
+
+    # ── Net tax liability ──
+    net_cgst    = round(max(total_cgst_out - itc_cgst, 0), 2)
+    net_sgst    = round(max(total_sgst_out - itc_sgst, 0), 2)
+    net_igst    = round(max(total_igst_out - itc_igst, 0), 2)
+    net_payable = round(net_cgst + net_sgst + net_igst, 2)
+
+    itc_excess_cgst = round(max(itc_cgst - total_cgst_out, 0), 2)
+    itc_excess_sgst = round(max(itc_sgst - total_sgst_out, 0), 2)
+    itc_excess_igst = round(max(itc_igst - total_igst_out, 0), 2)
+    total_itc_carryforward = round(itc_excess_cgst + itc_excess_sgst + itc_excess_igst, 2)
+
+    # ── Filing checklist ──
+    checklist = [
+        {"item": "Sales invoices reconciled with books",       "status": "pending"},
+        {"item": "Purchase invoices matched with GSTR-2B",     "status": "pending"},
+        {"item": "HSN summary verified (if turnover > ₹5 Cr)", "status": "pending" if total_taxable > 500_0000 else "na"},
+        {"item": "Reverse Charge Mechanism (RCM) checked",     "status": "pending"},
+        {"item": "ITC reversal for ineligible credits",        "status": "pending"},
+        {"item": "E-invoicing compliance (if applicable)",     "status": "pending" if total_taxable > 500_0000 else "na"},
+        {"item": "Late fees / interest calculated if filing past due date", "status": "pending"},
+        {"item": "Bank payment challan ready",                 "status": "ready" if net_payable == 0 else "pending"},
+    ]
+
+    gstr1_summary = None
+    if return_type in ("gstr1", "both"):
+        b2b = [r for r in sales_data if (r.get("supply_type") == "b2b" or r.get("gstin"))]
+        b2c = [r for r in sales_data if r not in b2b]
+        gstr1_summary = {
+            "b2b_invoices": len(b2b),
+            "b2c_invoices": len(b2c),
+            "b2b_taxable":  round(sum(float(r.get("taxable_value", 0)) for r in b2b), 2),
+            "b2c_taxable":  round(sum(float(r.get("taxable_value", 0)) for r in b2c), 2),
+            "hsn_summary":  list(sales_by_rate.values()),
+        }
+
+    return {
+        "action":          "gstr_filing_prep",
+        "return_type":     return_type.upper(),
+        "firm_name":       firm_name,
+        "gstin":           gstin,
+        "period":          period,
+        "sales_summary": {
+            "total_invoices":   len(sales_data),
+            "total_taxable":    total_taxable,
+            "total_cgst":       total_cgst_out,
+            "total_sgst":       total_sgst_out,
+            "total_igst":       total_igst_out,
+            "total_output_tax": total_output_tax,
+            "by_rate":          list(sales_by_rate.values()),
+        },
+        "purchase_summary": {
+            "total_invoices": len(purchase_data),
+            "itc_cgst":       itc_cgst,
+            "itc_sgst":       itc_sgst,
+            "itc_igst":       itc_igst,
+            "total_itc":      total_itc,
+            "by_rate":        list(purchase_by_rate.values()),
+        },
+        "tax_liability": {
+            "output_tax":          total_output_tax,
+            "total_itc":           total_itc,
+            "net_cgst_payable":    net_cgst,
+            "net_sgst_payable":    net_sgst,
+            "net_igst_payable":    net_igst,
+            "total_net_payable":   net_payable,
+            "itc_carryforward":    total_itc_carryforward,
+            "refund_eligible":     total_itc_carryforward > 0,
+        },
+        "gstr1_summary":   gstr1_summary,
+        "filing_checklist": checklist,
+        "ready_to_file":   net_payable >= 0 and len(sales_data) > 0,
     }

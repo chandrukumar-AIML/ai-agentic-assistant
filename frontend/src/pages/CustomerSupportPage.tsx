@@ -49,6 +49,7 @@ const TABS = [
   { id: 'report',     label: 'Weekly Report' },
   { id: 'canned',     label: 'Canned Responses' },
   { id: 'sla',        label: 'SLA Tracker' },
+  { id: 'csat',       label: 'CSAT Survey' },
 ]
 
 const WA_TYPES = [
@@ -912,6 +913,219 @@ function SlaTab({ lang }: { lang: Lang }) {
   )
 }
 
+// ── CSAT Survey Builder (Round 5) ─────────────────────────────────────────────
+
+const CSAT_TOUCHPOINTS = ['purchase experience', 'delivery', 'product quality', 'customer service', 'overall satisfaction']
+const CSAT_BIZ_TYPES   = [{ label: 'Retail / E-commerce', value: 'retail' }, { label: 'Restaurant / Food', value: 'restaurant' }, { label: 'Service Business', value: 'service' }, { label: 'SaaS / Tech', value: 'saas' }, { label: 'Healthcare', value: 'healthcare' }, { label: 'Education', value: 'education' }]
+
+const DEMO_RESPONSES = [
+  { nps: 9,  overall_rating: 5, scores: { 'purchase experience': 5, 'delivery': 4, 'customer service': 5 }, comment: 'Really happy with the quick response!' },
+  { nps: 7,  overall_rating: 4, scores: { 'purchase experience': 4, 'delivery': 3, 'customer service': 4 }, comment: 'Delivery was a bit slow but product quality great' },
+  { nps: 3,  overall_rating: 2, scores: { 'purchase experience': 2, 'delivery': 2, 'customer service': 3 }, comment: 'Took too long, support wasnt helpful' },
+  { nps: 10, overall_rating: 5, scores: { 'purchase experience': 5, 'delivery': 5, 'customer service': 5 }, comment: '' },
+  { nps: 6,  overall_rating: 3, scores: { 'purchase experience': 3, 'delivery': 2, 'customer service': 3 }, comment: 'Average experience, expected better delivery time' },
+  { nps: 8,  overall_rating: 4, scores: { 'purchase experience': 4, 'delivery': 4, 'customer service': 5 }, comment: 'Customer support was excellent!' },
+]
+
+function CsatTab({ lang }: { lang: Lang }) {
+  const [mode, setMode]             = useState<'build' | 'analyze'>('build')
+  const [bizName, setBizName]       = useState('')
+  const [bizType, setBizType]       = useState('retail')
+  const [touchpoints, setTouchpoints] = useState<string[]>(['purchase experience', 'delivery', 'customer service'])
+  const [survey, setSurvey]         = useState<any>(null)
+  const [surveyLoading, setSurveyLoading] = useState(false)
+  const [surveyErr, setSurveyErr]   = useState('')
+  const [responsesJson, setResponsesJson] = useState(JSON.stringify(DEMO_RESPONSES, null, 2))
+  const [analysis, setAnalysis]     = useState<any>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysisErr, setAnalysisErr] = useState('')
+
+  const toggleTp = (tp: string) => setTouchpoints(prev => prev.includes(tp) ? prev.filter(x => x !== tp) : [...prev, tp])
+
+  const buildSurvey = async () => {
+    setSurveyLoading(true); setSurveyErr(''); setSurvey(null)
+    try {
+      setSurvey(await csAction('build_csat_survey', { business_name: bizName, business_type: bizType, touchpoints }, lang))
+    } catch (e: any) { setSurveyErr(e.message) }
+    setSurveyLoading(false)
+  }
+
+  const analyzeCsat = async () => {
+    setAnalysisLoading(true); setAnalysisErr(''); setAnalysis(null)
+    try {
+      const responses = JSON.parse(responsesJson)
+      setAnalysis(await csAction('analyze_csat', { responses, business_name: bizName }, lang))
+    } catch (e: any) { setAnalysisErr(e.message) }
+    setAnalysisLoading(false)
+  }
+
+  const HEALTH_COLORS: Record<string, string> = { Excellent: '#10b981', Good: '#3b82f6', 'Needs Attention': '#f59e0b', Critical: '#ef4444' }
+  const STATUS_COLORS: Record<string, string>  = { Good: '#10b981', 'Needs Work': '#f59e0b', Critical: '#ef4444' }
+
+  return (
+    <Row>
+      <Card style={{ flex: '0 0 360px' }}>
+        <SectionHead title="CSAT Survey Builder" sub="Generate survey & analyze customer satisfaction" />
+        <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+          {(['build', 'analyze'] as const).map(m => (
+            <span key={m} onClick={() => setMode(m)} style={{ cursor: 'pointer', flex: 1, textAlign: 'center', padding: '7px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: mode === m ? '#10b981' : '#1e2535', color: mode === m ? '#fff' : '#9ca3af' }}>
+              {m === 'build' ? '🔨 Build Survey' : '📊 Analyze Responses'}
+            </span>
+          ))}
+        </div>
+
+        <Input label="Business Name" value={bizName} onChange={setBizName} placeholder="Sri Lakshmi Stores" />
+
+        {mode === 'build' && (
+          <>
+            <Select label="Business Type" value={bizType} onChange={setBizType} options={CSAT_BIZ_TYPES} />
+            <div style={{ marginTop: 14 }}>
+              <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 8 }}>Touchpoints to survey</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {CSAT_TOUCHPOINTS.map(tp => (
+                  <span key={tp} onClick={() => toggleTp(tp)} style={{ cursor: 'pointer', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, textTransform: 'capitalize',
+                    background: touchpoints.includes(tp) ? '#10b981' : '#1e2535', color: touchpoints.includes(tp) ? '#fff' : '#9ca3af', border: touchpoints.includes(tp) ? '1px solid #10b981' : '1px solid #374151' }}>
+                    {tp}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <Btn onClick={buildSurvey} loading={surveyLoading} style={{ marginTop: 14, width: '100%' }}>Build Survey</Btn>
+            {surveyErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 6 }}>{surveyErr}</div>}
+          </>
+        )}
+
+        {mode === 'analyze' && (
+          <>
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <div style={{ color: '#9ca3af', fontSize: 12 }}>Responses (JSON array)</div>
+                <span onClick={() => setResponsesJson(JSON.stringify(DEMO_RESPONSES, null, 2))} style={{ cursor: 'pointer', color: '#10b981', fontSize: 11 }}>Load Demo</span>
+              </div>
+              <TA value={responsesJson} onChange={setResponsesJson} rows={10} placeholder='[{"nps":9,"overall_rating":5,"scores":{"delivery":4},"comment":"Great!"}]' />
+            </div>
+            <div style={{ padding: '6px 10px', background: 'rgba(16,185,129,0.06)', border: '1px solid #10b98133', borderRadius: 6, fontSize: 11, color: '#6ee7b7', marginTop: 8 }}>
+              Fields: nps (0-10), overall_rating (1-5), scores ({'{'}touchpoint: 1-5{'}'}), comment (optional)
+            </div>
+            <Btn onClick={analyzeCsat} loading={analysisLoading} style={{ marginTop: 10, width: '100%' }}>Analyze CSAT</Btn>
+            {analysisErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 6 }}>{analysisErr}</div>}
+          </>
+        )}
+      </Card>
+
+      <Card>
+        {mode === 'build' && survey && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <SectionHead title={survey.survey_title} sub={`${survey.total_questions} questions · ~${survey.estimated_time}`} />
+            </div>
+            {survey.share_tip && (
+              <div style={{ padding: '8px 12px', background: 'rgba(16,185,129,0.07)', border: '1px solid #10b98133', borderRadius: 6, color: '#6ee7b7', fontSize: 12, marginBottom: 14 }}>
+                💡 {survey.share_tip}
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(survey.questions || []).map((q: any, i: number) => (
+                <div key={q.id} style={{ background: '#0f1117', borderRadius: 8, padding: '10px 14px', border: '1px solid #1e2535' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <span style={{ minWidth: 22, height: 22, borderRadius: '50%', background: '#10b98122', color: '#10b981', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>{i + 1}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.5, marginBottom: 4 }}>{q.text}</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <Badge label={q.type === 'nps' ? 'NPS 0-10' : q.type === 'rating' ? `Rating ${q.scale}` : 'Open Text'} color={q.type === 'nps' ? '#818cf8' : q.type === 'rating' ? '#10b981' : '#6b7280'} />
+                        {q.required && <Badge label="Required" color="#f59e0b" />}
+                        {q.touchpoint && <Badge label={q.touchpoint} color="#3b82f6" />}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {mode === 'analyze' && analysis && (
+          <div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ padding: '6px 16px', borderRadius: 20, fontWeight: 700, fontSize: 13, background: (HEALTH_COLORS[analysis.health] || '#6b7280') + '22', color: HEALTH_COLORS[analysis.health] || '#6b7280' }}>
+                {analysis.health}
+              </div>
+              <div style={{ color: '#6b7280', fontSize: 12 }}>{analysis.total_responses} responses analyzed</div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
+              {[
+                { label: 'CSAT Score', value: `${analysis.csat_score}%`, color: '#10b981' },
+                { label: 'Avg Rating', value: `${analysis.avg_rating}/5`,  color: '#818cf8' },
+                { label: 'NPS Score',  value: analysis.nps_score,          color: analysis.nps_score >= 0 ? '#3b82f6' : '#ef4444' },
+              ].map(k => (
+                <div key={k.label} style={{ background: '#0f1117', borderRadius: 8, padding: '10px', textAlign: 'center', border: `1px solid ${k.color}33` }}>
+                  <div style={{ color: '#6b7280', fontSize: 10, marginBottom: 4 }}>{k.label}</div>
+                  <div style={{ color: k.color, fontSize: 20, fontWeight: 700 }}>{k.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* NPS breakdown */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              {[
+                { label: `Promoters (9-10)`, value: analysis.nps_breakdown?.promoters, color: '#10b981' },
+                { label: `Passives (7-8)`,   value: analysis.nps_breakdown?.passives,  color: '#f59e0b' },
+                { label: `Detractors (0-6)`, value: analysis.nps_breakdown?.detractors, color: '#ef4444' },
+              ].map(b => (
+                <div key={b.label} style={{ flex: 1, background: '#0f1117', borderRadius: 6, padding: '8px 10px', textAlign: 'center', border: `1px solid ${b.color}33` }}>
+                  <div style={{ color: b.color, fontSize: 16, fontWeight: 700 }}>{b.value}</div>
+                  <div style={{ color: '#6b7280', fontSize: 10 }}>{b.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Touchpoint scores */}
+            {analysis.touchpoint_summary?.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 8 }}>Touchpoint Scores</div>
+                {(analysis.touchpoint_summary as any[]).map((t: any) => (
+                  <div key={t.touchpoint} style={{ marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <span style={{ color: '#e2e8f0', fontSize: 12, textTransform: 'capitalize' }}>{t.touchpoint}</span>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ color: STATUS_COLORS[t.status] || '#6b7280', fontSize: 11 }}>{t.status}</span>
+                        <span style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 600 }}>{t.avg_score}/5</span>
+                      </div>
+                    </div>
+                    <div style={{ height: 5, background: '#1e2535', borderRadius: 3 }}>
+                      <div style={{ height: '100%', width: `${t.pct}%`, background: STATUS_COLORS[t.status] || '#6b7280', borderRadius: 3 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {analysis.top_action && (
+              <div style={{ padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid #f59e0b33', borderRadius: 8, color: '#fcd34d', fontSize: 13 }}>
+                🎯 <strong>Top Action:</strong> {analysis.top_action}
+              </div>
+            )}
+
+            {analysis.comments?.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 6 }}>Customer Comments</div>
+                {analysis.comments.slice(0, 4).map((c: string, i: number) => (
+                  <div key={i} style={{ background: '#0f1117', borderRadius: 6, padding: '7px 10px', marginBottom: 4, color: '#9ca3af', fontSize: 12, fontStyle: 'italic' }}>"{c}"</div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!survey && !analysis && (
+          <Empty text={mode === 'build' ? 'Configure your survey on the left and click Build Survey →' : 'Paste survey responses and click Analyze CSAT →'} />
+        )}
+      </Card>
+    </Row>
+  )
+}
+
 const CANNED_CATS = ['General', 'Billing', 'Delivery', 'Technical', 'Refund', 'Greeting', 'Escalation']
 
 interface CannedItem { id: string; category: string; trigger: string; body: string }
@@ -1078,6 +1292,7 @@ export default function CustomerSupportPage() {
         {tab === 'report'    && <ReportTab lang={lang} />}
         {tab === 'canned'    && <CannedTab lang={lang} />}
         {tab === 'sla'       && <SlaTab lang={lang} />}
+        {tab === 'csat'      && <CsatTab lang={lang} />}
       </div>
     </PageShell>
   )

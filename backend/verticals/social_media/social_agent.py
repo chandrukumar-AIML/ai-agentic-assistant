@@ -2069,6 +2069,17 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "ab_copy_test":
+        return await generate_ab_copy(
+            topic=payload.get("topic", ""),
+            platform=platform,
+            brand_name=payload.get("brand_name", ""),
+            industry=payload.get("industry", ""),
+            goal=payload.get("goal", "engagement"),
+            variations=int(payload.get("variations", 4)),
+            language=language,
+        )
+
     return {"error": f"Unknown social action: {action}"}
 
 
@@ -2182,5 +2193,119 @@ Return ONLY valid JSON."""
             "schedule": schedule,
             "days": days,
             "platforms": platforms,
+            "demo_mode": True,
+        }
+
+
+# ── A/B Copy Tester (Round 5) ─────────────────────────────────────────────────
+
+_HOOK_TYPES = [
+    "Bold Question",
+    "Shocking Statistic",
+    "Relatable Pain Point",
+    "Bold Claim / Contrarian",
+    "Story Opening",
+    "Listicle Hook",
+    "Social Proof",
+    "Curiosity Gap",
+]
+
+_ENGAGEMENT_SIGNALS = {
+    "Bold Question":        {"base": 72, "comment_boost": 15, "share_boost": 5},
+    "Shocking Statistic":   {"base": 68, "comment_boost": 8,  "share_boost": 18},
+    "Relatable Pain Point": {"base": 75, "comment_boost": 20, "share_boost": 10},
+    "Bold Claim / Contrarian": {"base": 70, "comment_boost": 25, "share_boost": 12},
+    "Story Opening":        {"base": 65, "comment_boost": 18, "share_boost": 8},
+    "Listicle Hook":        {"base": 60, "comment_boost": 5,  "share_boost": 22},
+    "Social Proof":         {"base": 63, "comment_boost": 6,  "share_boost": 15},
+    "Curiosity Gap":        {"base": 78, "comment_boost": 12, "share_boost": 9},
+}
+
+
+async def generate_ab_copy(
+    topic:      str,
+    platform:   str = "linkedin",
+    brand_name: str = "",
+    industry:   str = "",
+    goal:       str = "engagement",
+    variations: int = 4,
+    language:   str = "en",
+) -> dict:
+    """Generate N post variations with different hooks, score each, rank by predicted engagement."""
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    import json, random
+
+    variations = min(max(variations, 2), 6)
+    hooks = random.sample(_HOOK_TYPES, variations)
+
+    system = f"""You are an elite social media copywriter specializing in {platform} for Indian businesses.
+Topic: {topic}. Brand: {brand_name or 'the brand'}. Industry: {industry or 'general'}. Goal: {goal}. Language: {language}.
+
+Generate {variations} distinct post variations — each using a DIFFERENT hook style from this list: {hooks}.
+
+Return JSON:
+{{
+  "variations": [
+    {{
+      "id": 1,
+      "hook_type": "Bold Question",
+      "hook_line": "first sentence (the hook)",
+      "full_post": "complete ready-to-post text (platform-appropriate length, emojis if suitable)",
+      "cta": "call to action used",
+      "why_it_works": "one sentence on why this hook drives {goal}",
+      "predicted_engagement": 74,
+      "predicted_comments": 12,
+      "predicted_shares": 8
+    }}
+  ],
+  "winner_id": 1,
+  "winner_reason": "why variation 1 is predicted to win",
+  "testing_advice": "how to A/B test these effectively"
+}}
+Return ONLY valid JSON."""
+
+    try:
+        raw = await ollama_chat_completion(
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user",   "content": f"Generate {variations} A/B variations for: {topic}"},
+            ],
+            model=OLLAMA_MODEL,
+            max_tokens=1800,
+        )
+        raw = raw.strip()
+        if "{" in raw:
+            raw = raw[raw.index("{"):]
+            if "}" in raw:
+                raw = raw[:raw.rindex("}") + 1]
+        result = json.loads(raw)
+        return {"action": "ab_copy_test", "topic": topic, "platform": platform, **result}
+    except Exception as e:
+        logger.error("A/B copy test failed: %s", e)
+        # Demo fallback
+        demo_variations = []
+        for i, hook in enumerate(hooks):
+            sig = _ENGAGEMENT_SIGNALS.get(hook, {"base": 65, "comment_boost": 10, "share_boost": 8})
+            eng = sig["base"] + random.randint(-5, 5)
+            demo_variations.append({
+                "id": i + 1,
+                "hook_type": hook,
+                "hook_line": f"[{hook}] {topic[:60]}...",
+                "full_post": f"[Demo] {hook} variation for '{topic}' on {platform}. This is where your {brand_name or 'brand'} story begins. #{industry.replace(' ', '') if industry else 'business'} #India",
+                "cta": "Comment your thoughts below 👇" if i % 2 == 0 else "Share if this resonates ♻️",
+                "why_it_works": f"{hook} hooks work well for {goal} on {platform}.",
+                "predicted_engagement": eng,
+                "predicted_comments": sig["comment_boost"] + random.randint(-3, 3),
+                "predicted_shares": sig["share_boost"] + random.randint(-2, 2),
+            })
+        best = max(demo_variations, key=lambda x: x["predicted_engagement"])
+        return {
+            "action": "ab_copy_test",
+            "topic": topic,
+            "platform": platform,
+            "variations": demo_variations,
+            "winner_id": best["id"],
+            "winner_reason": f"{best['hook_type']} has the highest predicted engagement score ({best['predicted_engagement']}%) for {goal}.",
+            "testing_advice": "Run each variation for 24h. Compare comment rate (not just likes). Pause lowest performer at 6h if gap is >20%.",
             "demo_mode": True,
         }

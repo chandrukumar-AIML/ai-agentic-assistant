@@ -230,6 +230,43 @@ export default function CAPage() {
     medium:   '#3b82f6',
   }
 
+  // Tab 13: GSTR Filing Prep
+  const GSTR_DEMO_SALES = [
+    { taxable_value: 50000, gst_rate: 18, supply_type: 'b2b', gstin: '33AABCS1429B1Z5' },
+    { taxable_value: 30000, gst_rate: 12, supply_type: 'b2c' },
+    { taxable_value: 20000, gst_rate: 5,  supply_type: 'b2b', gstin: '27AAPFU0939F1ZV' },
+    { taxable_value: 15000, gst_rate: 18, supply_type: 'b2c' },
+    { taxable_value: 10000, gst_rate: 0,  supply_type: 'b2b' },
+  ]
+  const GSTR_DEMO_PURCHASE = [
+    { taxable_value: 25000, gst_rate: 18, vendor_gstin: '33AABCS1429B1Z5' },
+    { taxable_value: 12000, gst_rate: 12, vendor_gstin: '27AAPFU0939F1ZV' },
+    { taxable_value: 8000,  gst_rate: 5,  vendor_gstin: '29AALCM9926G1ZG' },
+  ]
+  const [gstrFirm, setGstrFirm]         = useState('')
+  const [gstrGstin, setGstrGstin]       = useState('')
+  const [gstrPeriod, setGstrPeriod]     = useState('')
+  const [gstrReturnType, setGstrReturnType] = useState('gstr3b')
+  const [gstrSalesJson, setGstrSalesJson]   = useState(JSON.stringify(GSTR_DEMO_SALES, null, 2))
+  const [gstrPurchJson, setGstrPurchJson]   = useState(JSON.stringify(GSTR_DEMO_PURCHASE, null, 2))
+  const [gstrRes, setGstrRes]           = useState<any>(null)
+  const [gstrLoading, setGstrLoading]   = useState(false)
+  const [gstrErr, setGstrErr]           = useState('')
+
+  const runGstrPrep = async () => {
+    setGstrLoading(true); setGstrErr(''); setGstrRes(null)
+    try {
+      const sales    = JSON.parse(gstrSalesJson)
+      const purchase = JSON.parse(gstrPurchJson)
+      setGstrRes(await caAction('gstr_filing_prep', {
+        sales_data: sales, purchase_data: purchase,
+        return_type: gstrReturnType, firm_name: gstrFirm,
+        gstin: gstrGstin, period: gstrPeriod,
+      }, language))
+    } catch (e: any) { setGstrErr(e.message) }
+    setGstrLoading(false)
+  }
+
   return (
     <PageShell icon="📒" title="AI CA / Accounting Agent" subtitle="GST · TDS · ITR · Audit · Invoice · Client Communication — India-focused">
       <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -258,6 +295,7 @@ export default function CAPage() {
           { id: 'client_query',      label: 'Client Query Bot',        icon: '💬' },
           { id: 'compliance_cal',    label: 'Compliance Calendar',     icon: '🗓️' },
           { id: 'tally_analysis',    label: 'Tally Import & Analyse',  icon: '📂' },
+          { id: 'gstr_filing',       label: 'GSTR Filing Prep',        icon: '📊' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -883,6 +921,130 @@ export default function CAPage() {
             <div style={{ marginTop: 12 }}>
               <ResultBox data={tallyApi.data} loading={tallyApi.loading} error={tallyApi.error} title="Tally Analysis" />
             </div>
+          </div>
+        </TwoCol>
+      )}
+
+      {/* ── GSTR FILING PREP ── */}
+      {tab === 'gstr_filing' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="GSTR Filing Prep" sub="Input sales & purchase data — instant GSTR-1 / GSTR-3B summary" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <Input label="Firm Name" value={gstrFirm} onChange={setGstrFirm} placeholder="Raju & Associates" />
+              <Input label="GSTIN" value={gstrGstin} onChange={setGstrGstin} placeholder="33AABCS1429B1Z5" />
+              <Input label="Period" value={gstrPeriod} onChange={setGstrPeriod} placeholder="e.g. July 2025" />
+              <Select label="Return Type" value={gstrReturnType} onChange={setGstrReturnType} options={[
+                { label: 'GSTR-3B (Monthly Summary)', value: 'gstr3b' },
+                { label: 'GSTR-1 (Outward Supplies)', value: 'gstr1' },
+                { label: 'Both GSTR-1 + GSTR-3B',    value: 'both' },
+              ]} />
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <div style={{ color: '#9ca3af', fontSize: 12 }}>Sales Data (JSON)</div>
+                <span onClick={() => setGstrSalesJson(JSON.stringify(GSTR_DEMO_SALES, null, 2))} style={{ cursor: 'pointer', color: '#4f8ef7', fontSize: 11 }}>Load Demo</span>
+              </div>
+              <textarea value={gstrSalesJson} onChange={e => setGstrSalesJson(e.target.value)} rows={6}
+                style={{ width: '100%', background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, color: '#e2e8f0', fontSize: 11, padding: '10px', fontFamily: 'monospace', boxSizing: 'border-box', resize: 'vertical' }}
+                placeholder='[{"taxable_value":50000,"gst_rate":18,"supply_type":"b2b","gstin":"33XXXXX"}]'
+              />
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <div style={{ color: '#9ca3af', fontSize: 12 }}>Purchase Data (JSON — for ITC)</div>
+                <span onClick={() => setGstrPurchJson(JSON.stringify(GSTR_DEMO_PURCHASE, null, 2))} style={{ cursor: 'pointer', color: '#4f8ef7', fontSize: 11 }}>Load Demo</span>
+              </div>
+              <textarea value={gstrPurchJson} onChange={e => setGstrPurchJson(e.target.value)} rows={5}
+                style={{ width: '100%', background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, color: '#e2e8f0', fontSize: 11, padding: '10px', fontFamily: 'monospace', boxSizing: 'border-box', resize: 'vertical' }}
+                placeholder='[{"taxable_value":25000,"gst_rate":18,"vendor_gstin":"33XXXXX"}]'
+              />
+            </div>
+            <Btn onClick={runGstrPrep} loading={gstrLoading} style={{ marginTop: 12, width: '100%' }}>Prepare Filing Summary</Btn>
+            {gstrErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 6 }}>{gstrErr}</div>}
+          </Card>
+
+          <div>
+            {gstrRes && !gstrLoading && (
+              <>
+                {/* Tax Liability Summary */}
+                <Card style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <SectionHead title={`${gstrRes.return_type} Summary — ${gstrRes.period}`} />
+                    <span style={{
+                      padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                      background: gstrRes.tax_liability?.total_net_payable === 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.12)',
+                      color: gstrRes.tax_liability?.total_net_payable === 0 ? '#10b981' : '#ef4444',
+                    }}>
+                      {gstrRes.tax_liability?.total_net_payable === 0 ? 'NIL Return' : `₹${(gstrRes.tax_liability?.total_net_payable || 0).toLocaleString('en-IN')} Due`}
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
+                    {[
+                      { label: 'Output Tax',  value: gstrRes.tax_liability?.output_tax,    color: '#ef4444' },
+                      { label: 'ITC Available', value: gstrRes.tax_liability?.total_itc,   color: '#10b981' },
+                      { label: 'Net Payable', value: gstrRes.tax_liability?.total_net_payable, color: '#f59e0b' },
+                    ].map(k => (
+                      <div key={k.label} style={{ background: '#0f1117', borderRadius: 8, padding: '10px', textAlign: 'center', border: `1px solid ${k.color}33` }}>
+                        <div style={{ color: '#6b7280', fontSize: 10, marginBottom: 4 }}>{k.label}</div>
+                        <div style={{ color: k.color, fontSize: 15, fontWeight: 700 }}>₹{(k.value || 0).toLocaleString('en-IN')}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* CGST / SGST / IGST breakdown */}
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #1e2535' }}>
+                          {['', 'CGST', 'SGST', 'IGST', 'Total'].map(h => (
+                            <th key={h} style={{ padding: '6px 8px', color: '#6b7280', textAlign: 'right', fontWeight: 600 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { label: 'Output Tax', cgst: gstrRes.sales_summary?.total_cgst, sgst: gstrRes.sales_summary?.total_sgst, igst: gstrRes.sales_summary?.total_igst, total: gstrRes.sales_summary?.total_output_tax },
+                          { label: 'ITC',        cgst: gstrRes.purchase_summary?.itc_cgst, sgst: gstrRes.purchase_summary?.itc_sgst, igst: gstrRes.purchase_summary?.itc_igst, total: gstrRes.purchase_summary?.total_itc },
+                          { label: 'Net Payable',cgst: gstrRes.tax_liability?.net_cgst_payable, sgst: gstrRes.tax_liability?.net_sgst_payable, igst: gstrRes.tax_liability?.net_igst_payable, total: gstrRes.tax_liability?.total_net_payable },
+                        ].map(row => (
+                          <tr key={row.label} style={{ borderBottom: '1px solid #0f1117' }}>
+                            <td style={{ padding: '6px 8px', color: '#9ca3af', fontSize: 12 }}>{row.label}</td>
+                            {[row.cgst, row.sgst, row.igst, row.total].map((v, i) => (
+                              <td key={i} style={{ padding: '6px 8px', color: '#e2e8f0', textAlign: 'right', fontWeight: row.label === 'Net Payable' ? 700 : 400 }}>
+                                ₹{(v || 0).toLocaleString('en-IN')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {gstrRes.tax_liability?.refund_eligible && (
+                    <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(16,185,129,0.08)', border: '1px solid #10b98133', borderRadius: 6, color: '#6ee7b7', fontSize: 12 }}>
+                      ✅ ITC carryforward eligible — ₹{(gstrRes.tax_liability.itc_carryforward || 0).toLocaleString('en-IN')} can be carried to next period
+                    </div>
+                  )}
+                </Card>
+
+                {/* Filing Checklist */}
+                <Card>
+                  <SectionHead title="Filing Checklist" sub="Complete before submitting on GSTN portal" />
+                  {(gstrRes.filing_checklist || []).filter((c: any) => c.status !== 'na').map((c: any, i: number) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #1e2535' }}>
+                      <span style={{ fontSize: 14 }}>{c.status === 'ready' ? '✅' : '⬜'}</span>
+                      <span style={{ color: c.status === 'ready' ? '#10b981' : '#9ca3af', fontSize: 13 }}>{c.item}</span>
+                    </div>
+                  ))}
+                </Card>
+              </>
+            )}
+            {!gstrRes && !gstrLoading && (
+              <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                Paste sales & purchase JSON, then click Prepare Filing Summary →
+              </div>
+            )}
           </div>
         </TwoCol>
       )}

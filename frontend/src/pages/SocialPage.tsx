@@ -263,6 +263,29 @@ export default function SocialPage() {
   const [bridgeResult, setBridgeResult] = useState('')
   const bridgeApi = useApi()
 
+  // ── A/B Copy Tester (Round 5) ──
+  const [abTopic, setAbTopic]       = useState('')
+  const [abBrand, setAbBrand]       = useState('')
+  const [abIndustry, setAbIndustry] = useState('')
+  const [abPlatform, setAbPlatform] = useState('linkedin')
+  const [abGoal, setAbGoal]         = useState('engagement')
+  const [abVariations, setAbVariations] = useState('4')
+  const [abRes, setAbRes]           = useState<any>(null)
+  const [abLoading, setAbLoading]   = useState(false)
+  const [abErr, setAbErr]           = useState('')
+  const [abSelected, setAbSelected] = useState<number | null>(null)
+
+  const runAbTest = async () => {
+    setAbLoading(true); setAbErr(''); setAbRes(null); setAbSelected(null)
+    try {
+      setAbRes(await socialAction('ab_copy_test', {
+        topic: abTopic, brand_name: abBrand, industry: abIndustry,
+        goal: abGoal, variations: parseInt(abVariations),
+      }, abPlatform))
+    } catch (e: any) { setAbErr(e.message) }
+    setAbLoading(false)
+  }
+
   // ── AI Content Scheduler (Round 4) ──
   const [schBrand, setSchBrand]       = useState('')
   const [schIndustry, setSchIndustry] = useState('')
@@ -349,6 +372,7 @@ export default function SocialPage() {
           { id: 'monitor',    label: 'Monitor',         icon: '👁️' },
           { id: 'bridge',     label: 'Content Bridge',  icon: '🔗' },
           { id: 'scheduler',  label: 'AI Scheduler',    icon: '🗓️' },
+          { id: 'abtest',     label: 'A/B Copy Tester', icon: '🔬' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1547,6 +1571,110 @@ export default function SocialPage() {
                 })}
               </div>
             ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill in the form and click Generate Schedule →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── A/B COPY TESTER ── */}
+      {tab === 'abtest' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="A/B Copy Tester" sub="AI generates multiple hook styles — scored by predicted engagement" />
+            <div style={{ marginTop: 10 }}>
+              <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 4 }}>Topic / Message</div>
+              <textarea value={abTopic} onChange={e => setAbTopic(e.target.value)} rows={3} placeholder="e.g. We just launched home delivery in Chennai — 30 min guaranteed"
+                style={{ width: '100%', background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, color: '#e2e8f0', fontSize: 13, padding: '10px 12px', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
+            </div>
+            <Input label="Brand Name" value={abBrand} onChange={setAbBrand} placeholder="Sri Lakshmi Stores" />
+            <Input label="Industry" value={abIndustry} onChange={setAbIndustry} placeholder="e.g. Retail, SaaS, Restaurant" />
+            <Select label="Platform" value={abPlatform} onChange={setAbPlatform} options={PLATFORMS} />
+            <Select label="Goal" value={abGoal} onChange={setAbGoal} options={[
+              { label: 'Engagement (comments/shares)', value: 'engagement' },
+              { label: 'Lead Generation',              value: 'lead_gen' },
+              { label: 'Brand Awareness',              value: 'awareness' },
+              { label: 'Sales / Conversions',          value: 'sales' },
+            ]} />
+            <Select label="Variations" value={abVariations} onChange={setAbVariations} options={[
+              { label: '2 variations', value: '2' },
+              { label: '3 variations', value: '3' },
+              { label: '4 variations', value: '4' },
+              { label: '5 variations', value: '5' },
+            ]} />
+            <Btn onClick={runAbTest} loading={abLoading} disabled={!abTopic} style={{ marginTop: 14, width: '100%' }}>
+              Generate A/B Variations
+            </Btn>
+            {abErr && <div style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{abErr}</div>}
+
+            {abRes?.testing_advice && (
+              <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(129,140,248,0.07)', border: '1px solid #818cf822', borderRadius: 8 }}>
+                <div style={{ color: '#818cf8', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>💡 TESTING ADVICE</div>
+                <div style={{ color: '#9ca3af', fontSize: 12, lineHeight: 1.6 }}>{abRes.testing_advice}</div>
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <SectionHead title="Copy Variations" sub={abRes ? `${abRes.variations?.length} variations · Winner highlighted` : ''} />
+            {abRes?.variations ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {abRes.winner_reason && (
+                  <div style={{ padding: '8px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid #10b98133', borderRadius: 8, fontSize: 12, color: '#6ee7b7' }}>
+                    🏆 {abRes.winner_reason}
+                  </div>
+                )}
+                {(abRes.variations as any[]).map((v: any) => {
+                  const isWinner = v.id === abRes.winner_id
+                  const isSelected = abSelected === v.id
+                  return (
+                    <div key={v.id} onClick={() => setAbSelected(isSelected ? null : v.id)} style={{
+                      cursor: 'pointer', borderRadius: 10, padding: '14px 16px', transition: 'border .15s',
+                      background: isWinner ? 'rgba(16,185,129,0.06)' : '#0f1117',
+                      border: isWinner ? '1px solid #10b98155' : isSelected ? '1px solid #818cf888' : '1px solid #1e2535',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <span style={{ background: isWinner ? '#10b981' : '#374151', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '2px 8px' }}>
+                            {isWinner ? '🏆 Winner' : `#${v.id}`}
+                          </span>
+                          <span style={{ color: '#818cf8', fontSize: 12, fontWeight: 600 }}>{v.hook_type}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <span style={{ color: '#10b981', fontSize: 12, fontWeight: 700 }}>{v.predicted_engagement}%</span>
+                          <span style={{ color: '#6b7280', fontSize: 11 }}>eng.</span>
+                        </div>
+                      </div>
+
+                      {/* Engagement bar */}
+                      <div style={{ height: 3, background: '#1e2535', borderRadius: 2, marginBottom: 10 }}>
+                        <div style={{ height: '100%', width: `${v.predicted_engagement}%`, background: isWinner ? '#10b981' : '#818cf8', borderRadius: 2 }} />
+                      </div>
+
+                      {/* Hook line */}
+                      <div style={{ color: '#f59e0b', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>"{v.hook_line}"</div>
+
+                      {isSelected && (
+                        <>
+                          <div style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.7, marginBottom: 10, whiteSpace: 'pre-wrap' }}>{v.full_post}</div>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                            <Badge label={`💬 ${v.predicted_comments} comments`} color="#818cf8" />
+                            <Badge label={`↗ ${v.predicted_shares} shares`} color="#06b6d4" />
+                            {v.cta && <Badge label={`CTA: ${v.cta.slice(0, 30)}`} color="#6b7280" />}
+                          </div>
+                          {v.why_it_works && <div style={{ color: '#6b7280', fontSize: 12, fontStyle: 'italic' }}>💡 {v.why_it_works}</div>}
+                          <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                            <span onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText(v.full_post) }} style={{ cursor: 'pointer', color: '#fff', fontSize: 11, padding: '4px 10px', background: '#374151', borderRadius: 6 }}>Copy Post</span>
+                            <span onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText(v.hook_line) }} style={{ cursor: 'pointer', color: '#818cf8', fontSize: 11, padding: '4px 10px', background: '#1e2535', borderRadius: 6 }}>Copy Hook</span>
+                          </div>
+                        </>
+                      )}
+                      {!isSelected && (
+                        <div style={{ color: '#4b5563', fontSize: 11 }}>Click to expand full post</div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter a topic and generate variations →</div>}
           </Card>
         </TwoCol>
       )}
