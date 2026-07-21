@@ -560,6 +560,14 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "churn_risk":
+            return _churn_risk_analyzer(
+                customers=payload.get("customers", []),
+                business_name=payload.get("business_name", ""),
+                industry=payload.get("industry", "saas"),
+                language=lang,
+            )
+
         elif action == "escalation_manager":
             return _escalation_manager(
                 tickets=payload.get("tickets", []),
@@ -872,6 +880,134 @@ def _analyze_csat(responses: list[dict], business_name: str = "") -> dict:
 
 
 # ── Escalation Manager (Round 6) ─────────────────────────────────────────────
+
+# ── Churn Risk Analyzer (Round 7) ────────────────────────────────────────────
+
+_CHURN_SIGNALS = {
+    "no_login_days":       {"weight": 2.0, "threshold": 14,  "label": "No login > 14 days"},
+    "support_tickets":     {"weight": 1.5, "threshold": 3,   "label": "3+ support tickets this month"},
+    "payment_failed":      {"weight": 3.0, "threshold": 1,   "label": "Payment failure"},
+    "nps_score":           {"weight": 2.5, "threshold": 6,   "label": "NPS <= 6 (detractor)"},
+    "feature_usage_drop":  {"weight": 1.8, "threshold": 50,  "label": "Feature usage dropped 50%+"},
+    "contract_days_left":  {"weight": 2.0, "threshold": 30,  "label": "Contract expiring < 30 days"},
+    "competitor_mention":  {"weight": 2.5, "threshold": 1,   "label": "Mentioned competitor in ticket"},
+    "downgrade_request":   {"weight": 3.5, "threshold": 1,   "label": "Requested downgrade"},
+}
+
+
+def _churn_score(c: dict) -> tuple[float, list[str]]:
+    score = 0.0
+    triggers = []
+    no_login = int(c.get("no_login_days", 0) or 0)
+    if no_login >= 14:
+        score += _CHURN_SIGNALS["no_login_days"]["weight"] * min(no_login / 14, 3)
+        triggers.append(f"No login for {no_login} days")
+    tickets = int(c.get("support_tickets_month", 0) or 0)
+    if tickets >= 3:
+        score += _CHURN_SIGNALS["support_tickets"]["weight"] * (tickets / 3)
+        triggers.append(f"{tickets} support tickets this month")
+    if c.get("payment_failed"):
+        score += _CHURN_SIGNALS["payment_failed"]["weight"]
+        triggers.append("Payment failure on record")
+    nps = c.get("nps_score")
+    if nps is not None and int(nps) <= 6:
+        score += _CHURN_SIGNALS["nps_score"]["weight"] * (7 - int(nps)) / 7
+        triggers.append(f"NPS score {nps} (detractor)")
+    usage_drop = float(c.get("feature_usage_drop_pct", 0) or 0)
+    if usage_drop >= 50:
+        score += _CHURN_SIGNALS["feature_usage_drop"]["weight"] * (usage_drop / 50)
+        triggers.append(f"Feature usage dropped {usage_drop:.0f}%")
+    contract_days = c.get("contract_days_left")
+    if contract_days is not None and int(contract_days) <= 30:
+        score += _CHURN_SIGNALS["contract_days_left"]["weight"]
+        triggers.append(f"Contract renews in {contract_days} days")
+    if c.get("competitor_mention"):
+        score += _CHURN_SIGNALS["competitor_mention"]["weight"]
+        triggers.append("Mentioned competitor in recent ticket")
+    if c.get("downgrade_request"):
+        score += _CHURN_SIGNALS["downgrade_request"]["weight"]
+        triggers.append("Requested plan downgrade")
+    return round(min(score / 15 * 100, 100), 1), triggers
+
+
+def _winback_actions(score: float, triggers: list[str], tier: str, industry: str) -> list[str]:
+    actions = []
+    if score >= 75:
+        actions.append("URGENT: Assign dedicated CSM — schedule call within 24 hours")
+        actions.append("Offer 2-month extension or 30% discount to retain")
+    elif score >= 50:
+        actions.append("Send personalised check-in email from Account Manager within 48 hours")
+        actions.append("Share relevant case study or ROI report for their industry")
+    else:
+        actions.append("Enroll in automated re-engagement drip (3-email sequence)")
+    if any("login" in t.lower() for t in triggers):
+        actions.append("Send 'What you missed' feature update email with quick-start guide")
+    if any("ticket" in t.lower() for t in triggers):
+        actions.append("Proactively resolve open tickets — assign senior support agent")
+    if any("payment" in t.lower() for t in triggers):
+        actions.append("Contact billing — offer flexible payment or EMI option")
+    if any("competitor" in t.lower() for t in triggers):
+        actions.append("Send competitive battle card highlighting your differentiators")
+    if any("contract" in t.lower() for t in triggers):
+        actions.append("Initiate renewal conversation — offer multi-year lock-in discount")
+    if any("downgrade" in t.lower() for t in triggers):
+        actions.append("Schedule product demo to show unused premium features before downgrade")
+    return actions[:5]
+
+
+def _churn_risk_analyzer(
+    customers: list,
+    business_name: str = "",
+    industry: str = "saas",
+    language: str = "en",
+) -> dict:
+    if not customers:
+        customers = [
+            {"id": "C001", "name": "TechCorp India", "tier": "Enterprise", "mrr": 45000, "no_login_days": 22, "support_tickets_month": 5, "nps_score": 4, "contract_days_left": 18, "feature_usage_drop_pct": 65},
+            {"id": "C002", "name": "Sharma Exports", "tier": "Premium",    "mrr": 12000, "no_login_days": 8,  "support_tickets_month": 1, "nps_score": 8, "contract_days_left": 90, "feature_usage_drop_pct": 10},
+            {"id": "C003", "name": "Ravi Consulting","tier": "Standard",   "mrr": 3500,  "no_login_days": 35, "payment_failed": True, "support_tickets_month": 4, "competitor_mention": True},
+            {"id": "C004", "name": "Kiran Solutions","tier": "Standard",   "mrr": 4000,  "no_login_days": 3,  "support_tickets_month": 0, "nps_score": 9},
+            {"id": "C005", "name": "PrimeRetail Ltd","tier": "Premium",    "mrr": 18000, "downgrade_request": True, "nps_score": 5, "feature_usage_drop_pct": 70},
+        ]
+
+    results = []
+    for c in customers:
+        score, triggers = _churn_score(c)
+        risk = "Critical" if score >= 75 else ("High" if score >= 50 else ("Medium" if score >= 25 else "Low"))
+        color = {"Critical": "red", "High": "orange", "Medium": "yellow", "Low": "green"}[risk]
+        mrr   = float(c.get("mrr", 0) or 0)
+        results.append({
+            "id":           c.get("id", ""),
+            "name":         c.get("name", "Unknown"),
+            "tier":         c.get("tier", "Standard"),
+            "mrr":          mrr,
+            "churn_score":  score,
+            "risk_level":   risk,
+            "color":        color,
+            "triggers":     triggers,
+            "winback_actions": _winback_actions(score, triggers, c.get("tier", ""), industry),
+            "revenue_at_risk": mrr * 12,
+        })
+
+    results.sort(key=lambda x: x["churn_score"], reverse=True)
+
+    critical = [r for r in results if r["risk_level"] == "Critical"]
+    high     = [r for r in results if r["risk_level"] == "High"]
+    arr_risk = sum(r["revenue_at_risk"] for r in critical + high)
+
+    return {
+        "action":            "churn_risk",
+        "business_name":     business_name,
+        "total_analyzed":    len(results),
+        "critical_count":    len(critical),
+        "high_count":        len(high),
+        "arr_at_risk":       round(arr_risk, 0),
+        "customers":         results,
+        "health":            "Critical" if critical else ("At Risk" if high else "Healthy"),
+        "health_color":      "red" if critical else ("orange" if high else "green"),
+        "top_priority":      results[0]["name"] if results else "",
+    }
+
 
 _ESC_PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 _ESC_COLOR = {"critical": "red", "high": "orange", "medium": "yellow", "low": "green"}

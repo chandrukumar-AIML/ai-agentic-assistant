@@ -51,6 +51,7 @@ const TABS = [
   { id: 'sla',        label: 'SLA Tracker' },
   { id: 'csat',       label: 'CSAT Survey' },
   { id: 'escalation', label: 'Escalation Manager' },
+  { id: 'churn',      label: 'Churn Risk' },
 ]
 
 const WA_TYPES = [
@@ -1295,6 +1296,7 @@ export default function CustomerSupportPage() {
         {tab === 'sla'       && <SlaTab lang={lang} />}
         {tab === 'csat'      && <CsatTab lang={lang} />}
         {tab === 'escalation' && <EscalationTab lang={lang} />}
+        {tab === 'churn'      && <ChurnRiskTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -1426,6 +1428,142 @@ function EscalationTab({ lang }: { lang: Lang }) {
           </>
         ) : (
           <Empty text="Load demo tickets or paste your own JSON, then click Run Escalation Analysis →" />
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+// ── Churn Risk Analyzer (Round 7) ─────────────────────────────────────────────
+
+const DEMO_CHURN_CUSTOMERS = [
+  { id: 'C001', name: 'TechCorp India', tier: 'Enterprise', mrr: 45000, no_login_days: 22, support_tickets_month: 5, nps_score: 4, contract_days_left: 18, feature_usage_drop_pct: 65 },
+  { id: 'C002', name: 'Sharma Exports', tier: 'Premium',    mrr: 12000, no_login_days: 8,  support_tickets_month: 1, nps_score: 8, contract_days_left: 90, feature_usage_drop_pct: 10 },
+  { id: 'C003', name: 'Ravi Consulting',tier: 'Standard',   mrr: 3500,  no_login_days: 35, payment_failed: true, support_tickets_month: 4, competitor_mention: true },
+  { id: 'C004', name: 'Kiran Solutions',tier: 'Standard',   mrr: 4000,  no_login_days: 3,  support_tickets_month: 0, nps_score: 9 },
+  { id: 'C005', name: 'PrimeRetail Ltd',tier: 'Premium',    mrr: 18000, downgrade_request: true, nps_score: 5, feature_usage_drop_pct: 70 },
+]
+
+function ChurnRiskTab({ lang }: { lang: Lang }) {
+  const [churnBiz, setChurnBiz]       = useState('')
+  const [churnIndustry, setChurnIndustry] = useState('saas')
+  const [churnJson, setChurnJson]     = useState(JSON.stringify(DEMO_CHURN_CUSTOMERS, null, 2))
+  const [churnRes, setChurnRes]       = useState<any>(null)
+  const [churnLoading, setChurnLoading] = useState(false)
+  const [churnErr, setChurnErr]       = useState('')
+  const [expanded, setExpanded]       = useState<string | null>(null)
+
+  const runChurn = async () => {
+    setChurnLoading(true); setChurnErr(''); setChurnRes(null)
+    try {
+      let customers: any[]
+      try { customers = JSON.parse(churnJson) } catch { throw new Error('Invalid JSON') }
+      setChurnRes(await csAction('churn_risk', { customers, business_name: churnBiz, industry: churnIndustry }, lang))
+    } catch (e: any) { setChurnErr(e.message) }
+    setChurnLoading(false)
+  }
+
+  const RISK_COLOR: Record<string, string> = { Critical: '#ef4444', High: '#f97316', Medium: '#f59e0b', Low: '#22c55e' }
+
+  return (
+    <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      <div style={{ flex: '0 0 340px' }}>
+        <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Churn Risk Analyzer</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>Score every customer — find who's about to leave before they do</div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Business Name</div>
+            <input value={churnBiz} onChange={e => setChurnBiz(e.target.value)} placeholder="e.g. Freshdesk" style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: '8px 12px', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Industry</div>
+            <select value={churnIndustry} onChange={e => setChurnIndustry(e.target.value)} style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: '8px 12px', fontSize: 13 }}>
+              {['saas', 'ecommerce', 'fintech', 'healthcare', 'education', 'retail'].map(v => <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>)}
+            </select>
+          </div>
+          <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Customers JSON</div>
+          <textarea value={churnJson} onChange={e => setChurnJson(e.target.value)} rows={12}
+            style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 11, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
+          <button onClick={runChurn} disabled={churnLoading} style={{
+            marginTop: 12, width: '100%', padding: '10px 0', background: churnLoading ? '#1e2535' : '#4f8ef7',
+            color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: churnLoading ? 'not-allowed' : 'pointer',
+          }}>{churnLoading ? 'Analysing…' : 'Analyse Churn Risk'}</button>
+          {churnErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>{churnErr}</div>}
+        </div>
+      </div>
+
+      <div style={{ flex: 1 }}>
+        {churnRes ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Health bar */}
+            <div style={{ background: '#161b27', border: `1px solid ${churnRes.health_color === 'red' ? '#ef4444' : churnRes.health_color === 'orange' ? '#f97316' : '#22c55e'}44`, borderRadius: 12, padding: 16, display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>Portfolio Health</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: churnRes.health_color === 'red' ? '#ef4444' : churnRes.health_color === 'orange' ? '#f97316' : '#22c55e' }}>{churnRes.health}</div>
+              </div>
+              {[
+                { label: 'Analyzed', val: churnRes.total_analyzed },
+                { label: 'Critical', val: churnRes.critical_count, color: '#ef4444' },
+                { label: 'High Risk', val: churnRes.high_count, color: '#f97316' },
+                { label: 'ARR at Risk', val: `₹${((churnRes.arr_at_risk || 0) / 100000).toFixed(1)}L`, color: '#ef4444' },
+              ].map(k => (
+                <div key={k.label} style={{ background: '#0f1117', borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: k.color || '#e2e8f0' }}>{k.val}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Customer cards */}
+            <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Customers by Churn Risk</div>
+              {(churnRes.customers || []).map((c: any) => {
+                const isOpen = expanded === c.id
+                return (
+                  <div key={c.id} style={{ background: '#0f1117', border: `1px solid ${RISK_COLOR[c.risk_level] || '#1e2535'}44`, borderRadius: 8, padding: 12, marginBottom: 8, cursor: 'pointer' }}
+                    onClick={() => setExpanded(isOpen ? null : c.id)}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 13 }}>{c.name}</span>
+                        <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>{c.tier} · MRR ₹{(c.mrr || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: RISK_COLOR[c.risk_level] }}>{c.churn_score}%</div>
+                        <Badge label={c.risk_level} color={RISK_COLOR[c.risk_level] || '#6b7280'} />
+                      </div>
+                    </div>
+                    {/* Score bar */}
+                    <div style={{ height: 4, background: '#1e2535', borderRadius: 2, margin: '8px 0' }}>
+                      <div style={{ height: '100%', width: `${c.churn_score}%`, background: RISK_COLOR[c.risk_level], borderRadius: 2, transition: 'width 0.5s' }} />
+                    </div>
+                    {isOpen && (
+                      <>
+                        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Risk Triggers:</div>
+                        {(c.triggers || []).map((t: string, i: number) => (
+                          <div key={i} style={{ fontSize: 12, color: '#f97316', marginBottom: 3 }}>⚠ {t}</div>
+                        ))}
+                        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 10, marginBottom: 6 }}>Win-back Actions:</div>
+                        {(c.winback_actions || []).map((a: string, i: number) => (
+                          <div key={i} style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4, display: 'flex', gap: 6 }}>
+                            <span style={{ color: '#818cf8' }}>→</span>{a}
+                          </div>
+                        ))}
+                        <div style={{ fontSize: 12, color: '#ef4444', marginTop: 8, fontWeight: 600 }}>
+                          ARR at risk: ₹{((c.revenue_at_risk || 0)).toLocaleString('en-IN')}
+                        </div>
+                      </>
+                    )}
+                    {!isOpen && (c.triggers || []).length > 0 && (
+                      <div style={{ fontSize: 11, color: '#4b5563' }}>{(c.triggers || []).length} triggers · click to expand</div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          <Empty text="Demo data is pre-loaded — click Analyse Churn Risk to see results →" />
         )}
       </div>
     </div>

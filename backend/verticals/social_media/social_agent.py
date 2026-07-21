@@ -2069,6 +2069,14 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "social_roi":
+        return calculate_social_roi(
+            campaigns=payload.get("campaigns", []),
+            brand_name=payload.get("brand_name", ""),
+            period=payload.get("period", ""),
+            language=language,
+        )
+
     elif action == "mention_responder":
         return await respond_to_mentions(
             mentions=payload.get("mentions", []),
@@ -2441,4 +2449,91 @@ Return ONLY the JSON array."""
         "mentions":   sorted(enriched, key=lambda x: {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(x.get("urgency"), 4)),
         "pr_risks":   pr_risks,
         "health":     "Critical" if pr_risks else ("At Risk" if stats["complaints"] > stats["total"] * 0.3 else "Healthy"),
+    }
+
+
+# ── Social ROI Dashboard (Round 7) ────────────────────────────────────────────
+
+def calculate_social_roi(
+    campaigns: list,
+    brand_name: str = "",
+    period: str = "",
+    language: str = "en",
+) -> dict:
+    if not campaigns:
+        campaigns = [
+            {"platform": "Meta", "spend": 15000, "impressions": 120000, "clicks": 3600, "leads": 180, "conversions": 22, "revenue": 110000},
+            {"platform": "Google", "spend": 20000, "impressions": 85000, "clicks": 4250, "leads": 212, "conversions": 35, "revenue": 175000},
+            {"platform": "LinkedIn", "spend": 10000, "impressions": 32000, "clicks": 960, "leads": 96, "conversions": 8, "revenue": 64000},
+        ]
+
+    total_spend = total_rev = total_leads = total_conv = total_impressions = total_clicks = 0
+    platform_rows = []
+
+    for c in campaigns:
+        spend  = float(c.get("spend", 0) or 0)
+        rev    = float(c.get("revenue", 0) or 0)
+        leads  = float(c.get("leads", 0) or 0)
+        conv   = float(c.get("conversions", 0) or 0)
+        impr   = float(c.get("impressions", 0) or 0)
+        clicks = float(c.get("clicks", 0) or 0)
+
+        cpl    = round(spend / leads, 2)  if leads  else 0
+        cpa    = round(spend / conv, 2)   if conv   else 0
+        roas   = round(rev   / spend, 2)  if spend  else 0
+        ctr    = round(clicks / impr * 100, 2) if impr else 0
+        cvr    = round(conv  / leads * 100, 1) if leads else 0
+        profit = round(rev - spend, 0)
+
+        total_spend += spend; total_rev += rev; total_leads += leads
+        total_conv  += conv;  total_impressions += impr; total_clicks += clicks
+
+        platform_rows.append({
+            "platform":    c.get("platform", "Unknown"),
+            "spend":       spend, "revenue": rev, "profit": profit,
+            "impressions": impr,  "clicks": clicks, "leads": leads, "conversions": conv,
+            "cpl": cpl, "cpa": cpa, "roas": roas, "ctr": ctr, "cvr": cvr,
+            "roi_pct": round((rev - spend) / spend * 100, 1) if spend else 0,
+            "grade": "Excellent" if roas >= 4 else ("Good" if roas >= 2 else ("Average" if roas >= 1 else "Poor")),
+        })
+
+    platform_rows.sort(key=lambda x: x["roas"], reverse=True)
+
+    overall_roas = round(total_rev / total_spend, 2) if total_spend else 0
+    overall_cpl  = round(total_spend / total_leads, 2) if total_leads else 0
+    overall_cpa  = round(total_spend / total_conv, 2)  if total_conv  else 0
+    best = platform_rows[0]["platform"] if platform_rows else "N/A"
+    worst = platform_rows[-1]["platform"] if len(platform_rows) > 1 else "N/A"
+
+    recommendations = []
+    for row in platform_rows:
+        if row["roas"] < 1:
+            recommendations.append(f"Pause or reduce budget on {row['platform']} — ROAS {row['roas']}x below break-even.")
+        elif row["roas"] >= 4:
+            recommendations.append(f"Scale {row['platform']} — ROAS {row['roas']}x is excellent. Increase budget 20-30%.")
+        if row["cpl"] > overall_cpl * 1.5:
+            recommendations.append(f"{row['platform']} CPL (₹{row['cpl']:,.0f}) is 50%+ above average — review targeting.")
+
+    return {
+        "action":       "social_roi",
+        "brand_name":   brand_name,
+        "period":       period,
+        "totals": {
+            "spend":       round(total_spend, 0),
+            "revenue":     round(total_rev, 0),
+            "profit":      round(total_rev - total_spend, 0),
+            "impressions": round(total_impressions, 0),
+            "clicks":      round(total_clicks, 0),
+            "leads":       round(total_leads, 0),
+            "conversions": round(total_conv, 0),
+            "roas":        overall_roas,
+            "cpl":         overall_cpl,
+            "cpa":         overall_cpa,
+            "roi_pct":     round((total_rev - total_spend) / total_spend * 100, 1) if total_spend else 0,
+        },
+        "platforms":        platform_rows,
+        "best_platform":    best,
+        "worst_platform":   worst,
+        "recommendations":  recommendations,
+        "health":           "Excellent" if overall_roas >= 4 else ("Good" if overall_roas >= 2 else ("Needs Review" if overall_roas >= 1 else "Losing Money")),
     }

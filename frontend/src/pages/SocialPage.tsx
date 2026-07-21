@@ -263,6 +263,29 @@ export default function SocialPage() {
   const [bridgeResult, setBridgeResult] = useState('')
   const bridgeApi = useApi()
 
+  // ── Social ROI Dashboard (Round 7) ──
+  const DEMO_ROI_CAMPAIGNS = [
+    { platform: 'Meta', spend: 15000, impressions: 120000, clicks: 3600, leads: 180, conversions: 22, revenue: 110000 },
+    { platform: 'Google', spend: 20000, impressions: 85000, clicks: 4250, leads: 212, conversions: 35, revenue: 175000 },
+    { platform: 'LinkedIn', spend: 10000, impressions: 32000, clicks: 960, leads: 96, conversions: 8, revenue: 64000 },
+  ]
+  const [roiBrand, setRoiBrand]     = useState('')
+  const [roiPeriod, setRoiPeriod]   = useState('January 2025')
+  const [roiJson, setRoiJson]       = useState(JSON.stringify(DEMO_ROI_CAMPAIGNS, null, 2))
+  const [roiRes, setRoiRes]         = useState<any>(null)
+  const [roiLoading, setRoiLoading] = useState(false)
+  const [roiErr, setRoiErr]         = useState('')
+
+  const runSocialRoi = async () => {
+    setRoiLoading(true); setRoiErr(''); setRoiRes(null)
+    try {
+      let campaigns: any[]
+      try { campaigns = JSON.parse(roiJson) } catch { throw new Error('Invalid JSON') }
+      setRoiRes(await socialAction('social_roi', { brand_name: roiBrand, campaigns, period: roiPeriod }, 'all'))
+    } catch (e: any) { setRoiErr(e.message) }
+    setRoiLoading(false)
+  }
+
   // ── Brand Mention Responder (Round 6) ──
   const [mentBrand, setMentBrand]     = useState('')
   const [mentPlatform, setMentPlatform] = useState('twitter')
@@ -399,6 +422,7 @@ export default function SocialPage() {
           { id: 'scheduler',  label: 'AI Scheduler',    icon: '🗓️' },
           { id: 'abtest',     label: 'A/B Copy Tester',      icon: '🔬' },
           { id: 'mention',    label: 'Mention Responder',     icon: '📣' },
+          { id: 'roi',        label: 'Social ROI',            icon: '📈' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1701,6 +1725,92 @@ export default function SocialPage() {
                 })}
               </div>
             ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter a topic and generate variations →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── SOCIAL ROI DASHBOARD (Round 7) ── */}
+      {tab === 'roi' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Social ROI Dashboard" sub="Calculate ROAS, CPL, CPA across all ad platforms" />
+            <Input label="Brand / Company" value={roiBrand} onChange={setRoiBrand} placeholder="e.g. Freshworks" />
+            <Input label="Period" value={roiPeriod} onChange={setRoiPeriod} placeholder="e.g. January 2025" />
+            <div style={{ marginBottom: 6, fontSize: 12, color: '#9ca3af' }}>Campaigns JSON (spend, impressions, clicks, leads, conversions, revenue per platform)</div>
+            <textarea value={roiJson} onChange={e => setRoiJson(e.target.value)} rows={12}
+              style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 12, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
+            <Btn onClick={runSocialRoi} loading={roiLoading} style={{ marginTop: 12, width: '100%' }}>Calculate ROI</Btn>
+            {roiErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>Demo mode: {roiErr}</div>}
+          </Card>
+          <Card>
+            <SectionHead title="ROI Results" sub="Platform breakdown & recommendations" />
+            {roiRes ? (() => {
+              const t = roiRes.totals || {}
+              const GRADE_COLOR: Record<string, string> = { Excellent: '#10b981', Good: '#22c55e', Average: '#f59e0b', Poor: '#ef4444' }
+              return (
+                <>
+                  {/* Overall KPIs */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
+                    {[
+                      { label: 'Total Spend', val: `₹${(t.spend || 0).toLocaleString('en-IN')}`, color: '#e2e8f0' },
+                      { label: 'Total Revenue', val: `₹${(t.revenue || 0).toLocaleString('en-IN')}`, color: '#22c55e' },
+                      { label: 'Overall ROAS', val: `${t.roas || 0}x`, color: t.roas >= 2 ? '#10b981' : '#ef4444' },
+                      { label: 'Total Leads', val: t.leads || 0, color: '#818cf8' },
+                      { label: 'CPL', val: `₹${(t.cpl || 0).toLocaleString('en-IN')}`, color: '#e2e8f0' },
+                      { label: 'ROI', val: `${t.roi_pct || 0}%`, color: (t.roi_pct || 0) >= 0 ? '#22c55e' : '#ef4444' },
+                    ].map(k => (
+                      <div key={k.label} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: k.color, fontVariantNumeric: 'tabular-nums' }}>{k.val}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Platform table */}
+                  <div style={{ overflowX: 'auto', marginBottom: 18 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ color: '#6b7280', borderBottom: '1px solid #1e2535' }}>
+                          {['Platform', 'Spend', 'Revenue', 'ROAS', 'CPL', 'CPA', 'CTR%', 'Grade'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '6px 8px', fontWeight: 600 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(roiRes.platforms || []).map((p: any, i: number) => (
+                          <tr key={i} style={{ borderBottom: '1px solid #0f1117' }}>
+                            <td style={{ padding: '7px 8px', color: '#e2e8f0', fontWeight: 600 }}>{p.platform}</td>
+                            <td style={{ padding: '7px 8px', color: '#9ca3af', fontVariantNumeric: 'tabular-nums' }}>₹{(p.spend || 0).toLocaleString('en-IN')}</td>
+                            <td style={{ padding: '7px 8px', color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>₹{(p.revenue || 0).toLocaleString('en-IN')}</td>
+                            <td style={{ padding: '7px 8px', color: p.roas >= 2 ? '#10b981' : '#ef4444', fontWeight: 700 }}>{p.roas}x</td>
+                            <td style={{ padding: '7px 8px', color: '#9ca3af' }}>₹{(p.cpl || 0).toLocaleString('en-IN')}</td>
+                            <td style={{ padding: '7px 8px', color: '#9ca3af' }}>₹{(p.cpa || 0).toLocaleString('en-IN')}</td>
+                            <td style={{ padding: '7px 8px', color: '#9ca3af' }}>{p.ctr}%</td>
+                            <td style={{ padding: '7px 8px' }}><Badge label={p.grade} color={GRADE_COLOR[p.grade] || '#6b7280'} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Recommendations */}
+                  {(roiRes.recommendations || []).length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>AI Recommendations</div>
+                      {roiRes.recommendations.map((r: string, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, padding: '7px 0', borderBottom: '1px solid #0f1117', fontSize: 12, color: '#9ca3af' }}>
+                          <span style={{ color: '#818cf8', flexShrink: 0 }}>→</span>{r}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>Best: <span style={{ color: '#22c55e', fontWeight: 600 }}>{roiRes.best_platform}</span></div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>Review: <span style={{ color: '#f59e0b', fontWeight: 600 }}>{roiRes.worst_platform}</span></div>
+                  </div>
+                </>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter campaign data and click Calculate ROI →</div>}
           </Card>
         </TwoCol>
       )}

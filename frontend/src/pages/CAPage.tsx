@@ -267,6 +267,43 @@ export default function CAPage() {
     setGstrLoading(false)
   }
 
+  // ── Payroll & Salary Processor (Round 7) ──
+  const DEMO_EMPLOYEES = [
+    { name: 'Arjun Kumar', emp_id: 'E001', designation: 'Software Engineer', gross_salary: 85000, pf_applicable: true, esi_applicable: false, age: 28, state: 'karnataka', lop_days: 0 },
+    { name: 'Priya Sharma', emp_id: 'E002', designation: 'Marketing Manager', gross_salary: 55000, pf_applicable: true, esi_applicable: true, age: 32, state: 'karnataka', lop_days: 1 },
+    { name: 'Ravi Patel', emp_id: 'E003', designation: 'Support Executive', gross_salary: 22000, pf_applicable: true, esi_applicable: true, age: 25, state: 'maharashtra', lop_days: 0 },
+  ]
+  const [prCompany, setPrCompany] = useState('')
+  const [prMonth, setPrMonth]     = useState('January 2025')
+  const [prJson, setPrJson]       = useState(JSON.stringify(DEMO_EMPLOYEES, null, 2))
+  const [prRes, setPrRes]         = useState<any>(null)
+  const [prLoading, setPrLoading] = useState(false)
+  const [prErr, setPrErr]         = useState('')
+
+  const runPayroll = async () => {
+    setPrLoading(true); setPrErr(''); setPrRes(null)
+    try {
+      let employees: any[]
+      try { employees = JSON.parse(prJson) } catch { throw new Error('Invalid JSON') }
+      setPrRes(await caAction('payroll', { employees, company_name: prCompany, month: prMonth }, language))
+    } catch (e: any) {
+      setPrErr(e.message)
+      // demo fallback
+      setPrRes({
+        action: 'payroll', company_name: prCompany || 'Demo Company', month: prMonth,
+        employee_count: 3,
+        payslips: [
+          { name: 'Arjun Kumar', emp_id: 'E001', designation: 'Software Engineer', gross_actual: 85000, pf_employee: 5400, esi_employee: 0, professional_tax: 200, tds: 4200, lop_deduction: 0, net_salary: 75200, ctc_monthly: 91600 },
+          { name: 'Priya Sharma', emp_id: 'E002', designation: 'Marketing Manager', gross_actual: 52885, pf_employee: 3300, esi_employee: 397, professional_tax: 200, tds: 800, lop_deduction: 2115, net_salary: 48188, ctc_monthly: 58418 },
+          { name: 'Ravi Patel', emp_id: 'E003', designation: 'Support Executive', gross_actual: 22000, pf_employee: 1320, esi_employee: 165, professional_tax: 175, tds: 0, lop_deduction: 0, net_salary: 20340, ctc_monthly: 23941 },
+        ],
+        summary: { total_gross: 159885, total_net: 143728, total_pf_employee: 10020, total_pf_employer: 10020, total_esi_employee: 562, total_esi_employer: 3960, total_tds: 5000, total_pt: 575, employer_liability: 173865 },
+        compliance_reminders: ['PF challan due: 15th of next month via EPFO unified portal', 'ESI challan due: 15th of next month via ESIC portal', 'TDS (Form 24Q) due quarterly'],
+      })
+    }
+    setPrLoading(false)
+  }
+
   // ── Tax Planning Optimizer (Round 6) ──
   const [tpGross, setTpGross]       = useState('1200000')
   const [tpOther, setTpOther]       = useState('0')
@@ -342,6 +379,7 @@ export default function CAPage() {
           { id: 'tally_analysis',    label: 'Tally Import & Analyse',  icon: '📂' },
           { id: 'gstr_filing',       label: 'GSTR Filing Prep',        icon: '📊' },
           { id: 'tax_planning',      label: 'Tax Planning',            icon: '💡' },
+          { id: 'payroll',           label: 'Payroll Processor',       icon: '💰' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1190,6 +1228,92 @@ export default function CAPage() {
             ) : !tpLoading && (
               <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
                 Enter your income & investments to see the optimization →
+              </div>
+            )}
+          </div>
+        </TwoCol>
+      )}
+      {/* ── PAYROLL PROCESSOR (Round 7) ── */}
+      {tab === 'payroll' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Payroll & Salary Processor" sub="PF · ESI · PT · TDS — India-compliant payslips" />
+            <Input label="Company Name" value={prCompany} onChange={setPrCompany} placeholder="e.g. Acme Pvt Ltd" />
+            <Input label="Month" value={prMonth} onChange={setPrMonth} placeholder="e.g. January 2025" />
+            <div style={{ marginBottom: 6, fontSize: 12, color: '#9ca3af' }}>Employees JSON</div>
+            <textarea value={prJson} onChange={e => setPrJson(e.target.value)} rows={12}
+              style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 11, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
+            <Btn onClick={runPayroll} loading={prLoading} style={{ marginTop: 12, width: '100%' }}>Process Payroll</Btn>
+            {prErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>Demo mode: {prErr}</div>}
+          </Card>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {prRes ? (
+              <>
+                {/* Summary KPIs */}
+                <Card>
+                  <SectionHead title={`${prRes.company_name || 'Company'} — ${prRes.month}`} sub={`${prRes.employee_count} employees processed`} />
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
+                    {[
+                      { label: 'Total Gross', val: `₹${(prRes.summary?.total_gross || 0).toLocaleString('en-IN')}`, color: '#e2e8f0' },
+                      { label: 'Total Net Payout', val: `₹${(prRes.summary?.total_net || 0).toLocaleString('en-IN')}`, color: '#22c55e' },
+                      { label: 'PF (Employer)', val: `₹${(prRes.summary?.total_pf_employer || 0).toLocaleString('en-IN')}`, color: '#818cf8' },
+                      { label: 'Total TDS', val: `₹${(prRes.summary?.total_tds || 0).toLocaleString('en-IN')}`, color: '#f59e0b' },
+                      { label: 'ESI (Employer)', val: `₹${(prRes.summary?.total_esi_employer || 0).toLocaleString('en-IN')}`, color: '#818cf8' },
+                      { label: 'Total CTC Liability', val: `₹${(prRes.summary?.employer_liability || 0).toLocaleString('en-IN')}`, color: '#ef4444' },
+                    ].map(k => (
+                      <div key={k.label} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: k.color, fontVariantNumeric: 'tabular-nums' }}>{k.val}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
+                {/* Payslips table */}
+                <Card>
+                  <SectionHead title="Individual Payslips" sub="Click any row for detail" />
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ color: '#6b7280', borderBottom: '1px solid #1e2535' }}>
+                          {['Employee', 'Gross', 'PF', 'ESI', 'PT', 'TDS', 'Net'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '6px 8px', fontWeight: 600 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(prRes.payslips || []).map((p: any, i: number) => (
+                          <tr key={i} style={{ borderBottom: '1px solid #0f1117' }}>
+                            <td style={{ padding: '7px 8px' }}>
+                              <div style={{ color: '#e2e8f0', fontWeight: 600 }}>{p.name}</div>
+                              <div style={{ color: '#6b7280', fontSize: 11 }}>{p.designation}</div>
+                            </td>
+                            <td style={{ padding: '7px 8px', color: '#9ca3af', fontVariantNumeric: 'tabular-nums' }}>₹{(p.gross_actual || 0).toLocaleString('en-IN')}</td>
+                            <td style={{ padding: '7px 8px', color: '#818cf8', fontVariantNumeric: 'tabular-nums' }}>₹{(p.pf_employee || 0).toLocaleString('en-IN')}</td>
+                            <td style={{ padding: '7px 8px', color: '#818cf8', fontVariantNumeric: 'tabular-nums' }}>₹{(p.esi_employee || 0).toLocaleString('en-IN')}</td>
+                            <td style={{ padding: '7px 8px', color: '#9ca3af', fontVariantNumeric: 'tabular-nums' }}>₹{(p.professional_tax || 0).toLocaleString('en-IN')}</td>
+                            <td style={{ padding: '7px 8px', color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>₹{(p.tds || 0).toLocaleString('en-IN')}</td>
+                            <td style={{ padding: '7px 8px', color: '#22c55e', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>₹{(p.net_salary || 0).toLocaleString('en-IN')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+
+                {/* Compliance */}
+                <Card>
+                  <SectionHead title="Compliance Reminders" sub="Statutory due dates" />
+                  {(prRes.compliance_reminders || []).map((r: string, i: number) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, padding: '7px 0', borderBottom: '1px solid #0f1117', fontSize: 12, color: '#9ca3af' }}>
+                      <span style={{ color: '#f59e0b' }}>📋</span>{r}
+                    </div>
+                  ))}
+                </Card>
+              </>
+            ) : !prLoading && (
+              <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                Demo data is pre-loaded — click Process Payroll to see results →
               </div>
             )}
           </div>

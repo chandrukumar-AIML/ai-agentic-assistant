@@ -953,6 +953,14 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "payroll":
+        return calculate_payroll(
+            employees=payload.get("employees", []),
+            company_name=payload.get("company_name", ""),
+            month=payload.get("month", ""),
+            language=language,
+        )
+
     elif action == "tax_planning":
         return await optimize_tax_planning(
             income_details=payload.get("income_details", {}),
@@ -1345,4 +1353,139 @@ async def optimize_tax_planning(
         "recommendations":    recs,
         "instruments":        _INSTRUMENTS,
         "narrative":          narrative,
+    }
+
+
+# ── Payroll & Salary Processor (Round 7) ──────────────────────────────────────
+
+_PT_SLABS = {
+    "karnataka": [(14999, 0), (99999, 200), (float("inf"), 200)],
+    "maharashtra": [(7500, 0), (10000, 175), (float("inf"), 200)],
+    "tamil_nadu": [(float("inf"), 0)],
+    "default": [(float("inf"), 200)],
+}
+
+
+def _calc_pt(gross: float, state: str = "default") -> float:
+    slabs = _PT_SLABS.get(state.lower().replace(" ", "_"), _PT_SLABS["default"])
+    for limit, amt in slabs:
+        if gross <= limit:
+            return float(amt)
+    return 200.0
+
+
+def _calc_tds_salary(taxable_annual: float, age: int = 30) -> float:
+    exemption = 300000 if age >= 60 else 250000
+    if taxable_annual <= exemption:
+        return 0.0
+    remaining = taxable_annual - exemption
+    tax = 0.0
+    for slab, rate in [(300000, .05), (300000, .10), (300000, .15), (300000, .20), (300000, .25), (float("inf"), .30)]:
+        if remaining <= 0:
+            break
+        chunk = min(remaining, slab)
+        tax += chunk * rate
+        remaining -= chunk
+    return round(tax * 1.04 / 12, 0)
+
+
+def calculate_payroll(
+    employees: list,
+    company_name: str = "",
+    month: str = "",
+    language: str = "en",
+) -> dict:
+    if not employees:
+        employees = [
+            {"name": "Arjun Kumar", "emp_id": "E001", "designation": "Software Engineer", "gross_salary": 85000, "pf_applicable": True, "esi_applicable": False, "age": 28, "state": "karnataka", "lop_days": 0},
+            {"name": "Priya Sharma", "emp_id": "E002", "designation": "Marketing Manager",  "gross_salary": 55000, "pf_applicable": True, "esi_applicable": True,  "age": 32, "state": "karnataka", "lop_days": 1},
+            {"name": "Ravi Patel",   "emp_id": "E003", "designation": "Support Executive",   "gross_salary": 22000, "pf_applicable": True, "esi_applicable": True,  "age": 25, "state": "maharashtra","lop_days": 0},
+        ]
+
+    payslips = []
+    total_gross = total_net = total_pf_emp = total_pf_er = total_esi_emp = total_esi_er = total_tds = total_pt = 0.0
+
+    for e in employees:
+        gross     = float(e.get("gross_salary", 0) or 0)
+        lop_days  = int(e.get("lop_days", 0) or 0)
+        age       = int(e.get("age", 30) or 30)
+        state     = e.get("state", "default")
+        pf_ok     = bool(e.get("pf_applicable", True))
+        esi_ok    = bool(e.get("esi_applicable", False)) and gross <= 21000
+
+        # LOP deduction (assume 26 working days)
+        lop_ded   = round(gross / 26 * lop_days, 0)
+        gross_act = gross - lop_ded
+
+        # PF: 12% employee + 12% employer on basic (assume basic = 50% of gross, capped at 15,000)
+        basic     = min(gross_act * 0.5, 15000) if pf_ok else 0
+        pf_emp    = round(basic * 0.12, 0) if pf_ok else 0
+        pf_er     = round(basic * 0.12, 0) if pf_ok else 0
+
+        # ESI: 0.75% employee + 3.25% employer
+        esi_emp   = round(gross_act * 0.0075, 0) if esi_ok else 0
+        esi_er    = round(gross_act * 0.0325, 0) if esi_ok else 0
+
+        # Professional Tax
+        pt        = _calc_pt(gross_act, state)
+
+        # TDS on salary (simplified: annualise, apply slab, /12)
+        tds_annual_gross = gross_act * 12
+        std_ded   = min(75000, tds_annual_gross)
+        tds       = _calc_tds_salary(max(tds_annual_gross - std_ded - pf_emp * 12, 0), age)
+
+        deductions = pf_emp + esi_emp + pt + tds + lop_ded
+        net        = round(gross_act - pf_emp - esi_emp - pt - tds, 0)
+
+        total_gross  += gross_act; total_net    += net
+        total_pf_emp += pf_emp;   total_pf_er  += pf_er
+        total_esi_emp+= esi_emp;  total_esi_er += esi_er
+        total_tds    += tds;      total_pt     += pt
+
+        payslips.append({
+            "name":         e.get("name", ""),
+            "emp_id":       e.get("emp_id", ""),
+            "designation":  e.get("designation", ""),
+            "gross_salary": gross,
+            "lop_days":     lop_days,
+            "lop_deduction":lop_ded,
+            "gross_actual": gross_act,
+            "basic":        basic,
+            "pf_employee":  pf_emp,
+            "pf_employer":  pf_er,
+            "esi_employee": esi_emp,
+            "esi_employer": esi_er,
+            "professional_tax": pt,
+            "tds":          tds,
+            "total_deductions": round(deductions, 0),
+            "net_salary":   net,
+            "ctc_monthly":  round(gross + pf_er + esi_er, 0),
+        })
+
+    employer_liability = round(total_gross + total_pf_er + total_esi_er, 0)
+
+    return {
+        "action":            "payroll",
+        "company_name":      company_name,
+        "month":             month,
+        "employee_count":    len(payslips),
+        "payslips":          payslips,
+        "summary": {
+            "total_gross":      round(total_gross, 0),
+            "total_net":        round(total_net, 0),
+            "total_pf_employee":round(total_pf_emp, 0),
+            "total_pf_employer":round(total_pf_er, 0),
+            "total_esi_employee":round(total_esi_emp, 0),
+            "total_esi_employer":round(total_esi_er, 0),
+            "total_tds":        round(total_tds, 0),
+            "total_pt":         round(total_pt, 0),
+            "total_deductions": round(total_gross - total_net, 0),
+            "employer_liability": employer_liability,
+        },
+        "compliance_reminders": [
+            "PF challan due: 15th of next month via EPFO unified portal",
+            "ESI challan due: 15th of next month via ESIC portal",
+            "TDS (Form 24Q) due: quarterly — 31st July, 31st Oct, 31st Jan, 15th May",
+            "PT due: as per state schedule (monthly/annual)",
+        ],
     }
