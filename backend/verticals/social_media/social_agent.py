@@ -2069,6 +2069,15 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "competitor_spy":
+        return competitor_content_spy(
+            brand_name=payload.get("brand_name", ""),
+            competitors=payload.get("competitors", []),
+            industry=payload.get("industry", ""),
+            platforms=payload.get("platforms", ["instagram", "linkedin"]),
+            language=language,
+        )
+
     elif action == "social_roi":
         return calculate_social_roi(
             campaigns=payload.get("campaigns", []),
@@ -2536,4 +2545,94 @@ def calculate_social_roi(
         "worst_platform":   worst,
         "recommendations":  recommendations,
         "health":           "Excellent" if overall_roas >= 4 else ("Good" if overall_roas >= 2 else ("Needs Review" if overall_roas >= 1 else "Losing Money")),
+    }
+
+
+# ── Competitor Content Spy (Round 8) ──────────────────────────────────────────
+
+_CONTENT_THEMES = [
+    "educational_tips", "product_showcase", "customer_testimonials",
+    "behind_the_scenes", "industry_news", "offers_discounts",
+    "thought_leadership", "employee_stories", "events_webinars", "memes_humor",
+]
+
+_PLATFORM_BENCHMARKS = {
+    "instagram": {"post_freq": "1/day", "best_time": "7-9 PM IST", "top_format": "Reels 15-30s", "avg_engagement": "3-5%"},
+    "linkedin":  {"post_freq": "3-5/week", "best_time": "8-10 AM IST Tue-Thu", "top_format": "Carousel / Long-form", "avg_engagement": "2-4%"},
+    "twitter":   {"post_freq": "3-5/day", "best_time": "9 AM & 6 PM IST", "top_format": "Threads", "avg_engagement": "0.5-1%"},
+    "facebook":  {"post_freq": "1-2/day", "best_time": "1-3 PM IST", "top_format": "Video + Image", "avg_engagement": "1-2%"},
+    "youtube":   {"post_freq": "2/week", "best_time": "Fri 4-6 PM IST", "top_format": "8-15 min how-to", "avg_engagement": "4-6%"},
+}
+
+
+def competitor_content_spy(
+    brand_name: str,
+    competitors: list,
+    industry: str = "",
+    platforms: list | None = None,
+    language: str = "en",
+) -> dict:
+    if not competitors:
+        competitors = [
+            {"name": "CompetitorA", "strengths": "Daily Reels, strong CTA", "weaknesses": "No LinkedIn, no regional content", "estimated_followers": 45000, "avg_engagement": 4.2, "top_content": "Product demos + customer stories"},
+            {"name": "CompetitorB", "strengths": "Thought leadership on LinkedIn", "weaknesses": "Inconsistent posting, no video", "estimated_followers": 28000, "avg_engagement": 2.8, "top_content": "Industry reports + CEO posts"},
+            {"name": "CompetitorC", "strengths": "Heavy ad spend on Meta", "weaknesses": "Generic content, low organic reach", "estimated_followers": 62000, "avg_engagement": 1.1, "top_content": "Offer-based ads, discount posts"},
+        ]
+    platforms = platforms or ["instagram", "linkedin"]
+
+    # Gap analysis — what competitors aren't doing
+    comp_strengths = " ".join(c.get("strengths", "") for c in competitors).lower()
+    comp_weaknesses = " ".join(c.get("weaknesses", "") for c in competitors).lower()
+
+    gaps = []
+    if "regional" not in comp_strengths and "tamil" not in comp_strengths and "hindi" not in comp_strengths:
+        gaps.append({"gap": "Regional Language Content", "opportunity": f"None of your competitors post in regional languages. {brand_name} can own Tamil/Hindi audience.", "priority": "High"})
+    if "video" not in comp_strengths and "reel" not in comp_strengths:
+        gaps.append({"gap": "Short-form Video (Reels/Shorts)", "opportunity": "Competitors are text-heavy. Own Reels/Shorts to drive 3x more reach.", "priority": "High"})
+    if "customer" not in comp_strengths and "testimonial" not in comp_strengths:
+        gaps.append({"gap": "Customer Success Stories", "opportunity": "No competitor showcases real ROI stories. Feature case studies to build trust.", "priority": "Medium"})
+    if "behind" not in comp_strengths and "team" not in comp_strengths:
+        gaps.append({"gap": "Behind-the-Scenes / Culture Content", "opportunity": "Show the human side — team stories, office culture. Builds authentic brand.", "priority": "Medium"})
+    if "linkedin" not in comp_strengths:
+        gaps.append({"gap": "LinkedIn Thought Leadership", "opportunity": "Competitors missing LinkedIn. Publish weekly insights from founder/CEO to capture B2B.", "priority": "High"})
+
+    # Counter strategy per platform
+    counter_plan = []
+    for plat in platforms:
+        bench = _PLATFORM_BENCHMARKS.get(plat, {})
+        counter_plan.append({
+            "platform": plat,
+            "post_frequency": bench.get("post_freq", "3-5/week"),
+            "best_posting_time": bench.get("best_time", ""),
+            "top_format": bench.get("top_format", ""),
+            "industry_avg_engagement": bench.get("avg_engagement", ""),
+            "recommended_themes": [
+                t.replace("_", " ").title() for t in _CONTENT_THEMES
+                if t not in comp_strengths.replace(" ", "_")
+            ][:4],
+            "90_day_goal": f"Surpass competitor engagement rate on {plat} by focusing on gaps they ignore",
+        })
+
+    # Content calendar seeds (3 posts per platform)
+    calendar_seeds = []
+    for plat in platforms[:2]:
+        calendar_seeds.append({"platform": plat, "week": "Week 1", "post": f"Before/After: How {brand_name} helped a customer save time — with real numbers", "format": "Carousel", "gap_addressed": "Customer success"})
+        calendar_seeds.append({"platform": plat, "week": "Week 2", "post": f"[Regional Language] Why {industry or 'your industry'} businesses trust {brand_name} — 30s Reel", "format": "Reel/Short", "gap_addressed": "Regional + video"})
+        calendar_seeds.append({"platform": plat, "week": "Week 3", "post": f"Founder's take: 3 mistakes {industry or 'SMB'} owners make (and how to avoid them)", "format": "Long-form / Thread", "gap_addressed": "Thought leadership"})
+
+    best_comp = max(competitors, key=lambda c: float(c.get("avg_engagement", 0))) if competitors else {}
+    avg_comp_engagement = sum(float(c.get("avg_engagement", 0)) for c in competitors) / len(competitors) if competitors else 0
+
+    return {
+        "action":            "competitor_spy",
+        "brand_name":        brand_name,
+        "industry":          industry,
+        "competitors_analyzed": len(competitors),
+        "competitor_profiles":  competitors,
+        "content_gaps":         gaps,
+        "counter_strategy":     counter_plan,
+        "calendar_seeds":       calendar_seeds,
+        "benchmark_to_beat":    best_comp.get("name", ""),
+        "avg_competitor_engagement": round(avg_comp_engagement, 1),
+        "summary":           f"Found {len(gaps)} content gaps competitors are missing. Focus on {gaps[0]['gap'] if gaps else 'video content'} first — highest ROI opportunity.",
     }

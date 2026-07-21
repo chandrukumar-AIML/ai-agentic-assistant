@@ -953,6 +953,17 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "gst_notice_reply":
+        return await draft_gst_notice_reply(
+            notice_type=payload.get("notice_type", ""),
+            notice_ref=payload.get("notice_ref", ""),
+            gstin=payload.get("gstin", ""),
+            taxpayer_name=payload.get("taxpayer_name", ""),
+            notice_details=payload.get("notice_details", ""),
+            reply_points=payload.get("reply_points", ""),
+            language=language,
+        )
+
     elif action == "payroll":
         return calculate_payroll(
             employees=payload.get("employees", []),
@@ -1487,5 +1498,137 @@ def calculate_payroll(
             "ESI challan due: 15th of next month via ESIC portal",
             "TDS (Form 24Q) due: quarterly — 31st July, 31st Oct, 31st Jan, 15th May",
             "PT due: as per state schedule (monthly/annual)",
+        ],
+    }
+
+
+# ── GST Notice Reply Drafter (Round 8) ────────────────────────────────────────
+
+_NOTICE_TEMPLATES = {
+    "gst_scrutiny": {
+        "section": "Section 61 of CGST Act, 2017",
+        "subject": "Reply to Notice for Scrutiny of Returns",
+        "opening": "We are in receipt of your notice dated {date} regarding scrutiny of our GST returns for the period {period}. We wish to submit our reply as follows:",
+        "legal_ref": ["Section 61 CGST Act 2017", "Rule 99 CGST Rules 2017"],
+    },
+    "gst_demand": {
+        "section": "Section 73/74 of CGST Act, 2017",
+        "subject": "Reply to Show Cause Notice / Demand Notice",
+        "opening": "We have received the Show Cause Notice / Demand Notice and wish to submit our detailed reply on the allegations / demands raised therein:",
+        "legal_ref": ["Section 73 CGST Act 2017", "Section 74 CGST Act 2017", "Rule 142 CGST Rules 2017"],
+    },
+    "itc_mismatch": {
+        "section": "Section 16 of CGST Act, 2017",
+        "subject": "Reply to Notice for ITC Mismatch (GSTR-2A/2B vs GSTR-3B)",
+        "opening": "This is in reference to your notice regarding Input Tax Credit mismatch between GSTR-2B and our GSTR-3B filings. We submit the following clarification:",
+        "legal_ref": ["Section 16 CGST Act 2017", "Rule 36 CGST Rules 2017", "Circular 183/15/2022-GST"],
+    },
+    "ewaybill": {
+        "section": "Rule 138 of CGST Rules, 2017",
+        "subject": "Reply to Notice for E-Way Bill Non-Compliance",
+        "opening": "We acknowledge receipt of the notice pertaining to E-Way Bill related observations and submit the following explanation:",
+        "legal_ref": ["Rule 138 CGST Rules 2017", "Section 129 CGST Act 2017"],
+    },
+    "annual_return": {
+        "section": "Section 44 of CGST Act, 2017",
+        "subject": "Reply to Notice Regarding GSTR-9 Annual Return",
+        "opening": "We have received your notice regarding discrepancies observed in our Annual Return GSTR-9. We wish to provide the following clarification:",
+        "legal_ref": ["Section 44 CGST Act 2017", "Rule 80 CGST Rules 2017"],
+    },
+    "tds_demand": {
+        "section": "Section 200A of Income Tax Act, 1961",
+        "subject": "Reply to TDS Demand Notice u/s 200A",
+        "opening": "We have received the demand notice under Section 200A and wish to submit our reply with supporting details:",
+        "legal_ref": ["Section 200A Income Tax Act 1961", "Section 154 Income Tax Act 1961"],
+    },
+}
+
+
+async def draft_gst_notice_reply(
+    notice_type: str,
+    notice_ref: str = "",
+    gstin: str = "",
+    taxpayer_name: str = "",
+    notice_details: str = "",
+    reply_points: str = "",
+    language: str = "en",
+) -> dict:
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+
+    template = _NOTICE_TEMPLATES.get(notice_type, _NOTICE_TEMPLATES["gst_scrutiny"])
+    today = date.today().strftime("%d/%m/%Y")
+
+    header = f"""To,
+The Proper Officer,
+GST Department
+
+Subject: {template['subject']}
+Reference Notice No.: {notice_ref or '[NOTICE REF]'}
+GSTIN: {gstin or '[GSTIN]'}
+Date: {today}
+
+Sir/Madam,
+
+{template['opening'].format(date='[Notice Date]', period='[Period]')}
+
+"""
+
+    legal_paras = "\n".join(f"  {i+1}. As per {ref}, we submit that our compliance is in order with respect to the said provision." for i, ref in enumerate(template["legal_ref"]))
+
+    footer = f"""
+We hereby confirm that all statutory compliances have been duly met and the above facts are true and correct to the best of our knowledge.
+
+We request you to kindly consider the above submissions and drop the proceedings / observations raised in the notice.
+
+Thanking You,
+
+Yours faithfully,
+{taxpayer_name or '[TAXPAYER NAME]'}
+GSTIN: {gstin or '[GSTIN]'}
+Date: {today}
+
+Enclosures:
+1. Relevant GST Returns / Challan copies
+2. Books of account / Ledgers
+3. Supporting invoices as applicable
+"""
+
+    try:
+        ai_body = await ollama_chat_completion(
+            messages=[
+                {"role": "system", "content": f"You are a senior CA and GST consultant. Draft a professional, legally sound GST notice reply. Language: {language}. Use formal tone. Reference: {', '.join(template['legal_ref'])}"},
+                {"role": "user",   "content": f"Notice type: {notice_type}. Notice details: {notice_details or 'Standard scrutiny notice'}. Taxpayer reply points: {reply_points or 'Returns filed correctly, all ITC eligible, no suppression of facts'}. Draft 3-4 paragraphs of substantive reply with legal references."},
+            ],
+            model=OLLAMA_MODEL, max_tokens=600,
+        )
+    except Exception:
+        ai_body = f"""We wish to state that our GST returns for the relevant period have been filed correctly and in accordance with the provisions of the CGST Act, 2017 and rules thereunder.
+
+{legal_paras}
+
+The Input Tax Credit availed by us is in accordance with Section 16 of the CGST Act, 2017, and all the conditions stipulated therein have been duly complied with. The vendors from whom ITC has been availed are duly registered taxpayers and have filed their returns.
+
+We submit that there is no suppression of facts, fraud, or wilful misstatement on our part. The difference, if any, is purely on account of timing differences which have since been rectified.
+
+We therefore request that the above reply be accepted and the notice proceedings be dropped forthwith."""
+
+    full_letter = header + ai_body + footer
+
+    return {
+        "action":         "gst_notice_reply",
+        "notice_type":    notice_type,
+        "taxpayer_name":  taxpayer_name,
+        "gstin":          gstin,
+        "notice_ref":     notice_ref,
+        "section":        template["section"],
+        "subject":        template["subject"],
+        "legal_references": template["legal_ref"],
+        "full_letter":    full_letter,
+        "word_count":     len(full_letter.split()),
+        "tips": [
+            "Attach all supporting documents mentioned in the enclosure list.",
+            "Submit reply within the time limit specified in the notice (usually 15-30 days).",
+            "Keep a copy of the reply with proof of submission (acknowledgement).",
+            "If demand is upheld, you can file an appeal under Section 107 within 3 months.",
         ],
     }

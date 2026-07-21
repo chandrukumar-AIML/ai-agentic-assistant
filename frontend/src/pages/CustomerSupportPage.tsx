@@ -52,6 +52,7 @@ const TABS = [
   { id: 'csat',       label: 'CSAT Survey' },
   { id: 'escalation', label: 'Escalation Manager' },
   { id: 'churn',      label: 'Churn Risk' },
+  { id: 'onboarding', label: 'Onboarding Planner' },
 ]
 
 const WA_TYPES = [
@@ -1297,6 +1298,7 @@ export default function CustomerSupportPage() {
         {tab === 'csat'      && <CsatTab lang={lang} />}
         {tab === 'escalation' && <EscalationTab lang={lang} />}
         {tab === 'churn'      && <ChurnRiskTab lang={lang} />}
+        {tab === 'onboarding' && <OnboardingTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -1564,6 +1566,157 @@ function ChurnRiskTab({ lang }: { lang: Lang }) {
           </div>
         ) : (
           <Empty text="Demo data is pre-loaded — click Analyse Churn Risk to see results →" />
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+// ── Customer Onboarding Planner (Round 8) ────────────────────────────────────
+
+function OnboardingTab({ lang }: { lang: Lang }) {
+  const [obCustomer, setObCustomer] = useState('')
+  const [obProduct, setObProduct]   = useState('')
+  const [obIndustry, setObIndustry] = useState('')
+  const [obTier, setObTier]         = useState('standard')
+  const [obTeam, setObTeam]         = useState('5')
+  const [obGoals, setObGoals]       = useState('improve efficiency, reduce manual work, scale operations')
+  const [obRes, setObRes]           = useState<any>(null)
+  const [obLoading, setObLoading]   = useState(false)
+  const [obErr, setObErr]           = useState('')
+  const [checkedTasks, setCheckedTasks] = useState<Record<string, boolean>>({})
+
+  const toggleTask = (key: string) => setCheckedTasks(prev => ({ ...prev, [key]: !prev[key] }))
+
+  const runOnboarding = async () => {
+    setObLoading(true); setObErr(''); setObRes(null); setCheckedTasks({})
+    try {
+      setObRes(await csAction('onboarding_planner', {
+        customer_name: obCustomer, product_name: obProduct, industry: obIndustry,
+        tier: obTier, team_size: parseInt(obTeam) || 1,
+        goals: obGoals.split(',').map(g => g.trim()).filter(Boolean),
+      }, lang))
+    } catch (e: any) { setObErr(e.message) }
+    setObLoading(false)
+  }
+
+  const TIER_COLOR: Record<string, string> = { standard: '#6b7280', premium: '#818cf8', enterprise: '#f59e0b', vip: '#f59e0b' }
+
+  return (
+    <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      <div style={{ flex: '0 0 340px' }}>
+        <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Onboarding Planner</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>Generate a personalised, tier-based onboarding plan for any new customer</div>
+          {[
+            { label: 'Customer / Company Name', val: obCustomer, set: setObCustomer, ph: 'e.g. TechCorp India' },
+            { label: 'Your Product Name', val: obProduct, set: setObProduct, ph: 'e.g. Freshdesk, Zoho CRM' },
+            { label: 'Customer Industry', val: obIndustry, set: setObIndustry, ph: 'e.g. E-commerce, Healthcare' },
+            { label: 'Team Size', val: obTeam, set: setObTeam, ph: 'e.g. 15' },
+          ].map(f => (
+            <div key={f.label} style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>{f.label}</div>
+              <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
+                style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: '8px 12px', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+          ))}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Customer Tier</div>
+            <select value={obTier} onChange={e => setObTier(e.target.value)} style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: '8px 12px', fontSize: 13 }}>
+              <option value="standard">Standard (30-day plan)</option>
+              <option value="premium">Premium (30-day intensive)</option>
+              <option value="enterprise">Enterprise (90-day full rollout)</option>
+            </select>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Customer Goals (comma-separated)</div>
+            <textarea value={obGoals} onChange={e => setObGoals(e.target.value)} rows={2}
+              style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 12, resize: 'vertical', boxSizing: 'border-box' }} />
+          </div>
+          <button onClick={runOnboarding} disabled={obLoading} style={{
+            width: '100%', padding: '10px 0', background: obLoading ? '#1e2535' : '#4f8ef7',
+            color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: obLoading ? 'not-allowed' : 'pointer',
+          }}>{obLoading ? 'Building plan…' : 'Generate Onboarding Plan'}</button>
+          {obErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>{obErr}</div>}
+        </div>
+      </div>
+
+      <div style={{ flex: 1 }}>
+        {obRes ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>{obRes.customer_name || 'Customer'} Onboarding Plan</div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{obRes.product_name} · {obRes.team_size} people · {obRes.duration_days}-day plan</div>
+                </div>
+                <Badge label={(obRes.tier || '').toUpperCase()} color={TIER_COLOR[obRes.tier] || '#6b7280'} />
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {[
+                  { label: 'Total Tasks', val: obRes.total_tasks },
+                  { label: 'Duration', val: `${obRes.duration_days} days` },
+                  { label: 'CSM', val: (obRes.assigned_csm || '').includes('Dedicated') ? 'Dedicated' : 'Shared' },
+                ].map(k => (
+                  <div key={k.label} style={{ flex: 1, background: '#0f1117', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>{k.val}</div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>{k.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {(obRes.phases || []).map((phase: any, pi: number) => {
+              const done = phase.tasks.filter((_: any, ti: number) => checkedTasks[`${pi}-${ti}`]).length
+              return (
+                <div key={pi} style={{ background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>{phase.phase}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>{phase.days}</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: done === phase.tasks.length ? '#22c55e' : '#9ca3af' }}>{done}/{phase.tasks.length} done</div>
+                  </div>
+                  {phase.tasks.map((task: string, ti: number) => {
+                    const key = `${pi}-${ti}`
+                    return (
+                      <div key={ti} onClick={() => toggleTask(key)} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: '1px solid #0f1117', cursor: 'pointer', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{checkedTasks[key] ? '✅' : '⬜'}</span>
+                        <span style={{ fontSize: 13, color: checkedTasks[key] ? '#4b5563' : '#9ca3af', textDecoration: checkedTasks[key] ? 'line-through' : 'none' }}>{task}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+
+            <div style={{ display: 'flex', gap: 14 }}>
+              <div style={{ flex: 1, background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 10 }}>Check-in Schedule</div>
+                {(obRes.health_check_schedule || []).map((h: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #0f1117', fontSize: 12 }}>
+                    <Badge label={`Day ${h.day}`} color="#818cf8" />
+                    <div>
+                      <div style={{ color: '#e2e8f0' }}>{h.type}</div>
+                      <div style={{ color: '#6b7280', fontSize: 11 }}>{h.focus}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ flex: 1, background: '#161b27', border: '1px solid #1e2535', borderRadius: 12, padding: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 10 }}>Success Metrics</div>
+                {(obRes.success_metrics || []).map((m: any, i: number) => (
+                  <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid #0f1117', fontSize: 12 }}>
+                    <div style={{ color: '#22c55e', fontWeight: 600 }}>{m.metric}</div>
+                    <div style={{ color: '#6b7280', fontSize: 11 }}>Target: {m.target}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Empty text="Fill in customer details and click Generate Onboarding Plan →" />
         )}
       </div>
     </div>

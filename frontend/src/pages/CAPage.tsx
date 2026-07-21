@@ -267,6 +267,36 @@ export default function CAPage() {
     setGstrLoading(false)
   }
 
+  // ── GST Notice Reply Drafter (Round 8) ──
+  const NOTICE_TYPES = [
+    { label: 'GST Scrutiny Notice (Sec 61)', value: 'gst_scrutiny' },
+    { label: 'GST Demand / SCN (Sec 73/74)', value: 'gst_demand' },
+    { label: 'ITC Mismatch (GSTR-2B vs 3B)', value: 'itc_mismatch' },
+    { label: 'E-Way Bill Non-Compliance', value: 'ewaybill' },
+    { label: 'Annual Return GSTR-9 Notice', value: 'annual_return' },
+    { label: 'TDS Demand Notice (Sec 200A)', value: 'tds_demand' },
+  ]
+  const [ntType, setNtType]           = useState('itc_mismatch')
+  const [ntRef, setNtRef]             = useState('')
+  const [ntGstin, setNtGstin]         = useState('')
+  const [ntName, setNtName]           = useState('')
+  const [ntDetails, setNtDetails]     = useState('')
+  const [ntPoints, setNtPoints]       = useState('')
+  const [ntRes, setNtRes]             = useState<any>(null)
+  const [ntLoading, setNtLoading]     = useState(false)
+  const [ntErr, setNtErr]             = useState('')
+
+  const runNoticeReply = async () => {
+    setNtLoading(true); setNtErr(''); setNtRes(null)
+    try {
+      setNtRes(await caAction('gst_notice_reply', {
+        notice_type: ntType, notice_ref: ntRef, gstin: ntGstin,
+        taxpayer_name: ntName, notice_details: ntDetails, reply_points: ntPoints,
+      }, language))
+    } catch (e: any) { setNtErr(e.message) }
+    setNtLoading(false)
+  }
+
   // ── Payroll & Salary Processor (Round 7) ──
   const DEMO_EMPLOYEES = [
     { name: 'Arjun Kumar', emp_id: 'E001', designation: 'Software Engineer', gross_salary: 85000, pf_applicable: true, esi_applicable: false, age: 28, state: 'karnataka', lop_days: 0 },
@@ -380,6 +410,7 @@ export default function CAPage() {
           { id: 'gstr_filing',       label: 'GSTR Filing Prep',        icon: '📊' },
           { id: 'tax_planning',      label: 'Tax Planning',            icon: '💡' },
           { id: 'payroll',           label: 'Payroll Processor',       icon: '💰' },
+          { id: 'notice_reply',      label: 'GST Notice Reply',        icon: '📨' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1233,6 +1264,67 @@ export default function CAPage() {
           </div>
         </TwoCol>
       )}
+      {/* ── GST NOTICE REPLY (Round 8) ── */}
+      {tab === 'notice_reply' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="GST Notice Reply Drafter" sub="AI drafts a legally sound, section-referenced reply letter" />
+            <Select label="Notice Type" value={ntType} onChange={setNtType} options={NOTICE_TYPES} />
+            <Input label="Notice Reference Number" value={ntRef} onChange={setNtRef} placeholder="e.g. ACME/GST/2024/001" />
+            <Input label="GSTIN" value={ntGstin} onChange={setNtGstin} placeholder="e.g. 29AABCU9603R1ZX" />
+            <Input label="Taxpayer / Business Name" value={ntName} onChange={setNtName} placeholder="e.g. Acme Technologies Pvt Ltd" />
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Notice Details (what the officer observed)</div>
+              <textarea value={ntDetails} onChange={e => setNtDetails(e.target.value)} rows={3} placeholder="e.g. ITC claimed in GSTR-3B is higher than GSTR-2B by Rs.45,000 for Q3 FY24"
+                style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Your Defence / Reply Points</div>
+              <textarea value={ntPoints} onChange={e => setNtPoints(e.target.value)} rows={3} placeholder="e.g. Difference due to timing — supplier filed GSTR-1 late. ITC is valid and supplier is registered."
+                style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+            </div>
+            <Btn onClick={runNoticeReply} loading={ntLoading} style={{ marginTop: 4, width: '100%' }}>Draft Reply Letter</Btn>
+            {ntErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>Demo mode: {ntErr}</div>}
+          </Card>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {ntRes ? (
+              <>
+                <Card>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <SectionHead title="Reply Letter" sub={ntRes.subject} />
+                    <span onClick={() => navigator.clipboard?.writeText(ntRes.full_letter || '')}
+                      style={{ cursor: 'pointer', fontSize: 11, padding: '4px 12px', background: '#374151', color: '#fff', borderRadius: 6, flexShrink: 0 }}>Copy Letter</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <Badge label={ntRes.section} color="#818cf8" />
+                    <Badge label={`${ntRes.word_count} words`} color="#6b7280" />
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>Legal References:</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+                    {(ntRes.legal_references || []).map((r: string, i: number) => (
+                      <span key={i} style={{ fontSize: 11, padding: '2px 8px', background: '#1e2535', color: '#818cf8', borderRadius: 6 }}>{r}</span>
+                    ))}
+                  </div>
+                  <pre style={{ color: '#e2e8f0', fontSize: 12, whiteSpace: 'pre-wrap', background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 14, lineHeight: 1.8, fontFamily: 'inherit', margin: 0, maxHeight: 400, overflowY: 'auto' }}>{ntRes.full_letter}</pre>
+                </Card>
+                <Card>
+                  <SectionHead title="Submission Tips" sub="Before you send this reply" />
+                  {(ntRes.tips || []).map((t: string, i: number) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, padding: '7px 0', borderBottom: '1px solid #0f1117', fontSize: 12, color: '#9ca3af' }}>
+                      <span style={{ color: '#f59e0b', flexShrink: 0 }}>📌</span>{t}
+                    </div>
+                  ))}
+                </Card>
+              </>
+            ) : !ntLoading && (
+              <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                Select notice type, fill in your details, and click Draft Reply Letter →
+              </div>
+            )}
+          </div>
+        </TwoCol>
+      )}
+
       {/* ── PAYROLL PROCESSOR (Round 7) ── */}
       {tab === 'payroll' && (
         <TwoCol>

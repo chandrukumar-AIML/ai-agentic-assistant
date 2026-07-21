@@ -560,6 +560,17 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "onboarding_planner":
+            return _onboarding_planner(
+                customer_name=payload.get("customer_name", ""),
+                product_name=payload.get("product_name", ""),
+                industry=payload.get("industry", ""),
+                tier=payload.get("tier", "standard"),
+                goals=payload.get("goals", []),
+                team_size=int(payload.get("team_size", 1) or 1),
+                language=lang,
+            )
+
         elif action == "churn_risk":
             return _churn_risk_analyzer(
                 customers=payload.get("customers", []),
@@ -1006,6 +1017,150 @@ def _churn_risk_analyzer(
         "health":            "Critical" if critical else ("At Risk" if high else "Healthy"),
         "health_color":      "red" if critical else ("orange" if high else "green"),
         "top_priority":      results[0]["name"] if results else "",
+    }
+
+
+# ── Customer Onboarding Planner (Round 8) ────────────────────────────────────
+
+_ONBOARDING_PHASES = {
+    "standard": [
+        {"phase": "Day 1 — Welcome", "days": "Day 1", "tasks": [
+            "Send welcome email with login credentials and getting-started guide",
+            "Schedule kickoff call with Customer Success Manager",
+            "Share product documentation and video library link",
+        ]},
+        {"phase": "Week 1 — Setup", "days": "Days 2-7", "tasks": [
+            "Complete account setup and profile configuration",
+            "Import existing data / integrations",
+            "Attend product walkthrough webinar",
+            "Set up team members and assign roles",
+        ]},
+        {"phase": "Week 2 — First Value", "days": "Days 8-14", "tasks": [
+            "Complete first core workflow end-to-end",
+            "Review first week usage report with CSM",
+            "Identify top 3 use cases to focus on",
+            "Join community / Slack group",
+        ]},
+        {"phase": "Week 3-4 — Adoption", "days": "Days 15-30", "tasks": [
+            "Train all team members on core features",
+            "Set up automation / recurring workflows",
+            "30-day check-in call to review progress and blockers",
+            "Enable advanced features as needed",
+        ]},
+    ],
+    "premium": [
+        {"phase": "Day 1 — VIP Welcome", "days": "Day 1", "tasks": [
+            "Dedicated CSM assigned — personal welcome call within 2 hours",
+            "Custom onboarding plan shared based on business goals",
+            "Slack/WhatsApp direct channel set up with support team",
+            "Branded welcome kit / swag sent",
+        ]},
+        {"phase": "Days 2-3 — Deep Discovery", "days": "Days 2-3", "tasks": [
+            "Discovery session: map current workflows to product capabilities",
+            "Data migration plan created with timeline",
+            "Custom integration requirements scoped",
+            "Success metrics (KPIs) defined together",
+        ]},
+        {"phase": "Week 1 — Configured Setup", "days": "Days 4-7", "tasks": [
+            "Product configured to match business workflows",
+            "Team trained in 2 dedicated sessions",
+            "All integrations live and tested",
+            "Dashboard and reports customised",
+        ]},
+        {"phase": "Week 2-4 — Go Live", "days": "Days 8-30", "tasks": [
+            "Parallel run: old system vs new product side-by-side",
+            "Weekly check-ins with CSM",
+            "Training refresher for power users",
+            "30-day ROI review: time saved, productivity gains measured",
+        ]},
+    ],
+    "enterprise": [
+        {"phase": "Pre-Launch — Project Kick-off", "days": "Week -1 to Day 0", "tasks": [
+            "Executive sponsor meeting: align on strategic goals and success criteria",
+            "Dedicated project manager + CSM assigned",
+            "Custom implementation plan (30/60/90 day roadmap) shared",
+            "Security review and compliance documentation completed",
+            "SSO / LDAP / API integration scoped",
+        ]},
+        {"phase": "Week 1-2 — Foundations", "days": "Days 1-14", "tasks": [
+            "Pilot rollout: 10-20 power users as champions",
+            "Custom data migration executed with zero downtime",
+            "All integrations built, tested, and deployed",
+            "Admin training for IT team",
+            "SLA agreement confirmed and support escalation path set up",
+        ]},
+        {"phase": "Week 3-4 — Org-wide Rollout", "days": "Days 15-30", "tasks": [
+            "Department-by-department rollout with dedicated training sessions",
+            "Change management communication plan executed",
+            "Help desk articles and internal FAQs created",
+            "Usage dashboards live — track adoption by team",
+        ]},
+        {"phase": "Month 2-3 — Optimise", "days": "Days 31-90", "tasks": [
+            "Monthly business reviews with executive stakeholders",
+            "Advanced feature enablement for mature teams",
+            "ROI report: quantified time saved, cost reduced, revenue impacted",
+            "Expansion opportunities reviewed (seats, modules, integrations)",
+        ]},
+    ],
+}
+
+
+def _onboarding_planner(
+    customer_name: str,
+    product_name: str = "",
+    industry: str = "",
+    tier: str = "standard",
+    goals: list | None = None,
+    team_size: int = 1,
+    language: str = "en",
+) -> dict:
+    goals = goals or ["improve efficiency", "reduce manual work", "scale operations"]
+    tier_key = "enterprise" if tier.lower() in ("enterprise", "vip") else ("premium" if tier.lower() in ("premium", "pro") else "standard")
+    phases = _ONBOARDING_PHASES[tier_key]
+
+    # Personalise tasks based on inputs
+    personalised_phases = []
+    for phase in phases:
+        tasks = list(phase["tasks"])
+        if customer_name and tasks:
+            tasks[0] = tasks[0].replace("welcome email", f"welcome email to {customer_name} team")
+        if product_name and len(tasks) > 1:
+            tasks = [t.replace("product", product_name) for t in tasks]
+        personalised_phases.append({**phase, "tasks": tasks, "status": "pending"})
+
+    # Success metrics based on goals
+    metrics = []
+    for g in goals[:3]:
+        if "efficien" in g.lower() or "time" in g.lower():
+            metrics.append({"metric": "Time Saved per Week", "baseline": "Measure in Week 1", "target": "20%+ reduction by Day 30"})
+        elif "manual" in g.lower() or "automat" in g.lower():
+            metrics.append({"metric": "Manual Tasks Automated", "baseline": "Count in Week 1", "target": "50%+ automated by Day 30"})
+        elif "scale" in g.lower() or "growth" in g.lower():
+            metrics.append({"metric": "Capacity Handled", "baseline": "Current throughput", "target": "30%+ increase by Day 60"})
+        else:
+            metrics.append({"metric": g.title(), "baseline": "To be measured", "target": "Defined in kickoff call"})
+
+    total_tasks = sum(len(p["tasks"]) for p in personalised_phases)
+    duration_days = 30 if tier_key == "standard" else (30 if tier_key == "premium" else 90)
+
+    return {
+        "action":          "onboarding_planner",
+        "customer_name":   customer_name,
+        "product_name":    product_name,
+        "tier":            tier,
+        "industry":        industry,
+        "team_size":       team_size,
+        "goals":           goals,
+        "phases":          personalised_phases,
+        "total_tasks":     total_tasks,
+        "duration_days":   duration_days,
+        "success_metrics": metrics,
+        "health_check_schedule": [
+            {"day": 7,  "type": "Check-in Call", "focus": "Setup completion, early blockers"},
+            {"day": 14, "type": "Progress Review", "focus": "First value achieved, adoption rate"},
+            {"day": 30, "type": "30-Day Review",  "focus": "ROI measurement, goals vs actuals"},
+        ] + ([{"day": 60, "type": "60-Day Review", "focus": "Expansion opportunities, advanced features"}] if tier_key == "enterprise" else []),
+        "assigned_csm":    "To be assigned" if tier_key == "standard" else "Dedicated CSM assigned",
     }
 
 

@@ -263,6 +263,32 @@ export default function SocialPage() {
   const [bridgeResult, setBridgeResult] = useState('')
   const bridgeApi = useApi()
 
+  // ── Competitor Content Spy (Round 8) ──
+  const DEMO_COMPETITORS = [
+    { name: 'CompetitorA', strengths: 'Daily Reels, strong CTA', weaknesses: 'No LinkedIn, no regional content', estimated_followers: 45000, avg_engagement: 4.2, top_content: 'Product demos + customer stories' },
+    { name: 'CompetitorB', strengths: 'Thought leadership on LinkedIn', weaknesses: 'Inconsistent posting, no video', estimated_followers: 28000, avg_engagement: 2.8, top_content: 'Industry reports + CEO posts' },
+    { name: 'CompetitorC', strengths: 'Heavy ad spend on Meta', weaknesses: 'Generic content, low organic reach', estimated_followers: 62000, avg_engagement: 1.1, top_content: 'Offer-based ads, discount posts' },
+  ]
+  const [spyBrand, setSpyBrand]         = useState('')
+  const [spyIndustry, setSpyIndustry]   = useState('')
+  const [spyJson, setSpyJson]           = useState(JSON.stringify(DEMO_COMPETITORS, null, 2))
+  const [spyPlatforms, setSpyPlatforms] = useState<string[]>(['instagram', 'linkedin'])
+  const [spyRes, setSpyRes]             = useState<any>(null)
+  const [spyLoading, setSpyLoading]     = useState(false)
+  const [spyErr, setSpyErr]             = useState('')
+
+  const toggleSpyPlatform = (p: string) => setSpyPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+
+  const runCompetitorSpy = async () => {
+    setSpyLoading(true); setSpyErr(''); setSpyRes(null)
+    try {
+      let competitors: any[]
+      try { competitors = JSON.parse(spyJson) } catch { throw new Error('Invalid JSON') }
+      setSpyRes(await socialAction('competitor_spy', { brand_name: spyBrand, competitors, industry: spyIndustry, platforms: spyPlatforms }, 'all'))
+    } catch (e: any) { setSpyErr(e.message) }
+    setSpyLoading(false)
+  }
+
   // ── Social ROI Dashboard (Round 7) ──
   const DEMO_ROI_CAMPAIGNS = [
     { platform: 'Meta', spend: 15000, impressions: 120000, clicks: 3600, leads: 180, conversions: 22, revenue: 110000 },
@@ -423,6 +449,7 @@ export default function SocialPage() {
           { id: 'abtest',     label: 'A/B Copy Tester',      icon: '🔬' },
           { id: 'mention',    label: 'Mention Responder',     icon: '📣' },
           { id: 'roi',        label: 'Social ROI',            icon: '📈' },
+          { id: 'spy',        label: 'Competitor Spy',        icon: '🕵️' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1726,6 +1753,113 @@ export default function SocialPage() {
               </div>
             ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter a topic and generate variations →</div>}
           </Card>
+        </TwoCol>
+      )}
+
+      {/* ── COMPETITOR CONTENT SPY (Round 8) ── */}
+      {tab === 'spy' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Competitor Content Spy" sub="Find gaps in competitor strategy — then own them" />
+            <Input label="Your Brand Name" value={spyBrand} onChange={setSpyBrand} placeholder="e.g. Freshworks" />
+            <Input label="Industry" value={spyIndustry} onChange={setSpyIndustry} placeholder="e.g. B2B SaaS, CA Firm, Retail" />
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 6 }}>Platforms to analyse</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {['instagram','linkedin','twitter','facebook','youtube'].map(p => (
+                  <span key={p} onClick={() => toggleSpyPlatform(p)} style={{
+                    padding: '4px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                    background: spyPlatforms.includes(p) ? 'rgba(79,142,247,0.15)' : 'transparent',
+                    border: `1px solid ${spyPlatforms.includes(p) ? 'rgba(79,142,247,0.5)' : '#1e2535'}`,
+                    color: spyPlatforms.includes(p) ? '#4f8ef7' : '#6b7280',
+                  }}>{p.charAt(0).toUpperCase() + p.slice(1)}</span>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: 6, fontSize: 12, color: '#9ca3af' }}>Competitor Profiles JSON</div>
+            <textarea value={spyJson} onChange={e => setSpyJson(e.target.value)} rows={10}
+              style={{ width: '100%', background: '#0f1117', color: '#e2e8f0', border: '1px solid #1e2535', borderRadius: 8, padding: 10, fontSize: 11, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }} />
+            <Btn onClick={runCompetitorSpy} loading={spyLoading} style={{ marginTop: 12, width: '100%' }}>Spy & Find Gaps</Btn>
+            {spyErr && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>Demo mode: {spyErr}</div>}
+          </Card>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {spyRes ? (
+              <>
+                {/* Summary */}
+                <Card>
+                  <div style={{ background: '#0f172a', border: '1px solid #818cf833', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, color: '#818cf8', fontWeight: 600, marginBottom: 4 }}>Key Insight</div>
+                    <div style={{ color: '#e2e8f0', fontSize: 13 }}>{spyRes.summary}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1, background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#ef4444' }}>{spyRes.competitors_analyzed}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Competitors Scanned</div>
+                    </div>
+                    <div style={{ flex: 1, background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#22c55e' }}>{spyRes.content_gaps?.length || 0}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Content Gaps Found</div>
+                    </div>
+                    <div style={{ flex: 1, background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#f59e0b' }}>{spyRes.avg_competitor_engagement}%</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Avg Competitor Eng.</div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Content Gaps */}
+                <Card>
+                  <SectionHead title="Content Gaps to Own" sub="What competitors are NOT doing" />
+                  {(spyRes.content_gaps || []).map((g: any, i: number) => (
+                    <div key={i} style={{ background: '#0f1117', border: `1px solid ${g.priority === 'High' ? '#22c55e' : '#f59e0b'}33`, borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 13 }}>🎯 {g.gap}</span>
+                        <Badge label={g.priority} color={g.priority === 'High' ? '#22c55e' : '#f59e0b'} />
+                      </div>
+                      <div style={{ fontSize: 12, color: '#9ca3af' }}>{g.opportunity}</div>
+                    </div>
+                  ))}
+                </Card>
+
+                {/* Counter strategy */}
+                <Card>
+                  <SectionHead title="Counter-Content Strategy" sub="Platform-specific plan" />
+                  {(spyRes.counter_strategy || []).map((s: any, i: number) => (
+                    <div key={i} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                      <div style={{ fontWeight: 600, color: '#818cf8', fontSize: 13, marginBottom: 6 }}>{s.platform.charAt(0).toUpperCase() + s.platform.slice(1)}</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                        <Badge label={`📅 ${s.post_frequency}`} color="#6b7280" />
+                        <Badge label={`⏰ ${s.best_posting_time}`} color="#6b7280" />
+                        <Badge label={`🎬 ${s.top_format}`} color="#4f8ef7" />
+                      </div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Recommended themes:</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {(s.recommended_themes || []).map((t: string, j: number) => (
+                          <span key={j} style={{ fontSize: 11, padding: '2px 8px', background: '#1e2535', color: '#9ca3af', borderRadius: 6 }}>{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </Card>
+
+                {/* 90-day seeds */}
+                <Card>
+                  <SectionHead title="90-Day Content Seeds" sub="Ready-to-use post ideas" />
+                  {(spyRes.calendar_seeds || []).map((s: any, i: number) => (
+                    <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid #0f1117', fontSize: 12 }}>
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 3 }}>
+                        <Badge label={s.platform} color="#818cf8" />
+                        <Badge label={s.week} color="#6b7280" />
+                        <Badge label={s.format} color="#4f8ef7" />
+                      </div>
+                      <div style={{ color: '#e2e8f0' }}>{s.post}</div>
+                      <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>Gap addressed: {s.gap_addressed}</div>
+                    </div>
+                  ))}
+                </Card>
+              </>
+            ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Add competitor profiles and click Spy & Find Gaps →</div>}
+          </div>
         </TwoCol>
       )}
 
