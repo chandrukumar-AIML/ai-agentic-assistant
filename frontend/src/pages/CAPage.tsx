@@ -309,6 +309,24 @@ export default function CAPage() {
   const [lnRes, setLnRes]           = useState<any>(null)
   const [lnLoading, setLnLoading]   = useState(false)
   const [lnErr, setLnErr]           = useState('')
+  // TDS Compliance Tracker (Round 14)
+  const [tdsCompany, setTdsCompany] = useState('')
+  const [tdsMonth, setTdsMonth]     = useState(new Date().getMonth() + 1)
+  const [tdsYear, setTdsYear]       = useState(new Date().getFullYear())
+  const [tdsRes, setTdsRes]         = useState<any>(null)
+  const [tdsLoading, setTdsLoading] = useState(false)
+  const [tdsErr, setTdsErr]         = useState('')
+  const [tdsActiveSection, setTdsActiveSection] = useState<string|null>(null)
+  const runTds = async () => {
+    setTdsLoading(true); setTdsErr(''); setTdsRes(null)
+    try {
+      setTdsRes(await caAction('tds_compliance_tracker', {
+        company_name: tdsCompany, month: tdsMonth, year: tdsYear,
+        deductions: [], pan_verified: true,
+      }))
+    } catch (e: any) { setTdsErr(e.message) }
+    finally { setTdsLoading(false) }
+  }
   const runLoan = async () => {
     setLnLoading(true); setLnErr(''); setLnRes(null)
     try {
@@ -566,6 +584,7 @@ export default function CAPage() {
           { id: 'overdue',           label: 'Overdue Collector',         icon: '📬' },
           { id: 'pl',                label: 'P&L Statement',              icon: '📊' },
           { id: 'loan',              label: 'MSME Loan Eligibility',      icon: '🏦' },
+          { id: 'tds',               label: 'TDS Compliance Tracker',     icon: '📅' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1959,6 +1978,123 @@ export default function CAPage() {
           </div>
         </TwoCol>
       )}
+      {/* ── TDS COMPLIANCE TRACKER (Round 14) ── */}
+      {tab === 'tds' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="📅 TDS Compliance Tracker" sub="Section-wise TDS ledger, challan due dates, late fee calculator & filing checklist" />
+            <Input label="Company Name" value={tdsCompany} onChange={setTdsCompany} placeholder="e.g. Sharma & Associates" />
+            <Select label="Month" value={String(tdsMonth)} onChange={v => setTdsMonth(parseInt(v))} options={[
+              {label:'January',value:'1'},{label:'February',value:'2'},{label:'March',value:'3'},
+              {label:'April',value:'4'},{label:'May',value:'5'},{label:'June',value:'6'},
+              {label:'July',value:'7'},{label:'August',value:'8'},{label:'September',value:'9'},
+              {label:'October',value:'10'},{label:'November',value:'11'},{label:'December',value:'12'},
+            ]} />
+            <Select label="Year" value={String(tdsYear)} onChange={v => setTdsYear(parseInt(v))} options={[
+              {label:'2024',value:'2024'},{label:'2025',value:'2025'},{label:'2026',value:'2026'},
+            ]} />
+            <div style={{ background: '#1e2535', borderRadius: 8, padding: 10, marginBottom: 14, fontSize: 11, color: '#6b7280' }}>
+              Demo data pre-loaded with 5 TDS deductions across sections 192, 194C, 194I, 194J & 194Q
+            </div>
+            <Btn onClick={runTds} disabled={tdsLoading}>{tdsLoading ? 'Calculating…' : '📅 Generate TDS Report'}</Btn>
+            {tdsErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{tdsErr}</div>}
+          </Card>
+          <Card>
+            {tdsRes ? (() => {
+              const r = tdsRes
+              const dueColor = r.due_status === 'overdue' ? '#ef4444' : r.due_status === 'urgent' ? '#f59e0b' : '#22c55e'
+              const statusBadge = (s: string) => ({ deposited: '#22c55e', pending: '#f59e0b', overdue: '#ef4444' }[s] || '#6b7280')
+              return (
+                <>
+                  {/* Summary cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
+                    {[
+                      { label: 'Total TDS', value: `₹${(r.total_tds_deducted/1000).toFixed(0)}K`, color: '#60a5fa' },
+                      { label: 'Deposited', value: `₹${(r.total_deposited/1000).toFixed(0)}K`,   color: '#22c55e' },
+                      { label: 'Pending',   value: `₹${(r.total_pending/1000).toFixed(0)}K`,     color: r.total_pending > 0 ? '#ef4444' : '#22c55e' },
+                    ].map((c, i) => (
+                      <div key={i} style={{ background: '#0f172a', borderRadius: 8, padding: 10, textAlign: 'center' }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: c.color }}>{c.value}</div>
+                        <div style={{ fontSize: 10, color: '#6b7280' }}>{c.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Challan due */}
+                  <div style={{ background: '#0f172a', borderRadius: 8, padding: 12, marginBottom: 14, border: `1px solid ${dueColor}40` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: dueColor }}>
+                          {r.due_status === 'overdue' ? '⚠️ CHALLAN OVERDUE' : r.due_status === 'urgent' ? '⚡ DUE SOON' : '✅ CHALLAN DUE'}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#d1d5db', marginTop: 2 }}>{r.challan_due_date}</div>
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: dueColor }}>
+                        {r.days_to_due >= 0 ? `${r.days_to_due}d` : `${Math.abs(r.days_to_due)}d late`}
+                      </div>
+                    </div>
+                    {r.total_late_fee > 0 && (
+                      <div style={{ fontSize: 11, color: '#ef4444', marginTop: 6 }}>
+                        Late fee u/s 234E: ₹{r.total_late_fee.toLocaleString()} | Interest u/s 201: ₹{r.total_late_interest.toLocaleString()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Deductions table */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>TDS DEDUCTIONS — {r.month} {r.year}</div>
+                    {(r.deductions || []).map((d: any, i: number) => (
+                      <div key={i} style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginBottom: 6, cursor: 'pointer', border: `1px solid ${tdsActiveSection === String(i) ? '#4f46e5' : '#1e2535'}` }}
+                        onClick={() => setTdsActiveSection(tdsActiveSection === String(i) ? null : String(i))}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', marginRight: 8 }}>§{d.section}</span>
+                            <span style={{ fontSize: 11, color: '#e2e8f0' }}>{d.payee}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0' }}>₹{d.tds_amount.toLocaleString()}</span>
+                            <span style={{ background: statusBadge(d.status) + '20', color: statusBadge(d.status), borderRadius: 4, padding: '2px 6px', fontSize: 10 }}>{d.status}</span>
+                          </div>
+                        </div>
+                        {tdsActiveSection === String(i) && (
+                          <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11, color: '#6b7280' }}>
+                            <div>Nature: {d.nature}</div>
+                            <div>Amount: ₹{d.amount.toLocaleString()}</div>
+                            <div>Rate: {d.rate}%</div>
+                            <div>Form: {d.form}</div>
+                            {d.pan_issue && <div style={{ color: '#ef4444', gridColumn: '1/-1' }}>⚠️ PAN issue — 20% rate may apply</div>}
+                            {d.late_fee_234E > 0 && <div style={{ color: '#ef4444', gridColumn: '1/-1' }}>Late fee: ₹{d.late_fee_234E} | Interest: ₹{d.late_interest_201}</div>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Monthly deadlines */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>KEY DEADLINES — {r.month}</div>
+                    {(r.month_deadlines || []).map((dl: string, i: number) => (
+                      <div key={i} style={{ fontSize: 11, color: '#d1d5db', padding: '4px 0', borderBottom: '1px solid #111827' }}>📌 {dl}</div>
+                    ))}
+                    <div style={{ fontSize: 11, color: '#60a5fa', marginTop: 6 }}>
+                      {r.quarter} Return ({r.return_form}) due: {r.return_due}
+                    </div>
+                  </div>
+
+                  {/* Common errors */}
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', marginBottom: 6 }}>⚠️ COMMON TDS MISTAKES TO AVOID</div>
+                    {(r.common_errors || []).map((err: string, i: number) => (
+                      <div key={i} style={{ fontSize: 11, color: '#94a3b8', padding: '3px 0' }}>→ {err}</div>
+                    ))}
+                  </div>
+                </>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Select month & year, click Generate TDS Report →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
       {/* ── MSME LOAN ELIGIBILITY (Round 13) ── */}
       {tab === 'loan' && (
         <TwoCol>

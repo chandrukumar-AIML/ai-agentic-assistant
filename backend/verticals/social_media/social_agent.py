@@ -2069,6 +2069,18 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "podcast_content_kit":
+        return generate_podcast_content_kit(
+            episode_title=payload.get("episode_title", ""),
+            brand_name=payload.get("brand_name", ""),
+            host_name=payload.get("host_name", ""),
+            key_points=payload.get("key_points", []),
+            guest_name=payload.get("guest_name", ""),
+            episode_url=payload.get("episode_url", ""),
+            industry=payload.get("industry", ""),
+            target_audience=payload.get("target_audience", ""),
+        )
+
     elif action == "twitter_thread":
         return generate_twitter_thread(
             topic=payload.get("topic", ""),
@@ -2243,6 +2255,170 @@ _THREAD_RULES = [
     "Post your thread as a reply to yourself, not as separate tweets — keeps it as one unit.",
     "Best time for Indian Twitter/X: 8-9 AM and 9-10 PM IST on weekdays.",
 ]
+
+
+# ── Podcast → Social Content Kit (Round 14) ──────────────────────────────────
+
+_CAROUSEL_SLIDE_PROMPTS = [
+    "Title slide: Episode title as bold headline + your brand name",
+    "Hook slide: The most surprising or counterintuitive insight from the episode",
+    "Key insight 1: First major takeaway with a supporting stat or quote",
+    "Key insight 2: Second major takeaway — make it visual (list or before/after)",
+    "Key insight 3: Third major takeaway — frame as a tip the audience can use today",
+    "Quote slide: Best direct quote from the guest/host — large text, minimal design",
+    "Action slide: 'The one thing to do after listening to this episode'",
+    "CTA slide: 'Follow for weekly episodes' + link/handle",
+]
+
+_REELS_HOOKS = [
+    "POV: You just learned {insight} in 45 minutes. Here's the 60-second version…",
+    "This podcast episode changed how I think about {topic}. 3 things I learned 👇",
+    "Stop doing {wrong_approach}. Here's what {guest_or_host} does instead:",
+    "{Number} minutes into this episode and I had to pause. Here's why:",
+    "The {topic} advice everyone gives you is wrong. {guest_or_host} explains why:",
+]
+
+_EMAIL_STRUCTURES = {
+    "subject_lines": [
+        "🎙️ New episode: {title}",
+        "What {guest} taught me about {topic}",
+        "{Number} insights from our latest podcast episode",
+        "This week on the podcast: {title}",
+    ],
+    "structure": [
+        "OPENING: One-line hook — the most surprising thing from this episode",
+        "EPISODE SUMMARY: 2-3 sentences on who was on and what you covered",
+        "TOP 3 INSIGHTS: Bulleted list — one line per insight, scannable",
+        "FAVORITE QUOTE: Block-quoted — gives the email personality",
+        "LISTEN NOW CTA: Big button + episode URL",
+        "P.S.: Tease next week's episode or topic",
+    ],
+}
+
+
+def generate_podcast_content_kit(
+    episode_title: str,
+    brand_name: str,
+    host_name: str,
+    key_points: list,
+    guest_name: str,
+    episode_url: str,
+    industry: str,
+    target_audience: str,
+) -> dict:
+    title = episode_title or "How Indian Startups Can Scale Without VC Funding"
+    brand = brand_name or "Your Podcast"
+    host = host_name or "Your Name"
+    guest = guest_name or ""
+    audience = target_audience or "entrepreneurs and business owners"
+    ind = industry or "business"
+    url = episode_url or "[episode link]"
+
+    demo_points = key_points if key_points else [
+        f"Most {audience} make the mistake of scaling headcount before product-market fit",
+        f"Revenue-based financing is an underused alternative to VC in {ind}",
+        f"The 'default alive' metric: if you stopped hiring today, would you reach profitability?",
+        f"Building in public increases trust and reduces CAC by 30-40% for B2B brands",
+        f"The best time to fundraise is when you don't need it — leverage matters",
+    ]
+
+    guest_or_host = guest if guest else host
+    topic_short = title.split(":")[0].strip() if ":" in title else title[:40]
+
+    # LinkedIn post
+    linkedin_hook = f"I just finished recording an episode with {guest_or_host} and I'm still thinking about it." if guest else f"We just released a new episode and I can't stop thinking about one insight from it."
+    linkedin_points = "\n".join([f"→ {pt}" for pt in demo_points[:4]])
+    linkedin_post = f"""{linkedin_hook}
+
+Topic: {title}
+
+Here are the 4 things that hit hardest:
+
+{linkedin_points}
+
+The full conversation is up now — link in comments.
+
+What's your biggest challenge with {topic_short.lower()}? Drop it below 👇
+
+#Podcast #{ind.replace(' ','').title()} #{audience.split()[0].title()}"""
+
+    # Twitter thread hook tweets
+    twitter_hook = f"Just wrapped an episode on {topic_short.lower()}.\n\n{len(demo_points)} insights that changed how I think about it 🧵"
+    twitter_tweets = [twitter_hook] + [f"{i+1}/ {pt}" for i, pt in enumerate(demo_points)] + [
+        f"If you want the full breakdown, listen here 👇\n\n{url}\n\nFollow @{brand.lower().replace(' ','')} for weekly episodes on {ind}."
+    ]
+
+    # Instagram carousel slides
+    carousel_slides = []
+    for i, prompt in enumerate(_CAROUSEL_SLIDE_PROMPTS):
+        if i == 0:
+            content = f"Headline: \"{title}\"\nSubheading: {brand} Podcast"
+        elif i == 1:
+            content = demo_points[0] if demo_points else "Key insight here"
+        elif i <= len(demo_points) and i >= 2:
+            content = demo_points[min(i-1, len(demo_points)-1)]
+        elif "Quote" in prompt and guest:
+            content = f'"{demo_points[0]}"\n— {guest_or_host}'
+        elif "Action" in prompt:
+            content = f"One thing to do after this episode:\n\n{demo_points[-1].split('.')[0]}."
+        elif "CTA" in prompt:
+            content = f"New episode every week.\nFollow @{brand.lower().replace(' ','')} 🎙️\n\n{url}"
+        else:
+            content = demo_points[min(i, len(demo_points)-1)] if demo_points else "Content here"
+        carousel_slides.append({"slide": i+1, "purpose": prompt.split(":")[0], "content": content})
+
+    # Reels script
+    reel_hook_template = _REELS_HOOKS[0]
+    reel_hook = (reel_hook_template
+        .replace("{insight}", demo_points[0][:60] + "…" if demo_points else "this insight")
+        .replace("{topic}", topic_short.lower()))
+    reels_script = {
+        "hook_0_3s":   reel_hook,
+        "setup_3_8s":  f"I just finished a {len(demo_points)*3}-minute episode on {topic_short.lower()} with {guest_or_host}.",
+        "insight_1":   f"First: {demo_points[0]}" if demo_points else "First insight",
+        "insight_2":   f"Second: {demo_points[1]}" if len(demo_points) > 1 else "Second insight",
+        "insight_3":   f"Third: {demo_points[2]}" if len(demo_points) > 2 else "Third insight",
+        "cta_end":     f"Full episode link in bio. New episodes weekly on {brand}.",
+        "total_length": "45-60 seconds",
+        "caption":     f"3 things I learned from this week's episode ↑\n\n🎙️ {title}\n\n{url}",
+    }
+
+    # Email newsletter
+    email = {
+        "subject": f"🎙️ New episode: {title}",
+        "alt_subjects": [sl.replace("{title}", title).replace("{guest}", guest_or_host).replace("{topic}", topic_short.lower()).replace("{Number}", str(len(demo_points))) for sl in _EMAIL_STRUCTURES["subject_lines"][1:]],
+        "body_structure": _EMAIL_STRUCTURES["structure"],
+        "opening_hook": f"This week's episode of {brand} is one I've been wanting to record for a long time.",
+        "summary": f"{'I sat down with ' + guest + ' to talk about' if guest else 'This week we explored'} {topic_short.lower()} — and it went deeper than I expected.",
+        "top_3_insights": [f"**{pt.split(':')[0] if ':' in pt else pt[:50]}**: {pt.split(':')[1].strip() if ':' in pt else pt}" for pt in demo_points[:3]],
+        "listen_cta": f"Listen to the full episode → {url}",
+    }
+
+    distribution_checklist = [
+        {"platform": "LinkedIn", "format": "Long-form post", "timing": "Tuesday/Wednesday 8-10 AM", "action": "Post LinkedIn copy above. Reply to every comment in first 2 hours."},
+        {"platform": "Twitter/X", "format": "Thread", "timing": "Monday/Thursday 8 AM or 9 PM", "action": "Post thread above. Pin it to your profile for 7 days."},
+        {"platform": "Instagram", "format": "Carousel (8 slides)", "timing": "Tuesday/Friday 7-9 PM", "action": "Use carousel slides. Add swipe-worthy first slide visual. Use 5-8 niche hashtags."},
+        {"platform": "Instagram Reels", "format": "60s vertical video", "timing": "Wednesday/Saturday 6-8 PM", "action": "Record Reels using script above. Add captions — 85% watch without sound."},
+        {"platform": "Email", "format": "Newsletter", "timing": "Send day of or day after publish", "action": "Use email template above. A/B test subject lines on first 20%."},
+        {"platform": "WhatsApp", "format": "Status + broadcast", "timing": "Same day as publish", "action": "Share 1-line episode teaser + link on status. Send to broadcast list."},
+    ]
+
+    return {
+        "action":                "podcast_content_kit",
+        "episode_title":         title,
+        "brand":                 brand,
+        "guest":                 guest,
+        "host":                  host,
+        "key_points_used":       demo_points,
+        "linkedin_post":         linkedin_post,
+        "twitter_thread_tweets": twitter_tweets,
+        "instagram_carousel":    carousel_slides,
+        "reels_script":          reels_script,
+        "email_newsletter":      email,
+        "distribution_checklist": distribution_checklist,
+        "total_formats":         5,
+        "summary":               f"Generated 5-format content kit for '{title}' — LinkedIn post, {len(twitter_tweets)}-tweet thread, {len(carousel_slides)}-slide carousel, Reels script & email newsletter.",
+    }
 
 
 def generate_twitter_thread(

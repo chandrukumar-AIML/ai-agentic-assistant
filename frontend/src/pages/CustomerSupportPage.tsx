@@ -58,6 +58,7 @@ const TABS = [
   { id: 'health',     label: 'Customer Health Score' },
   { id: 'winback',    label: 'Win-back Sequence' },
   { id: 'scorecard',  label: 'Agent Scorecard' },
+  { id: 'nps',        label: 'NPS Campaign' },
 ]
 
 const WA_TYPES = [
@@ -1309,6 +1310,7 @@ export default function CustomerSupportPage() {
         {tab === 'health'      && <CustomerHealthTab lang={lang} />}
         {tab === 'winback'     && <WinbackTab lang={lang} />}
         {tab === 'scorecard'   && <AgentScorecardTab lang={lang} />}
+        {tab === 'nps'         && <NpsCampaignTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -2438,6 +2440,162 @@ function AgentScorecardTab({ lang }: { lang: Lang }) {
               </>
             )
           })() : <Empty text="Demo data pre-loaded — click Generate Scorecard →" />}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── NPS Campaign Builder Tab (Round 14) ──────────────────────────────────────
+
+function NpsCampaignTab({ lang }: { lang: Lang }) {
+  const [biz, setBiz]         = useState('')
+  const [product, setProduct] = useState('')
+  const [industry, setIndustry] = useState('saas')
+  const [channel, setChannel] = useState('email')
+  const [res, setRes]         = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [err, setErr]         = useState('')
+  const [activeResp, setActiveResp] = useState<number|null>(null)
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null); setActiveResp(null)
+    try {
+      setRes(await csAction('nps_campaign_builder', {
+        business_name: biz, product_name: product,
+        industry, survey_channel: channel, responses: [],
+      }))
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+
+  const segColor: Record<string, string> = { promoter: '#22c55e', passive: '#f59e0b', detractor: '#ef4444' }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
+        <div style={{ background: '#141b2d', borderRadius: 12, padding: 20, border: '1px solid #1e2535' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>📊 NPS Campaign Builder</div>
+          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 16 }}>Score NPS, get Promoter/Passive/Detractor follow-up scripts & action plan. Demo data pre-loaded.</div>
+          {[
+            { label: 'Business Name', value: biz, set: setBiz, placeholder: 'e.g. Acme SaaS' },
+            { label: 'Product Name',  value: product, set: setProduct, placeholder: 'e.g. Core Platform' },
+          ].map((f, i) => (
+            <div key={i} style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>{f.label}</label>
+              <input value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.placeholder}
+                style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+          ))}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Industry</label>
+            <select value={industry} onChange={e => setIndustry(e.target.value)}
+              style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13 }}>
+              {['saas','ecommerce','fintech','healthcare','logistics','general'].map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Survey Channel</label>
+            <select value={channel} onChange={e => setChannel(e.target.value)}
+              style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13 }}>
+              {['email','in_app','whatsapp'].map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <button onClick={run} disabled={loading} style={{ width: '100%', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontSize: 13, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'Building campaign…' : '📊 Build NPS Campaign'}
+          </button>
+          {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{err}</div>}
+        </div>
+
+        <div style={{ background: '#141b2d', borderRadius: 12, padding: 20, border: '1px solid #1e2535' }}>
+          {res ? (() => {
+            const r = res
+            const bm = r.benchmark || {}
+            const vsLabel: Record<string, string> = { world_class: 'World Class', great: 'Great', good: 'Good', below_average: 'Below Average' }
+            const vsColor: Record<string, string> = { world_class: '#22c55e', great: '#60a5fa', good: '#f59e0b', below_average: '#ef4444' }
+            return (
+              <>
+                <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+                  <div style={{ background: '#0f172a', borderRadius: 10, padding: '16px 20px', textAlign: 'center', minWidth: 100 }}>
+                    <div style={{ fontSize: 36, fontWeight: 900, color: r.nps_score >= 50 ? '#22c55e' : r.nps_score >= 30 ? '#60a5fa' : r.nps_score >= 0 ? '#f59e0b' : '#ef4444' }}>{r.nps_score}</div>
+                    <div style={{ fontSize: 10, color: '#6b7280' }}>NPS Score</div>
+                    <div style={{ fontSize: 11, color: vsColor[r.vs_benchmark] || '#6b7280', marginTop: 2 }}>{vsLabel[r.vs_benchmark]}</div>
+                  </div>
+                  <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    {[
+                      { label: 'Promoters',  count: r.promoters,  pct: r.promoter_pct,  color: '#22c55e' },
+                      { label: 'Passives',   count: r.passives,   pct: r.passive_pct,   color: '#f59e0b' },
+                      { label: 'Detractors', count: r.detractors, pct: r.detractor_pct, color: '#ef4444' },
+                    ].map((seg, i) => (
+                      <div key={i} style={{ background: '#0f172a', borderRadius: 8, padding: 10, textAlign: 'center' }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: seg.color }}>{seg.count}</div>
+                        <div style={{ fontSize: 10, color: '#6b7280' }}>{seg.label}</div>
+                        <div style={{ fontSize: 10, color: seg.color }}>{seg.pct}%</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background: '#0f172a', borderRadius: 8, padding: 10, marginBottom: 14, fontSize: 11 }}>
+                  <div style={{ color: '#9ca3af', marginBottom: 4 }}>INDUSTRY BENCHMARK ({r.industry?.toUpperCase()})</div>
+                  <div style={{ color: '#d1d5db' }}>Good: {bm.good}+ | Great: {bm.great}+ | World Class: {bm.world_class}+</div>
+                  <div style={{ color: '#6b7280', marginTop: 2 }}>Examples: {bm.examples}</div>
+                </div>
+
+                {r.feedback_themes?.length > 0 && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>THEMES FROM FEEDBACK</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {r.feedback_themes.map((t: string, i: number) => (
+                        <span key={i} style={{ background: '#1e2535', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#94a3b8' }}>{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>RESPONSES & FOLLOW-UP SCRIPTS (click to expand)</div>
+                  {(r.responses || []).map((resp: any, i: number) => (
+                    <div key={i} style={{ background: '#0f172a', borderRadius: 6, marginBottom: 6, border: `1px solid ${activeResp === i ? segColor[resp.segment] + '60' : '#1e2535'}`, cursor: 'pointer' }}
+                      onClick={() => setActiveResp(activeResp === i ? null : i)}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px' }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <span style={{ fontSize: 18, fontWeight: 900, color: segColor[resp.segment] }}>{resp.score}</span>
+                          <div>
+                            <div style={{ fontSize: 12, color: '#e2e8f0' }}>{resp.name}</div>
+                            <div style={{ fontSize: 10, color: '#6b7280' }}>{resp.customer_segment} · {resp.tenure}</div>
+                          </div>
+                        </div>
+                        <Badge label={resp.segment_label} color={resp.segment === 'promoter' ? 'green' : resp.segment === 'passive' ? 'yellow' : 'red'} />
+                      </div>
+                      {resp.comment && <div style={{ fontSize: 11, color: '#94a3b8', padding: '0 10px 8px', fontStyle: 'italic' }}>"{resp.comment}"</div>}
+                      {activeResp === i && (
+                        <div style={{ padding: '8px 10px', borderTop: '1px solid #1e2535' }}>
+                          <div style={{ fontSize: 10, color: segColor[resp.segment], marginBottom: 4 }}>FOLLOW-UP EMAIL</div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: '#e2e8f0', marginBottom: 4 }}>Subject: {resp.follow_up_subject}</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{resp.follow_up_body}</div>
+                          <div style={{ fontSize: 10, color: '#6b7280', marginTop: 6, fontStyle: 'italic' }}>Tone: {resp.tone_guidance}</div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>ACTION PLAN</div>
+                  {(r.action_plan || []).map((a: any, i: number) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: '1px solid #111827' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#4f46e5', minWidth: 20 }}>{a.priority}</span>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#e2e8f0' }}>{a.action}</div>
+                        <div style={{ fontSize: 10, color: '#6b7280' }}>{a.owner} · {a.timeline}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )
+          })() : <Empty text="Demo data pre-loaded — click Build NPS Campaign →" />}
         </div>
       </div>
     </div>

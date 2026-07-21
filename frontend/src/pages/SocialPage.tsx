@@ -289,6 +289,33 @@ export default function SocialPage() {
   const [ttLoading, setTtLoading]   = useState(false)
   const [ttErr, setTtErr]           = useState('')
   const [ttActive, setTtActive]     = useState(0)
+  // Podcast Content Kit (Round 14)
+  const [podTitle, setPodTitle]     = useState('')
+  const [podBrand, setPodBrand]     = useState('')
+  const [podHost, setPodHost]       = useState('')
+  const [podGuest, setPodGuest]     = useState('')
+  const [podIndustry, setPodIndustry] = useState('')
+  const [podAudience, setPodAudience] = useState('')
+  const [podPointsJson, setPodPointsJson] = useState('')
+  const [podTab, setPodTab]         = useState<'linkedin'|'twitter'|'carousel'|'reels'|'email'>('linkedin')
+  const [podRes, setPodRes]         = useState<any>(null)
+  const [podLoading, setPodLoading] = useState(false)
+  const [podErr, setPodErr]         = useState('')
+  const runPodcast = async () => {
+    setPodLoading(true); setPodErr(''); setPodRes(null)
+    try {
+      let points: string[] = []
+      if (podPointsJson.trim()) {
+        try { points = JSON.parse(podPointsJson) } catch { points = podPointsJson.split('\n').filter(Boolean) }
+      }
+      setPodRes(await socialAction('podcast_content_kit', {
+        episode_title: podTitle, brand_name: podBrand, host_name: podHost,
+        guest_name: podGuest, industry: podIndustry, target_audience: podAudience,
+        key_points: points,
+      }, 'linkedin'))
+    } catch (e: any) { setPodErr(e.message) }
+    finally { setPodLoading(false) }
+  }
   const runTwitterThread = async () => {
     setTtLoading(true); setTtErr(''); setTtRes(null); setTtActive(0)
     try {
@@ -577,6 +604,7 @@ export default function SocialPage() {
           { id: 'outreach',   label: 'Influencer Outreach',   icon: '✉️' },
           { id: 'carousel',   label: 'LinkedIn Carousel',     icon: '🎠' },
           { id: 'twitter',    label: 'Twitter Thread',        icon: '🧵' },
+          { id: 'podcast',    label: 'Podcast Content Kit',   icon: '🎙️' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2528,6 +2556,167 @@ export default function SocialPage() {
                 <span style={{ fontSize: 11, color: '#374151' }}>Demo topics: "AI automation", "GST compliance", "Instagram growth"</span>
               </div>
             )}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── PODCAST CONTENT KIT (Round 14) ── */}
+      {tab === 'podcast' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="🎙️ Podcast → Social Content Kit" sub="One episode → LinkedIn post + Twitter thread + IG carousel + Reels + Email" />
+            <Input label="Episode Title" value={podTitle} onChange={setPodTitle} placeholder="e.g. How Indian Startups Scale Without VC Funding" />
+            <Input label="Podcast / Brand Name" value={podBrand} onChange={setPodBrand} placeholder="e.g. Startup India Podcast" />
+            <Input label="Host Name" value={podHost} onChange={setPodHost} placeholder="e.g. Rahul Sharma" />
+            <Input label="Guest Name (optional)" value={podGuest} onChange={setPodGuest} placeholder="e.g. Kunal Shah — leave blank if solo episode" />
+            <Input label="Industry" value={podIndustry} onChange={setPodIndustry} placeholder="e.g. fintech, D2C, SaaS" />
+            <Input label="Target Audience" value={podAudience} onChange={setPodAudience} placeholder="e.g. startup founders, Indian entrepreneurs" />
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Key Points / Insights (one per line or JSON array — blank = demo)</label>
+              <textarea value={podPointsJson} onChange={e => setPodPointsJson(e.target.value)} rows={5}
+                placeholder={"Most founders scale headcount before PMF\nRevenue-based financing is underused in India\nThe 'default alive' metric every founder needs"}
+                style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box', resize: 'vertical' }} />
+            </div>
+            <Btn onClick={runPodcast} disabled={podLoading}>{podLoading ? 'Building Kit…' : '🎙️ Generate Content Kit'}</Btn>
+            {podErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{podErr}</div>}
+          </Card>
+          <Card>
+            {podRes ? (() => {
+              const r = podRes
+              const tabs: {key: typeof podTab, label: string}[] = [
+                { key: 'linkedin', label: '💼 LinkedIn' },
+                { key: 'twitter',  label: '🧵 Twitter' },
+                { key: 'carousel', label: '🎠 Carousel' },
+                { key: 'reels',    label: '🎬 Reels' },
+                { key: 'email',    label: '✉️ Email' },
+              ]
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>🎙️ {r.episode_title}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>{r.total_formats} formats generated</div>
+                    </div>
+                    <span style={{ background: '#7c3aed20', color: '#a78bfa', borderRadius: 20, padding: '3px 10px', fontSize: 11 }}>
+                      {r.brand}
+                    </span>
+                  </div>
+
+                  {/* Format tabs */}
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
+                    {tabs.map(t => (
+                      <span key={t.key} onClick={() => setPodTab(t.key)} style={{
+                        padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+                        background: podTab === t.key ? '#7c3aed' : '#1e2535',
+                        color: podTab === t.key ? '#fff' : '#6b7280',
+                        fontWeight: podTab === t.key ? 700 : 400,
+                      }}>{t.label}</span>
+                    ))}
+                  </div>
+
+                  {/* LinkedIn post */}
+                  {podTab === 'linkedin' && (
+                    <div style={{ background: '#0f172a', borderRadius: 8, padding: 14 }}>
+                      <div style={{ fontSize: 10, color: '#60a5fa', marginBottom: 8 }}>LINKEDIN POST</div>
+                      <div style={{ color: '#e2e8f0', fontSize: 12, whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{r.linkedin_post}</div>
+                    </div>
+                  )}
+
+                  {/* Twitter thread */}
+                  {podTab === 'twitter' && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#1d9bf0', marginBottom: 8 }}>TWITTER/X THREAD ({r.twitter_thread_tweets?.length} tweets)</div>
+                      {(r.twitter_thread_tweets || []).map((tw: string, i: number) => (
+                        <div key={i} style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginBottom: 6, borderLeft: `3px solid ${i === 0 ? '#1d9bf0' : '#1e2535'}` }}>
+                          <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 4 }}>{i + 1}/{r.twitter_thread_tweets.length}</div>
+                          <div style={{ color: '#e2e8f0', fontSize: 12, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{tw}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Instagram Carousel */}
+                  {podTab === 'carousel' && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#e1306c', marginBottom: 8 }}>INSTAGRAM CAROUSEL ({r.instagram_carousel?.length} slides)</div>
+                      {(r.instagram_carousel || []).map((slide: any, i: number) => (
+                        <div key={i} style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginBottom: 6 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 10, color: '#e1306c' }}>Slide {slide.slide}</span>
+                            <span style={{ fontSize: 10, color: '#6b7280' }}>{slide.purpose}</span>
+                          </div>
+                          <div style={{ color: '#e2e8f0', fontSize: 12, lineHeight: 1.6 }}>{slide.content}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Reels script */}
+                  {podTab === 'reels' && r.reels_script && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#f97316', marginBottom: 8 }}>REELS SCRIPT ({r.reels_script.total_length})</div>
+                      {[
+                        { label: '0-3s HOOK', value: r.reels_script.hook_0_3s },
+                        { label: '3-8s SETUP', value: r.reels_script.setup_3_8s },
+                        { label: 'INSIGHT 1', value: r.reels_script.insight_1 },
+                        { label: 'INSIGHT 2', value: r.reels_script.insight_2 },
+                        { label: 'INSIGHT 3', value: r.reels_script.insight_3 },
+                        { label: 'END CTA', value: r.reels_script.cta_end },
+                      ].map((seg, i) => (
+                        <div key={i} style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginBottom: 6 }}>
+                          <div style={{ fontSize: 10, color: '#f97316', marginBottom: 3 }}>{seg.label}</div>
+                          <div style={{ color: '#e2e8f0', fontSize: 12 }}>{seg.value}</div>
+                        </div>
+                      ))}
+                      <div style={{ background: '#1e2535', borderRadius: 6, padding: 10, marginTop: 8 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>CAPTION</div>
+                        <div style={{ color: '#d1d5db', fontSize: 11, whiteSpace: 'pre-wrap' }}>{r.reels_script.caption}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Email */}
+                  {podTab === 'email' && r.email_newsletter && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#22c55e', marginBottom: 8 }}>EMAIL NEWSLETTER</div>
+                      <div style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>SUBJECT LINE</div>
+                        <div style={{ color: '#22c55e', fontSize: 13, fontWeight: 600 }}>{r.email_newsletter.subject}</div>
+                      </div>
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>ALT SUBJECT LINES</div>
+                        {(r.email_newsletter.alt_subjects || []).map((s: string, i: number) => (
+                          <div key={i} style={{ fontSize: 11, color: '#94a3b8', padding: '2px 0' }}>→ {s}</div>
+                        ))}
+                      </div>
+                      <div style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginBottom: 8 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>EMAIL STRUCTURE</div>
+                        {(r.email_newsletter.body_structure || []).map((s: string, i: number) => (
+                          <div key={i} style={{ fontSize: 11, color: '#d1d5db', padding: '3px 0', borderBottom: '1px solid #111827' }}>{i+1}. {s}</div>
+                        ))}
+                      </div>
+                      <div style={{ background: '#0f172a', borderRadius: 6, padding: 10 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>TOP 3 INSIGHTS TO INCLUDE</div>
+                        {(r.email_newsletter.top_3_insights || []).map((ins: string, i: number) => (
+                          <div key={i} style={{ fontSize: 11, color: '#d1d5db', padding: '3px 0' }}>• {ins}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Distribution checklist */}
+                  <div style={{ marginTop: 14, borderTop: '1px solid #1e2535', paddingTop: 10 }}>
+                    <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 6 }}>DISTRIBUTION CHECKLIST</div>
+                    {(r.distribution_checklist || []).map((dc: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', gap: 8, padding: '4px 0', borderBottom: '1px solid #111827' }}>
+                        <span style={{ fontSize: 11, color: '#6b7280', minWidth: 80 }}>{dc.platform}</span>
+                        <span style={{ fontSize: 11, color: '#4b5563' }}>{dc.timing}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill the form and click Generate Content Kit →</div>}
           </Card>
         </TwoCol>
       )}

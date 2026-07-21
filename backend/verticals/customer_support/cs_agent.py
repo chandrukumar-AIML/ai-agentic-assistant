@@ -560,6 +560,15 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "nps_campaign_builder":
+            return _nps_campaign_builder(
+                business_name=payload.get("business_name", ""),
+                product_name=payload.get("product_name", ""),
+                industry=payload.get("industry", "saas"),
+                responses=payload.get("responses", []),
+                survey_channel=payload.get("survey_channel", "email"),
+            )
+
         elif action == "agent_performance_scorecard":
             return _agent_performance_scorecard(
                 agents=payload.get("agents", []),
@@ -2173,4 +2182,191 @@ def _agent_performance_scorecard(
         "agents_needing_coaching":   [a["name"] for a in bottom_agents],
         "team_insight":              f"Team avg {team_avg:.0f}/100. {tier_distribution.get('star',0)} Star agents, {tier_distribution.get('needs_help',0)} needing coaching.",
         "summary":                   f"Scored {len(scored_agents)} agents for {per}. Team avg: {team_avg:.0f}/100. Top: {top_agent['name'] if top_agent else 'N/A'} ({top_agent['overall_score'] if top_agent else 0}/100).",
+    }
+
+
+# ── NPS Campaign Builder (Round 14) ──────────────────────────────────────────
+
+_NPS_SEGMENTS = {
+    "promoter":  {"range": "9-10", "label": "Promoter",  "color": "green",  "pct_typical": 40, "action": "amplify"},
+    "passive":   {"range": "7-8",  "label": "Passive",   "color": "yellow", "pct_typical": 35, "action": "convert"},
+    "detractor": {"range": "0-6",  "label": "Detractor", "color": "red",    "pct_typical": 25, "action": "recover"},
+}
+
+_NPS_FOLLOW_UP = {
+    "promoter": {
+        "email_subject": "You made our day — can we ask one more thing?",
+        "opening":       "Thank you so much for your {score}/10 score! It genuinely means a lot to us at {company}.",
+        "ask":           "Would you be willing to leave us a review on G2/Capterra? It takes 3 minutes and helps others like you find {product}.",
+        "cta":           "Leave a review →",
+        "secondary_ask": "Also, do you know someone who could benefit from {product}? We'd love an introduction.",
+        "tone":          "Warm, grateful, not pushy. They're fans — treat them like insiders.",
+    },
+    "passive": {
+        "email_subject": "What would make {product} a 10/10 for you?",
+        "opening":       "Thanks for taking the time to share your score of {score}/10. We really appreciate honest feedback.",
+        "ask":           "We noticed you're not quite at a 10 yet — what's the one thing we could do better to get there?",
+        "cta":           "Tell us in 2 minutes →",
+        "secondary_ask": "If there's a specific feature or experience that fell short, our product team reviews every response personally.",
+        "tone":          "Curious, improvement-focused. They like you but aren't committed — show you listen.",
+    },
+    "detractor": {
+        "email_subject": "We need to make this right — {name}",
+        "opening":       "Thank you for your honesty. A score of {score}/10 tells us we've let you down, and we take that seriously.",
+        "ask":           "Would you be open to a 15-minute call with our customer success team? We want to understand exactly what went wrong and fix it.",
+        "cta":           "Book a call →",
+        "secondary_ask": "If a call isn't convenient, reply to this email with what went wrong. Our VP of CS reads every detractor response.",
+        "tone":          "Apologetic, urgent, human. No corporate speak. Take ownership immediately.",
+    },
+}
+
+_NPS_SURVEY_TEMPLATES = {
+    "email": {
+        "subject":     "Quick question about your {product} experience (30 seconds)",
+        "body":        "Hi {name},\n\nYou've been using {product} for {tenure}, and we'd love to hear how it's going.\n\nOn a scale of 0-10, how likely are you to recommend {product} to a friend or colleague?\n\n[0 — Not at all] ........................ [10 — Absolutely]\n\n{survey_link}\n\nTake 30 seconds → {survey_link}\n\nThank you,\n{sender}\n{company}",
+        "send_timing": "Send 30 days post-onboarding, then every 90 days",
+        "open_rate_tip": "Best subject line open rates: personalized + short. Avoid 'survey' in subject line — reduces open rate by 20%.",
+    },
+    "in_app": {
+        "trigger":     "Show after user completes 3+ key actions or on day 30/60/90",
+        "question":    "How likely are you to recommend {product} to a friend or colleague?",
+        "follow_up":   "What's the main reason for your score?",
+        "design_tip":  "Show as a bottom banner, not a modal. Modal NPS gets 40% less response rate.",
+        "dismiss_rule": "Suppress for 90 days after response. Never show to new users (<7 days).",
+    },
+    "whatsapp": {
+        "message":     "Hi {name}! Quick question from the {company} team — on a scale of 0-10, how likely are you to recommend us to a friend? Reply with just a number. (Takes 5 seconds!)",
+        "follow_up":   "Thank you! What's one thing we could do to make your experience better?",
+        "send_timing": "After ticket closure or milestone. Avoid Monday mornings.",
+    },
+}
+
+_INDUSTRY_NPS_BENCHMARKS = {
+    "saas":       {"good": 30, "great": 50, "world_class": 70, "examples": "Slack: 51, Zoom: 49, Freshworks: 41"},
+    "ecommerce":  {"good": 40, "great": 55, "world_class": 70, "examples": "Amazon: 62, Flipkart: 44"},
+    "fintech":    {"good": 25, "great": 40, "world_class": 60, "examples": "Razorpay: 68, Zerodha: 72"},
+    "healthcare": {"good": 40, "great": 60, "world_class": 75, "examples": "Practo: 52"},
+    "logistics":  {"good": 20, "great": 35, "world_class": 55, "examples": "Delhivery: 38"},
+    "general":    {"good": 30, "great": 45, "world_class": 65, "examples": "Top quartile B2B SaaS India"},
+}
+
+
+def _nps_campaign_builder(
+    business_name: str,
+    product_name: str,
+    industry: str,
+    responses: list,
+    survey_channel: str,
+) -> dict:
+    company = business_name or "Your Company"
+    product = product_name or "Your Product"
+    ind_key = industry if industry in _INDUSTRY_NPS_BENCHMARKS else "general"
+    channel = survey_channel if survey_channel in _NPS_SURVEY_TEMPLATES else "email"
+
+    demo_responses = responses if responses else [
+        {"name": "Rahul M.",   "score": 9,  "comment": "Love the product. Onboarding could be smoother.", "segment": "enterprise", "tenure": "6 months"},
+        {"name": "Priya K.",   "score": 10, "comment": "Best tool in the market. Saves us 10 hours/week.", "segment": "startup",    "tenure": "12 months"},
+        {"name": "Ananya S.",  "score": 5,  "comment": "Too many bugs in the mobile app. Support is slow.", "segment": "smb",        "tenure": "3 months"},
+        {"name": "Vikram T.",  "score": 7,  "comment": "Good product but pricing is high compared to alternatives.", "segment": "enterprise", "tenure": "2 months"},
+        {"name": "Deepika R.", "score": 3,  "comment": "Promised features not delivered. Feeling misled.", "segment": "startup",    "tenure": "1 month"},
+        {"name": "Suresh N.",  "score": 8,  "comment": "Solid product. Would be 10 if the API docs were better.", "segment": "enterprise", "tenure": "8 months"},
+        {"name": "Meera L.",   "score": 9,  "comment": "Our whole team uses it daily. Great customer success team.", "segment": "smb", "tenure": "18 months"},
+        {"name": "Arun P.",    "score": 6,  "comment": "It works but I've seen better UX. Won't leave but won't recommend.", "segment": "smb", "tenure": "5 months"},
+    ]
+
+    # Classify and score
+    scored = []
+    promoters = passives = detractors = 0
+    for r in demo_responses:
+        s = int(r.get("score", 7))
+        if s >= 9:
+            seg = "promoter"; promoters += 1
+        elif s >= 7:
+            seg = "passive"; passives += 1
+        else:
+            seg = "detractor"; detractors += 1
+
+        follow_up_template = _NPS_FOLLOW_UP[seg]
+        email_subject = (follow_up_template["email_subject"]
+            .replace("{product}", product).replace("{name}", r.get("name","").split()[0]))
+        email_body = (
+            follow_up_template["opening"].replace("{score}", str(s)).replace("{company}", company).replace("{product}", product) + "\n\n"
+            + follow_up_template["ask"].replace("{product}", product) + "\n\n"
+            + "[" + follow_up_template["cta"].replace("{product}", product) + "]\n\n"
+            + follow_up_template["secondary_ask"].replace("{product}", product) + "\n\n"
+            + f"Thank you,\nThe {company} Team"
+        )
+        scored.append({
+            "name":          r.get("name", "Customer"),
+            "score":         s,
+            "segment":       seg,
+            "segment_label": _NPS_SEGMENTS[seg]["label"],
+            "segment_color": _NPS_SEGMENTS[seg]["color"],
+            "comment":       r.get("comment", ""),
+            "tenure":        r.get("tenure", ""),
+            "customer_segment": r.get("segment", ""),
+            "follow_up_subject": email_subject,
+            "follow_up_body":    email_body,
+            "tone_guidance": follow_up_template["tone"],
+            "priority":      "high" if seg == "detractor" else ("medium" if seg == "passive" else "low"),
+        })
+
+    total = len(scored)
+    nps_score = round(((promoters - detractors) / total * 100)) if total > 0 else 0
+    benchmark = _INDUSTRY_NPS_BENCHMARKS[ind_key]
+    vs_benchmark = "world_class" if nps_score >= benchmark["world_class"] else ("great" if nps_score >= benchmark["great"] else ("good" if nps_score >= benchmark["good"] else "below_average"))
+
+    # Theme analysis from comments
+    all_comments = " ".join([r.get("comment","") for r in scored]).lower()
+    themes = []
+    theme_keywords = {
+        "Onboarding":      ["onboard", "setup", "getting started", "initial"],
+        "Mobile App":      ["mobile", "app", "phone", "android", "ios"],
+        "Pricing":         ["pric", "expensive", "cost", "value"],
+        "Support Speed":   ["slow", "support", "response", "ticket"],
+        "API/Docs":        ["api", "docs", "documentation", "developer"],
+        "UX/UI":           ["ux", "ui", "interface", "design", "experience"],
+        "Bugs/Stability":  ["bug", "crash", "error", "broken", "issue"],
+        "Features":        ["feature", "missing", "request", "wish"],
+    }
+    for theme, keywords in theme_keywords.items():
+        if any(kw in all_comments for kw in keywords):
+            themes.append(theme)
+
+    # Action plan
+    action_plan = []
+    if detractors > 0:
+        action_plan.append({"priority": 1, "action": f"Contact all {detractors} detractors within 24 hours — assign to senior CS rep", "owner": "CS Lead", "timeline": "Today"})
+    if themes:
+        action_plan.append({"priority": 2, "action": f"Escalate top themes to Product team: {', '.join(themes[:3])}", "owner": "Product Manager", "timeline": "This week"})
+    if passives > 0:
+        action_plan.append({"priority": 3, "action": f"Run targeted outreach to {passives} passives — find the gap between 7/8 and a 10", "owner": "Customer Success", "timeline": "This week"})
+    if promoters > 0:
+        action_plan.append({"priority": 4, "action": f"Ask {promoters} promoters for G2/Capterra reviews and referrals", "owner": "Marketing", "timeline": "This week"})
+    action_plan.append({"priority": 5, "action": "Set up automated NPS trigger at day 30, 90, 180 in your CRM/support tool", "owner": "CX Ops", "timeline": "Next sprint"})
+
+    survey_template = _NPS_SURVEY_TEMPLATES[channel]
+
+    return {
+        "action":           "nps_campaign_builder",
+        "business_name":    company,
+        "product_name":     product,
+        "industry":         ind_key,
+        "survey_channel":   channel,
+        "nps_score":        nps_score,
+        "promoters":        promoters,
+        "passives":         passives,
+        "detractors":       detractors,
+        "total_responses":  total,
+        "promoter_pct":     round(promoters/total*100) if total else 0,
+        "passive_pct":      round(passives/total*100) if total else 0,
+        "detractor_pct":    round(detractors/total*100) if total else 0,
+        "vs_benchmark":     vs_benchmark,
+        "benchmark":        benchmark,
+        "feedback_themes":  themes,
+        "responses":        sorted(scored, key=lambda x: x["score"]),
+        "action_plan":      action_plan,
+        "survey_template":  survey_template,
+        "segment_playbooks": {k: v for k, v in _NPS_FOLLOW_UP.items()},
+        "summary":          f"{company} NPS: {nps_score} ({vs_benchmark.replace('_',' ').title()}). {promoters} promoters, {passives} passives, {detractors} detractors from {total} responses. Top themes: {', '.join(themes[:3]) if themes else 'none detected'}.",
     }

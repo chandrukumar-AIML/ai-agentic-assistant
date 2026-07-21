@@ -953,6 +953,15 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "tds_compliance_tracker":
+        return generate_tds_compliance_tracker(
+            company_name=payload.get("company_name", ""),
+            month=int(payload.get("month", 0) or 0),
+            year=int(payload.get("year", 0) or 0),
+            deductions=payload.get("deductions", []),
+            pan_verified=bool(payload.get("pan_verified", True)),
+        )
+
     elif action == "msme_loan_eligibility":
         return calculate_msme_loan_eligibility(
             company_name=payload.get("company_name", ""),
@@ -2051,6 +2060,184 @@ _GOVERNMENT_SUBSIDIES = [
         "apply_via":   "sidbi.in or SIDBI branch offices",
     },
 ]
+
+
+# ── TDS Compliance Tracker (Round 14) ────────────────────────────────────────
+
+_TDS_SECTIONS = {
+    "192":  {"nature": "Salary",                      "rate_default": 0,    "threshold": 250000, "form": "24Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Q4 due 31 May"},
+    "192A": {"nature": "EPF Premature Withdrawal",    "rate_default": 10,   "threshold": 50000,  "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Q4 due 31 May"},
+    "193":  {"nature": "Interest on Securities",      "rate_default": 10,   "threshold": 10000,  "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194":  {"nature": "Dividend",                    "rate_default": 10,   "threshold": 5000,   "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194A": {"nature": "Interest (Non-Bank)",         "rate_default": 10,   "threshold": 5000,   "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194B": {"nature": "Winnings Lottery/Game",       "rate_default": 30,   "threshold": 10000,  "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194C": {"nature": "Contractor/Sub-contractor",   "rate_default": 1,    "threshold": 30000,  "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194D": {"nature": "Insurance Commission",        "rate_default": 5,    "threshold": 15000,  "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194G": {"nature": "Commission on Lottery",       "rate_default": 5,    "threshold": 15000,  "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194H": {"nature": "Commission/Brokerage",        "rate_default": 5,    "threshold": 15000,  "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194I": {"nature": "Rent (P&M, Land, Building)",  "rate_default": 10,   "threshold": 240000, "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194IA":{"nature": "Purchase of Immovable Property","rate_default": 1,  "threshold": 5000000,"form": "26QB","due_govt": 30,"due_others": 30, "quarterly_return": "Per transaction"},
+    "194IB":{"nature": "Rent by Individual/HUF >50K/month","rate_default": 5,"threshold":600000, "form": "26QC","due_govt": 30,"due_others": 30, "quarterly_return": "Yearly March"},
+    "194J": {"nature": "Professional/Technical Fees", "rate_default": 10,   "threshold": 30000,  "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194JA":{"nature": "Technical Services (reduced)", "rate_default": 2,   "threshold": 30000,  "form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194N": {"nature": "Cash Withdrawal >1Cr",        "rate_default": 2,    "threshold": 10000000,"form":"26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "194Q": {"nature": "Purchase of Goods >50L",      "rate_default": 0.1,  "threshold": 5000000,"form": "26Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+    "195":  {"nature": "Payment to Non-Resident",     "rate_default": 20,   "threshold": 0,      "form": "27Q", "due_govt": 7, "due_others": 7,  "quarterly_return": "Quarterly"},
+}
+
+_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+
+_TDS_CALENDAR = {
+    1:  {"due_7th": "Jan 7 — TDS for Dec deductions",  "due_15th": "Jan 15 — Q3 return (26Q/27Q/24Q)",        "due_31st": None},
+    2:  {"due_7th": "Feb 7 — TDS for Jan deductions",  "due_15th": "Feb 15 — Q3 certificates (Form 16A)",     "due_31st": None},
+    3:  {"due_7th": "Mar 7 — TDS for Feb deductions",  "due_15th": None,                                       "due_31st": "Mar 31 — FY closes, ensure all TDS deposited"},
+    4:  {"due_7th": "Apr 7 — TDS for Mar (non-Govt)",  "due_15th": None,                                       "due_31st": "Apr 30 — TDS for March (Govt deductors): 7th Apr"}  ,
+    5:  {"due_7th": "May 7 — TDS for Apr deductions",  "due_15th": "May 15 — Q4 return (26Q/27Q/24Q)",        "due_31st": "May 31 — Form 16/16A for Q4 FY"},
+    6:  {"due_7th": "Jun 7 — TDS for May deductions",  "due_15th": "Jun 15 — Q4 certificates (Form 16A)",     "due_31st": None},
+    7:  {"due_7th": "Jul 7 — TDS for Jun deductions",  "due_15th": "Jul 15 — Q1 return (26Q/27Q/24Q)",        "due_31st": "Jul 31 — Q1 TDS certificate (Form 16A)"},
+    8:  {"due_7th": "Aug 7 — TDS for Jul deductions",  "due_15th": "Aug 15 — Q1 certificates (Form 16A)",     "due_31st": None},
+    9:  {"due_7th": "Sep 7 — TDS for Aug deductions",  "due_15th": "Sep 15 — Advance Tax 2nd instalment (45%)","due_31st": None},
+    10: {"due_7th": "Oct 7 — TDS for Sep deductions",  "due_15th": "Oct 15 — Q2 return (26Q/27Q/24Q)",        "due_31st": "Oct 31 — Q2 TDS certificate (Form 16A)"},
+    11: {"due_7th": "Nov 7 — TDS for Oct deductions",  "due_15th": "Nov 15 — Q2 certificates (Form 16A)",     "due_31st": None},
+    12: {"due_7th": "Dec 7 — TDS for Nov deductions",  "due_15th": "Dec 15 — Advance Tax 3rd instalment (75%)","due_31st": None},
+}
+
+_LATE_PAYMENT_INTEREST_PCT = 1.5   # per month u/s 201(1A)
+_LATE_DEDUCTION_INTEREST_PCT = 1.0  # per month u/s 201(1A)
+_PENALTY_PER_DAY = 200              # u/s 234E late filing fee
+_MAX_PENALTY_PCT = 100              # penalty cannot exceed TDS amount
+
+
+def generate_tds_compliance_tracker(
+    company_name: str,
+    month: int,
+    year: int,
+    deductions: list,
+    pan_verified: bool,
+) -> dict:
+    import datetime
+    company = company_name or "Your Company"
+    today = datetime.date.today()
+    m = month if 1 <= month <= 12 else today.month
+    y = year if year >= 2020 else today.year
+    month_name = _MONTHS[m - 1]
+
+    demo_deductions = deductions if deductions else [
+        {"section": "194J", "payee": "Consulting Firm XYZ",     "amount": 150000, "tds_deducted": 15000, "date": f"{y}-{m:02d}-05", "pan": "ABCDE1234F", "deposited": False},
+        {"section": "194C", "payee": "Transport Contractor ABC", "amount": 200000, "tds_deducted": 2000,  "date": f"{y}-{m:02d}-10", "pan": "XYZAB5678G", "deposited": True},
+        {"section": "194I", "payee": "Office Landlord Sharma",  "amount": 80000,  "tds_deducted": 8000,  "date": f"{y}-{m:02d}-01", "pan": "LMNOP9012H", "deposited": False},
+        {"section": "192",  "payee": "Salary — All Employees",  "amount": 800000, "tds_deducted": 42000, "date": f"{y}-{m:02d}-28", "pan": "MULTIPLE",   "deposited": True},
+        {"section": "194Q", "payee": "Vendor Purchase >50L",    "amount": 600000, "tds_deducted": 600,   "date": f"{y}-{m:02d}-15", "pan": "PQRST3456I", "deposited": False},
+    ]
+
+    # Challan due date (7th of following month for non-govt)
+    if m == 12:
+        due_month, due_year = 1, y + 1
+    else:
+        due_month, due_year = m + 1, y
+    challan_due = datetime.date(due_year, due_month, 7)
+    days_to_due = (challan_due - today).days
+
+    processed = []
+    total_tds = 0
+    total_deposited = 0
+    total_pending = 0
+
+    for d in demo_deductions:
+        sec = d.get("section", "194J")
+        sec_info = _TDS_SECTIONS.get(sec, _TDS_SECTIONS["194J"])
+        amt = float(d.get("amount", 0))
+        tds = float(d.get("tds_deducted", 0))
+        deposited = bool(d.get("deposited", False))
+        pan = d.get("pan", "")
+
+        # Verify PAN — higher rate if PAN not furnished
+        pan_issue = pan_verified and (not pan or pan == "MULTIPLE" or len(pan) != 10)
+        effective_rate = 20.0 if (pan_issue and sec not in ("192",)) else sec_info["rate_default"]
+
+        # Late fee calculation (simplified — days overdue * 200, max = TDS amount)
+        overdue_days = max(0, (today - challan_due).days) if not deposited else 0
+        late_fee = min(overdue_days * _PENALTY_PER_DAY, tds) if overdue_days > 0 else 0
+        late_interest = round(tds * _LATE_PAYMENT_INTEREST_PCT / 100 * max(1, overdue_days // 30), 2) if overdue_days > 0 else 0
+
+        total_tds += tds
+        if deposited:
+            total_deposited += tds
+        else:
+            total_pending += tds
+
+        processed.append({
+            "section":         sec,
+            "nature":          sec_info["nature"],
+            "payee":           d.get("payee", ""),
+            "amount":          amt,
+            "tds_amount":      tds,
+            "rate":            effective_rate,
+            "pan":             pan,
+            "pan_issue":       pan_issue,
+            "deposited":       deposited,
+            "form":            sec_info["form"],
+            "date":            d.get("date", ""),
+            "overdue_days":    overdue_days,
+            "late_fee_234E":   late_fee,
+            "late_interest_201": late_interest,
+            "total_liability": round(tds + late_fee + late_interest, 2),
+            "status":          "deposited" if deposited else ("overdue" if overdue_days > 0 else "pending"),
+        })
+
+    # Monthly calendar
+    cal = _TDS_CALENDAR.get(m, {})
+    deadlines = [v for v in cal.values() if v]
+
+    # Return filing calendar
+    quarter = (m - 1) // 3 + 1
+    quarter_months = {1: "Apr-Jun", 2: "Jul-Sep", 3: "Oct-Dec", 4: "Jan-Mar"}
+    quarter_due = {1: "Jul 15", 2: "Oct 15", 3: "Jan 15", 4: "May 15"}
+
+    # Form 26Q/24Q checklist
+    filing_checklist = [
+        {"task": "Collect all invoices/vouchers with TDS deducted", "done": False, "mandatory": True},
+        {"task": "Verify PAN of all deductees — missing PAN attracts 20% TDS", "done": False, "mandatory": True},
+        {"task": f"Deposit TDS challan via NSDL/TRACES before {challan_due.strftime('%d %b %Y')}", "done": total_pending == 0, "mandatory": True},
+        {"task": f"File {sec_info['form']} quarterly return by {quarter_due[quarter]}", "done": False, "mandatory": True},
+        {"task": "Issue Form 16A to deductees within 15 days of return filing", "done": False, "mandatory": True},
+        {"task": "Reconcile Form 26AS with books for all parties", "done": False, "mandatory": True},
+        {"task": "Check for short deduction / short deposit notices in TRACES", "done": False, "mandatory": False},
+        {"task": "Update deductee master with any PAN corrections", "done": False, "mandatory": False},
+    ]
+
+    common_errors = [
+        "PAN not updated — default 20% TDS applies and deductee can't claim credit",
+        "Depositing TDS under wrong section code — mismatch in Form 26AS",
+        "Not deducting TDS on part-payments (TDS applies when credit or payment, whichever earlier)",
+        "Ignoring 194Q threshold — tracks cumulative purchases from same vendor in FY",
+        "Not filing nil returns when no deductions made — attracts late filing fee",
+        "Issuing Form 16A late — deductee can't file ITR properly without it",
+    ]
+
+    return {
+        "action":              "tds_compliance_tracker",
+        "company":             company,
+        "month":               month_name,
+        "year":                y,
+        "challan_due_date":    challan_due.strftime("%d %b %Y"),
+        "days_to_due":         days_to_due,
+        "due_status":          "overdue" if days_to_due < 0 else ("urgent" if days_to_due <= 3 else "on_track"),
+        "total_tds_deducted":  round(total_tds, 2),
+        "total_deposited":     round(total_deposited, 2),
+        "total_pending":       round(total_pending, 2),
+        "total_late_fee":      round(sum(d["late_fee_234E"] for d in processed), 2),
+        "total_late_interest": round(sum(d["late_interest_201"] for d in processed), 2),
+        "deductions":          processed,
+        "month_deadlines":     deadlines,
+        "quarter":             f"Q{quarter} ({quarter_months[quarter]})",
+        "return_due":          quarter_due[quarter],
+        "return_form":         "24Q (salary) + 26Q (non-salary) + 27Q (NR payments)",
+        "filing_checklist":    filing_checklist,
+        "common_errors":       common_errors,
+        "sections_reference":  {k: {"nature": v["nature"], "rate": v["rate_default"], "threshold": v["threshold"], "form": v["form"]} for k, v in _TDS_SECTIONS.items()},
+        "summary":             f"{company} — {month_name} {y} TDS. Total: ₹{total_tds/100000:.1f}L | Deposited: ₹{total_deposited/100000:.1f}L | Pending: ₹{total_pending/100000:.1f}L. Challan due {challan_due.strftime('%d %b')}.",
+    }
 
 
 def calculate_msme_loan_eligibility(
