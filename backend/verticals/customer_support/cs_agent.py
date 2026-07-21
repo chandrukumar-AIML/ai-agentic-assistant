@@ -560,6 +560,14 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "agent_performance_scorecard":
+            return _agent_performance_scorecard(
+                agents=payload.get("agents", []),
+                business_name=payload.get("business_name", ""),
+                period=payload.get("period", ""),
+                team_targets=payload.get("team_targets", {}),
+            )
+
         elif action == "winback_sequence":
             return _winback_sequence(
                 business_name=payload.get("business_name", ""),
@@ -1995,4 +2003,174 @@ def _customer_health_score(
         "customers":        scored,
         "segment_playbooks": _SEGMENT_PLAYBOOKS,
         "summary": f"Scored {len(scored)} customers. Avg health: {avg_score:.0f}/100. ₹{arr_at_risk/100000:.1f}L ARR at risk ({len([s for s in scored if s['segment'] in ('at_risk','critical','churned')])} accounts need attention).",
+    }
+
+
+# ── Agent Performance Scorecard (Round 13) ────────────────────────────────────
+
+_DEFAULT_TARGETS = {
+    "first_response_time_min": 60,
+    "resolution_time_hours":   24,
+    "csat_score":              4.2,
+    "tickets_per_day":         20,
+    "fcr_pct":                 75,
+    "reopen_rate_pct":         5,
+    "escalation_rate_pct":     8,
+}
+
+_PERFORMANCE_TIERS = {
+    "star":       {"min": 85, "label": "Star Agent",      "color": "green",  "badge": "Star"},
+    "solid":      {"min": 70, "label": "Solid Performer", "color": "blue",   "badge": "Good"},
+    "developing": {"min": 55, "label": "Developing",      "color": "yellow", "badge": "Growing"},
+    "needs_help": {"min": 0,  "label": "Needs Coaching",  "color": "red",    "badge": "Coach"},
+}
+
+_COACHING_LIBRARY = {
+    "first_response_time_min": {
+        "slow": "Set up canned responses for top 10 queries. Use keyboard shortcuts. Triage P1s first before starting on lower priority.",
+        "fast": "Excellent first response time! Consider mentoring newer agents via shadow sessions.",
+    },
+    "csat_score": {
+        "low":  "Review last 20 low-CSAT tickets for patterns: tone, resolution quality, or empathy gaps. Schedule a listening session.",
+        "high": "High CSAT — share your response templates with the team. Host a 'What Works' knowledge share session.",
+    },
+    "fcr_pct": {
+        "low":  "Low FCR usually means product knowledge gaps. Build KB articles for your top 5 recurring issue types.",
+        "high": "High FCR signals deep product knowledge. Candidate for tier-2 specialist or team lead track.",
+    },
+    "reopen_rate_pct": {
+        "high": "High reopens indicate partial resolutions. Add 'Before I close — anything else?' as a mandatory closing phrase.",
+        "low":  "Low reopen rate shows thorough resolutions. Your closing technique is a best practice — document it.",
+    },
+    "escalation_rate_pct": {
+        "high": "High escalations suggest empowerment gaps. Review what was escalated — could 60% be resolved with better tools or authority?",
+        "low":  "Low escalations show strong ownership. Ensure you are not under-escalating complex issues that need specialist eyes.",
+    },
+    "tickets_per_day": {
+        "low":  "Throughput below target. Flag tickets over 30 minutes to TL. Use 2-minute rule: reply or escalate, do not sit on tickets.",
+        "high": "High throughput! Monitor CSAT alongside — speed should not sacrifice quality.",
+    },
+}
+
+
+def _agent_performance_scorecard(
+    agents: list,
+    business_name: str,
+    period: str,
+    team_targets: dict,
+) -> dict:
+    company = business_name or "Your Team"
+    per = period or "This Month"
+    targets = {**_DEFAULT_TARGETS, **(team_targets or {})}
+
+    demo_agents = agents if agents else [
+        {"name": "Priya S.",   "first_response_time_min": 18, "resolution_time_hours": 6,  "csat_score": 4.7, "tickets_per_day": 28, "fcr_pct": 88, "reopen_rate_pct": 2, "escalation_rate_pct": 4, "tenure_months": 18},
+        {"name": "Rahul M.",   "first_response_time_min": 45, "resolution_time_hours": 14, "csat_score": 4.1, "tickets_per_day": 22, "fcr_pct": 71, "reopen_rate_pct": 7, "escalation_rate_pct": 9, "tenure_months": 7},
+        {"name": "Ananya K.",  "first_response_time_min": 90, "resolution_time_hours": 28, "csat_score": 3.8, "tickets_per_day": 14, "fcr_pct": 58, "reopen_rate_pct": 12, "escalation_rate_pct": 18, "tenure_months": 3},
+        {"name": "Vikram T.",  "first_response_time_min": 25, "resolution_time_hours": 9,  "csat_score": 4.5, "tickets_per_day": 24, "fcr_pct": 82, "reopen_rate_pct": 3, "escalation_rate_pct": 6, "tenure_months": 14},
+        {"name": "Deepika R.", "first_response_time_min": 60, "resolution_time_hours": 20, "csat_score": 4.0, "tickets_per_day": 18, "fcr_pct": 65, "reopen_rate_pct": 9, "escalation_rate_pct": 11, "tenure_months": 5},
+    ]
+
+    def score_metric(actual, target, lower_is_better=False):
+        if target == 0:
+            return 100
+        ratio = actual / target
+        if lower_is_better:
+            if ratio <= 0.5:  return 100
+            if ratio <= 0.75: return 90
+            if ratio <= 1.0:  return 75
+            if ratio <= 1.5:  return 50
+            return 20
+        else:
+            if ratio >= 1.5:  return 100
+            if ratio >= 1.2:  return 90
+            if ratio >= 1.0:  return 75
+            if ratio >= 0.8:  return 50
+            return 20
+
+    metric_defs = {
+        "first_response_time_min": {"label": "First Response Time",     "unit": "min", "lower_is_better": True,  "weight": 20},
+        "resolution_time_hours":   {"label": "Avg Resolution Time",     "unit": "hrs", "lower_is_better": True,  "weight": 15},
+        "csat_score":              {"label": "CSAT Score",              "unit": "/5",  "lower_is_better": False, "weight": 30},
+        "tickets_per_day":         {"label": "Tickets Resolved/Day",    "unit": "",    "lower_is_better": False, "weight": 15},
+        "fcr_pct":                 {"label": "First Contact Resolution","unit": "%",   "lower_is_better": False, "weight": 10},
+        "reopen_rate_pct":         {"label": "Ticket Reopen Rate",      "unit": "%",   "lower_is_better": True,  "weight": 5},
+        "escalation_rate_pct":     {"label": "Escalation Rate",         "unit": "%",   "lower_is_better": True,  "weight": 5},
+    }
+
+    scored_agents = []
+    for agent in demo_agents:
+        name = agent.get("name", "Agent")
+        total_score = 0.0
+        metric_results = []
+        coaching_tips = []
+
+        for key, mdef in metric_defs.items():
+            actual = float(agent.get(key, targets[key]))
+            target = float(targets[key])
+            s = score_metric(actual, target, mdef["lower_is_better"])
+            weighted = s * mdef["weight"] / 100
+            total_score += weighted
+            status = "above" if s >= 75 else ("at" if s >= 50 else "below")
+            metric_results.append({
+                "key":    key, "label": mdef["label"], "actual": actual,
+                "target": target, "unit": mdef["unit"],
+                "score":  s, "weighted_points": round(weighted, 1), "status": status,
+            })
+            if key in _COACHING_LIBRARY:
+                if status == "below":
+                    tip_key = "slow" if mdef["lower_is_better"] else "low"
+                    if key in ("reopen_rate_pct", "escalation_rate_pct"):
+                        tip_key = "high"
+                    coaching_tips.append({"area": mdef["label"], "tip": _COACHING_LIBRARY[key].get(tip_key, "")})
+                elif status == "above":
+                    tip_key = "fast" if mdef["lower_is_better"] else "high"
+                    if key in ("reopen_rate_pct", "escalation_rate_pct"):
+                        tip_key = "low"
+                    coaching_tips.append({"area": mdef["label"], "tip": _COACHING_LIBRARY[key].get(tip_key, "")})
+
+        final_score = round(total_score, 1)
+        tier_key = "needs_help"
+        for tk, tv in _PERFORMANCE_TIERS.items():
+            if final_score >= tv["min"]:
+                tier_key = tk
+                break
+        tier = _PERFORMANCE_TIERS[tier_key]
+
+        scored_agents.append({
+            "name":          name,
+            "tenure_months": agent.get("tenure_months", 0),
+            "overall_score": final_score,
+            "tier":          tier["label"],
+            "tier_key":      tier_key,
+            "tier_color":    tier["color"],
+            "tier_badge":    tier["badge"],
+            "metrics":       metric_results,
+            "strengths":     [m["label"] for m in metric_results if m["status"] == "above"],
+            "gaps":          [m["label"] for m in metric_results if m["status"] == "below"],
+            "coaching_tips": coaching_tips[:3],
+        })
+
+    scored_agents.sort(key=lambda a: a["overall_score"], reverse=True)
+    team_avg = sum(a["overall_score"] for a in scored_agents) / len(scored_agents) if scored_agents else 0
+    tier_distribution = {}
+    for a in scored_agents:
+        tier_distribution[a["tier_key"]] = tier_distribution.get(a["tier_key"], 0) + 1
+
+    top_agent = scored_agents[0] if scored_agents else None
+    bottom_agents = [a for a in scored_agents if a["tier_key"] == "needs_help"]
+
+    return {
+        "action":                    "agent_performance_scorecard",
+        "business_name":             company,
+        "period":                    per,
+        "total_agents":              len(scored_agents),
+        "team_avg_score":            round(team_avg, 1),
+        "tier_distribution":         tier_distribution,
+        "targets_used":              targets,
+        "agents":                    scored_agents,
+        "top_performer":             top_agent["name"] if top_agent else None,
+        "agents_needing_coaching":   [a["name"] for a in bottom_agents],
+        "team_insight":              f"Team avg {team_avg:.0f}/100. {tier_distribution.get('star',0)} Star agents, {tier_distribution.get('needs_help',0)} needing coaching.",
+        "summary":                   f"Scored {len(scored_agents)} agents for {per}. Team avg: {team_avg:.0f}/100. Top: {top_agent['name'] if top_agent else 'N/A'} ({top_agent['overall_score'] if top_agent else 0}/100).",
     }

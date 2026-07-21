@@ -295,6 +295,37 @@ export default function CAPage() {
   const [plRes, setPlRes]           = useState<any>(null)
   const [plLoading, setPlLoading]   = useState(false)
   const [plErr, setPlErr]           = useState('')
+  // MSME Loan Eligibility (Round 13)
+  const [lnCompany, setLnCompany]   = useState('')
+  const [lnBizType, setLnBizType]   = useState('service')
+  const [lnTurnover, setLnTurnover] = useState('')
+  const [lnPlant, setLnPlant]       = useState('')
+  const [lnYears, setLnYears]       = useState('3')
+  const [lnPurpose, setLnPurpose]   = useState('working_capital')
+  const [lnAmount, setLnAmount]     = useState('')
+  const [lnExisting, setLnExisting] = useState('0')
+  const [lnRevenue, setLnRevenue]   = useState('')
+  const [lnGst, setLnGst]           = useState(true)
+  const [lnRes, setLnRes]           = useState<any>(null)
+  const [lnLoading, setLnLoading]   = useState(false)
+  const [lnErr, setLnErr]           = useState('')
+  const runLoan = async () => {
+    setLnLoading(true); setLnErr(''); setLnRes(null)
+    try {
+      setLnRes(await caAction('msme_loan_eligibility', {
+        company_name: lnCompany, business_type: lnBizType,
+        annual_turnover: parseFloat(lnTurnover) || 0,
+        plant_machinery_value: parseFloat(lnPlant) || 0,
+        years_in_business: parseInt(lnYears) || 1,
+        loan_purpose: lnPurpose,
+        loan_amount_requested: parseFloat(lnAmount) || 0,
+        existing_loans: parseFloat(lnExisting) || 0,
+        monthly_revenue: parseFloat(lnRevenue) || 0,
+        gst_registered: lnGst,
+      }))
+    } catch (e: any) { setLnErr(e.message) }
+    finally { setLnLoading(false) }
+  }
   const runPL = async () => {
     setPlLoading(true); setPlErr(''); setPlRes(null)
     let rev: any[] = [], cogs: any[] = [], opex: any[] = []
@@ -534,6 +565,7 @@ export default function CAPage() {
           { id: 'cashflow',          label: 'Cash Flow Forecast',       icon: '💰' },
           { id: 'overdue',           label: 'Overdue Collector',         icon: '📬' },
           { id: 'pl',                label: 'P&L Statement',              icon: '📊' },
+          { id: 'loan',              label: 'MSME Loan Eligibility',      icon: '🏦' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1925,6 +1957,130 @@ export default function CAPage() {
               </Card>
             )}
           </div>
+        </TwoCol>
+      )}
+      {/* ── MSME LOAN ELIGIBILITY (Round 13) ── */}
+      {tab === 'loan' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="🏦 MSME Loan Eligibility Checker" sub="Check eligibility, identify schemes & get a document checklist" />
+            <Input label="Company Name" value={lnCompany} onChange={setLnCompany} placeholder="e.g. Sharma Textiles Pvt Ltd" />
+            <Select label="Business Type" value={lnBizType} onChange={setLnBizType} options={[
+              { label: 'Manufacturing', value: 'manufacturing' },
+              { label: 'Service', value: 'service' },
+            ]} />
+            <Input label="Annual Turnover (₹)" value={lnTurnover} onChange={setLnTurnover} placeholder="e.g. 15000000 (1.5 Cr)" />
+            <Input label="Plant & Machinery / Equipment Value (₹)" value={lnPlant} onChange={setLnPlant} placeholder="e.g. 3000000" />
+            <Input label="Years in Business" value={lnYears} onChange={setLnYears} placeholder="e.g. 5" />
+            <Select label="Loan Purpose" value={lnPurpose} onChange={setLnPurpose} options={[
+              { label: 'Working Capital', value: 'working_capital' },
+              { label: 'Term Loan / Expansion', value: 'term_loan' },
+              { label: 'Machinery Purchase', value: 'machinery' },
+              { label: 'Export Finance', value: 'export' },
+              { label: 'Trade Receivables / Invoice Discounting', value: 'trade_receivables' },
+            ]} />
+            <Input label="Loan Amount Requested (₹)" value={lnAmount} onChange={setLnAmount} placeholder="e.g. 5000000 (50L)" />
+            <Input label="Existing Loan Outstanding (₹)" value={lnExisting} onChange={setLnExisting} placeholder="e.g. 1000000 or 0" />
+            <Input label="Monthly Revenue (₹)" value={lnRevenue} onChange={setLnRevenue} placeholder="e.g. 1200000 — used for DSCR calculation" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <input type="checkbox" checked={lnGst} onChange={e => setLnGst(e.target.checked)} id="gst_check" />
+              <label htmlFor="gst_check" style={{ fontSize: 13, color: '#d1d5db', cursor: 'pointer' }}>GST Registered</label>
+            </div>
+            <Btn onClick={runLoan} disabled={lnLoading}>{lnLoading ? 'Checking…' : '🏦 Check Loan Eligibility'}</Btn>
+            {lnErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{lnErr}</div>}
+          </Card>
+          <Card>
+            {lnRes ? (() => {
+              const r = lnRes
+              const verdictColor: Record<string, string> = { green: '#22c55e', yellow: '#f59e0b', red: '#ef4444' }
+              const vc = verdictColor[r.verdict_color] || '#6b7280'
+              const statusIcon = (s: string) => s === 'pass' ? '✅' : s === 'warn' ? '⚠️' : s === 'fail' ? '❌' : 'ℹ️'
+              return (
+                <>
+                  {/* Score card */}
+                  <div style={{ background: '#0f172a', borderRadius: 10, padding: 16, marginBottom: 14, border: `1px solid ${vc}40` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>{r.company}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>{r.msme_category?.toUpperCase()} Enterprise • {r.business_type}</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 32, fontWeight: 800, color: vc }}>{r.eligibility_score}</div>
+                        <div style={{ fontSize: 10, color: '#6b7280' }}>/ 100</div>
+                      </div>
+                    </div>
+                    <div style={{ background: '#1e2535', borderRadius: 6, height: 8, marginBottom: 8 }}>
+                      <div style={{ background: vc, borderRadius: 6, height: 8, width: `${r.eligibility_score}%`, transition: 'width 0.5s' }} />
+                    </div>
+                    <div style={{ fontSize: 12, color: vc, fontWeight: 600 }}>{r.verdict} — {r.verdict_message}</div>
+                  </div>
+
+                  {/* Score breakdown */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>ELIGIBILITY FACTORS</div>
+                    {(r.score_breakdown || []).map((s: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #111827' }}>
+                        <div style={{ fontSize: 12, color: '#d1d5db' }}>{statusIcon(s.status)} {s.factor}</div>
+                        <div style={{ fontSize: 11, color: s.points > 0 ? '#22c55e' : '#6b7280' }}>+{s.points}pts</div>
+                      </div>
+                    ))}
+                    {(r.score_breakdown || []).map((s: any, i: number) => s.note ? (
+                      <div key={`n${i}`} style={{ fontSize: 10, color: '#6b7280', padding: '2px 0 2px 18px' }}>{s.note}</div>
+                    ) : null)}
+                  </div>
+
+                  {/* Recommended schemes */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>RECOMMENDED SCHEMES</div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                      {(r.recommended_schemes || []).map((s: string, i: number) => (
+                        <span key={i} style={{ background: '#1e2535', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#60a5fa' }}>{s}</span>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#d1d5db' }}>Max without collateral: <strong style={{ color: '#22c55e' }}>{r.max_without_collateral}</strong></div>
+                    <div style={{ fontSize: 11, color: '#d1d5db' }}>Interest: {r.interest_range} | Tenure: {r.tenure}</div>
+                    {r.dscr_estimate && <div style={{ fontSize: 11, color: '#d1d5db', marginTop: 4 }}>Est. DSCR: {r.dscr_estimate}</div>}
+                  </div>
+
+                  {/* Govt subsidies */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>GOVERNMENT SCHEMES YOU QUALIFY FOR</div>
+                    {(r.government_subsidies || []).map((s: any, i: number) => (
+                      <div key={i} style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginBottom: 8, border: '1px solid #1e2535' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#22c55e', marginBottom: 4 }}>{s.name}</div>
+                        <div style={{ fontSize: 11, color: '#d1d5db', marginBottom: 2 }}>{s.benefit}</div>
+                        <div style={{ fontSize: 10, color: '#6b7280' }}>Apply: {s.apply_via}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Document checklist */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>DOCUMENT CHECKLIST</div>
+                    {(r.document_checklist || []).map((d: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', gap: 8, padding: '4px 0', borderBottom: '1px solid #111827' }}>
+                        <span style={{ fontSize: 12 }}>{d.mandatory ? '📌' : '📎'}</span>
+                        <div>
+                          <div style={{ fontSize: 11, color: d.mandatory ? '#e2e8f0' : '#6b7280' }}>{d.doc}</div>
+                          <div style={{ fontSize: 10, color: '#4b5563' }}>{d.note}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Recommendations */}
+                  {r.recommendations?.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', marginBottom: 6 }}>⚡ RECOMMENDATIONS TO IMPROVE ELIGIBILITY</div>
+                      {r.recommendations.map((rec: string, i: number) => (
+                        <div key={i} style={{ fontSize: 11, color: '#d1d5db', padding: '4px 0', borderBottom: '1px solid #111827' }}>→ {rec}</div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill in your business details and click Check Loan Eligibility →</div>}
+          </Card>
         </TwoCol>
       )}
     </PageShell>

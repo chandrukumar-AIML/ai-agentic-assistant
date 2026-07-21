@@ -2069,6 +2069,17 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "twitter_thread":
+        return generate_twitter_thread(
+            topic=payload.get("topic", ""),
+            brand_name=payload.get("brand_name", ""),
+            industry=payload.get("industry", ""),
+            audience=payload.get("audience", ""),
+            num_tweets=int(payload.get("num_tweets", 10) or 10),
+            style=payload.get("style", "educational"),
+            include_cta=bool(payload.get("include_cta", True)),
+        )
+
     elif action == "linkedin_carousel":
         return generate_linkedin_carousel(
             topic=payload.get("topic", ""),
@@ -2153,6 +2164,180 @@ async def social_agent(
         )
 
     return {"error": f"Unknown social action: {action}"}
+
+
+# ── Twitter/X Thread Optimizer (Round 13) ────────────────────────────────────
+
+_THREAD_STYLES = {
+    "educational": {
+        "hook_formula":    "Most {audience} don't know this about {topic}. A thread 🧵",
+        "structure":       ["hook", "context", "point", "point", "point", "point", "example", "counterintuitive", "summary", "cta"],
+        "tone":            "Clear, informative, scannable — one idea per tweet",
+        "engagement_tip":  "Ask a question in tweet 2 — 'Which of these surprised you?' — drives early replies which boost the thread.",
+    },
+    "storytelling": {
+        "hook_formula":    "6 months ago, I almost quit {topic}. Here's what happened (and what I learned) 🧵",
+        "structure":       ["hook", "setup", "inciting_incident", "struggle", "turning_point", "resolution", "lesson", "apply_it", "takeaway", "cta"],
+        "tone":            "Personal, vulnerable, narrative — read like a story not a list",
+        "engagement_tip":  "End each tweet on a mini cliffhanger. Make them NEED to click 'Show this thread'.",
+    },
+    "listicle": {
+        "hook_formula":    "{num} {topic} tips that took me years to learn. Save this 🧵",
+        "structure":       ["hook", "tip", "tip", "tip", "tip", "tip", "tip", "tip", "bonus", "cta"],
+        "tone":            "Punchy, actionable, one tip per tweet — no fluff",
+        "engagement_tip":  "Number each tip clearly (1/ 2/ 3/). People save numbered threads to come back to.",
+    },
+    "contrarian": {
+        "hook_formula":    "Hot take: everything you know about {topic} is wrong. Here's why 🧵",
+        "structure":       ["hook", "bold_claim", "why_wrong", "evidence", "what_actually_works", "proof", "objection", "rebuttal", "new_framework", "cta"],
+        "tone":            "Confident, provocative, but backed by evidence — not just rage-bait",
+        "engagement_tip":  "Contrarian threads get 3x replies. Expect pushback — engage with it, it fuels the algorithm.",
+    },
+    "how_to": {
+        "hook_formula":    "How to {topic} in {timeframe}. Step-by-step 🧵",
+        "structure":       ["hook", "why_it_matters", "step", "step", "step", "step", "step", "common_mistake", "results", "cta"],
+        "tone":            "Practical, specific, beginner-friendly — show the exact steps",
+        "engagement_tip":  "Add 'Reply with your result after trying step 3' — creates accountability and replies.",
+    },
+}
+
+_TWEET_TEMPLATES = {
+    "hook":              "HOOK — stop the scroll. Bold claim, surprising stat, or emotional opener. Under 200 chars. End with '🧵' to signal a thread.",
+    "context":           "CONTEXT — who is this for and why does it matter right now? 1-2 sentences max.",
+    "point":             "INSIGHT — one idea, fully explained. Lead with the punchline, then explain. Add a stat or example if you have one.",
+    "tip":               "TIP — state it directly, then explain the 'why'. Format: [The tip]. Here's why it works: [explanation]",
+    "example":           "EXAMPLE — make it concrete. Name a real brand, person, or scenario. Numbers > adjectives always.",
+    "counterintuitive":  "COUNTER-INTUITIVE TAKE — 'Most people think X. But actually Y.' This is the most saved tweet type.",
+    "summary":           "SUMMARY — TL;DR of the whole thread in 3-5 bullet points. Design this to stand alone as a screenshot.",
+    "cta":               "CTA — one clear action: Follow for more, RT if this helped, Reply with your experience, or Link to resource. Don't ask for multiple things.",
+    "setup":             "SETUP — paint the before picture. Who were you / what was the situation before everything changed?",
+    "inciting_incident": "INCITING INCIDENT — the moment that started the story. Be specific: date, place, what happened.",
+    "struggle":          "STRUGGLE — what went wrong. Don't skip this — the struggle makes the resolution satisfying.",
+    "turning_point":     "TURNING POINT — the insight, decision, or event that changed everything.",
+    "resolution":        "RESOLUTION — what happened after. Specific results with numbers.",
+    "lesson":            "THE LESSON — what would you do differently? What's the transferable insight?",
+    "apply_it":          "APPLY IT — how can the reader use this lesson right now? Make it concrete.",
+    "takeaway":          "TAKEAWAY — the one thing you want them to remember. Short. Memorable. Quotable.",
+    "bold_claim":        "BOLD CLAIM — state your contrarian position clearly. No hedging. Own it.",
+    "why_wrong":         "WHY THE CONVENTIONAL WISDOM IS WRONG — evidence, data, or logic that contradicts the mainstream view.",
+    "evidence":          "EVIDENCE — back up your claim. Research, case study, or personal experience with numbers.",
+    "what_actually_works": "WHAT ACTUALLY WORKS — your alternative framework or approach.",
+    "proof":             "PROOF — results that validate your approach. Specifics only.",
+    "objection":         "STEELMAN THE OBJECTION — 'I know what you're thinking...' Address the strongest counterargument honestly.",
+    "rebuttal":          "YOUR REBUTTAL — why you still hold your position despite the objection.",
+    "new_framework":     "THE NEW FRAMEWORK — distill your contrarian view into a memorable model or principle.",
+    "why_it_matters":    "WHY IT MATTERS — the cost of NOT doing this. Make the stakes clear.",
+    "step":              "STEP N — [action]. Be specific: what to do, how to do it, what good looks like.",
+    "common_mistake":    "COMMON MISTAKE — what trips most people up at this stage. How to avoid it.",
+    "results":           "RESULTS — what happens when you follow this correctly. Specific outcome + timeframe.",
+    "bonus":             "BONUS TIP — the unexpected extra that makes them feel they got more than promised.",
+}
+
+_THREAD_RULES = [
+    "Tweet 1 (hook) determines 80% of impressions — spend most time here.",
+    "Keep each tweet under 240 characters when possible — easier to screenshot and share.",
+    "Never end a tweet with a period before the last one — it signals 'keep reading'.",
+    "Use line breaks liberally — wall-of-text tweets get skipped.",
+    "The summary tweet (TL;DR) gets more saves than any other — design it to stand alone.",
+    "Reply to every comment in the first hour — algorithm interprets replies as engagement signal.",
+    "Post your thread as a reply to yourself, not as separate tweets — keeps it as one unit.",
+    "Best time for Indian Twitter/X: 8-9 AM and 9-10 PM IST on weekdays.",
+]
+
+
+def generate_twitter_thread(
+    topic: str,
+    brand_name: str,
+    industry: str,
+    audience: str,
+    num_tweets: int,
+    style: str,
+    include_cta: bool,
+) -> dict:
+    style_key = style if style in _THREAD_STYLES else "educational"
+    style_cfg = _THREAD_STYLES[style_key]
+    topic_clean = topic or "business growth"
+    brand = brand_name or "your brand"
+    aud = audience or "entrepreneurs"
+
+    hook = (style_cfg["hook_formula"]
+        .replace("{topic}", topic_clean)
+        .replace("{audience}", aud)
+        .replace("{num}", str(num_tweets - 2))
+        .replace("{timeframe}", "30 days")
+    )
+
+    pattern = style_cfg["structure"]
+    if num_tweets < len(pattern):
+        pattern = pattern[:num_tweets - 1] + ["cta"]
+    elif num_tweets > len(pattern):
+        extras = ["point"] * (num_tweets - len(pattern))
+        pattern = pattern[:-1] + extras + ["cta"]
+
+    if not include_cta:
+        pattern = [p for p in pattern if p != "cta"]
+
+    tweets = []
+    step_counter = 1
+    for idx, tweet_type in enumerate(pattern):
+        template_key = tweet_type
+        tmpl = _TWEET_TEMPLATES.get(template_key, _TWEET_TEMPLATES["point"])
+
+        if tweet_type == "hook":
+            content = hook
+            writing_guide = tmpl
+        elif tweet_type == "cta":
+            content = f"If you found this useful, follow @{brand.lower().replace(' ', '')} for weekly {topic_clean} insights.\n\nRT to help other {aud} in {industry or 'your space'} 🙏"
+            writing_guide = tmpl
+        elif tweet_type == "summary":
+            content = f"TL;DR — Everything about {topic_clean} in one tweet:\n\n• [Key point 1]\n• [Key point 2]\n• [Key point 3]\n• [Key point 4]\n\nSave this 📌"
+            writing_guide = tmpl
+        elif tweet_type == "step":
+            content = f"Step {step_counter}/ [Action for {topic_clean}]\n\nHow: [specific how-to]\nResult: [what you get]\n\nMost people skip this. Don't."
+            step_counter += 1
+            writing_guide = tmpl.replace("N", str(step_counter - 1))
+        elif tweet_type == "tip":
+            content = f"[Tip about {topic_clean}]\n\nWhy it works: [explanation]\n\nMost {aud} do the opposite."
+            writing_guide = tmpl
+        elif tweet_type == "example":
+            content = f"Real example:\n\n[Company/person] did [action] for {topic_clean}.\n\nResult: [specific outcome with numbers]\n\nHere's exactly how:"
+            writing_guide = tmpl
+        else:
+            content = f"[{tweet_type.replace('_', ' ').title()} — about {topic_clean}]\n\nCustomize this tweet with your specific insight, data, or story."
+            writing_guide = tmpl
+
+        tweets.append({
+            "tweet_num":     idx + 1,
+            "total":         len(pattern),
+            "type":          tweet_type,
+            "label":         tweet_type.replace("_", " ").title(),
+            "content":       content,
+            "writing_guide": writing_guide,
+            "char_count":    len(content),
+            "over_limit":    len(content) > 280,
+        })
+
+    engagement_hooks = [
+        f"Tweet 2: Ask 'Which of these surprised you most?' — easy reply, algorithm boost",
+        f"Tweet {len(pattern)//2}: Add a poll 'Do you do X or Y?' — polls get 10x more engagement than regular tweets",
+        f"Final tweet: 'RT if this helped one person in {industry or 'your industry'}' — social proof ask works",
+    ]
+
+    return {
+        "action":          "twitter_thread",
+        "topic":           topic_clean,
+        "brand":           brand,
+        "style":           style_key,
+        "audience":        aud,
+        "total_tweets":    len(tweets),
+        "hook_text":       hook,
+        "tweets":          tweets,
+        "thread_rules":    _THREAD_RULES,
+        "engagement_tips": style_cfg["engagement_tip"],
+        "tone":            style_cfg["tone"],
+        "engagement_hooks": engagement_hooks,
+        "summary": f"Generated {len(tweets)}-tweet {style_key} thread on '{topic_clean}'. Hook: '{hook[:60]}…'",
+    }
 
 
 # ── LinkedIn Carousel Generator (Round 12) ───────────────────────────────────

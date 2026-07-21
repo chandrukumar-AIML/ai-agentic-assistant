@@ -278,6 +278,28 @@ export default function SocialPage() {
   const [lcLoading, setLcLoading]   = useState(false)
   const [lcErr, setLcErr]           = useState('')
   const [lcActive, setLcActive]     = useState(0)
+  // Twitter Thread (Round 13)
+  const [ttTopic, setTtTopic]       = useState('')
+  const [ttBrand, setTtBrand]       = useState('')
+  const [ttIndustry, setTtIndustry] = useState('')
+  const [ttAudience, setTtAudience] = useState('')
+  const [ttNumTweets, setTtNumTweets] = useState(10)
+  const [ttStyle, setTtStyle]       = useState('educational')
+  const [ttRes, setTtRes]           = useState<any>(null)
+  const [ttLoading, setTtLoading]   = useState(false)
+  const [ttErr, setTtErr]           = useState('')
+  const [ttActive, setTtActive]     = useState(0)
+  const runTwitterThread = async () => {
+    setTtLoading(true); setTtErr(''); setTtRes(null); setTtActive(0)
+    try {
+      setTtRes(await socialAction('twitter_thread', {
+        topic: ttTopic, brand_name: ttBrand, industry: ttIndustry,
+        audience: ttAudience, num_tweets: ttNumTweets, style: ttStyle, include_cta: true,
+      }, 'twitter'))
+    } catch (e: any) { setTtErr(e.message) }
+    finally { setTtLoading(false) }
+  }
+
   const runLinkedInCarousel = async () => {
     setLcLoading(true); setLcErr(''); setLcRes(null)
     try {
@@ -554,6 +576,7 @@ export default function SocialPage() {
           { id: 'hooks',      label: 'Viral Hooks',           icon: '🎣' },
           { id: 'outreach',   label: 'Influencer Outreach',   icon: '✉️' },
           { id: 'carousel',   label: 'LinkedIn Carousel',     icon: '🎠' },
+          { id: 'twitter',    label: 'Twitter Thread',        icon: '🧵' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2505,6 +2528,118 @@ export default function SocialPage() {
                 <span style={{ fontSize: 11, color: '#374151' }}>Demo topics: "AI automation", "GST compliance", "Instagram growth"</span>
               </div>
             )}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── TWITTER THREAD OPTIMIZER (Round 13) ── */}
+      {tab === 'twitter' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="🧵 Twitter/X Thread Optimizer" sub="Full thread blueprint with writing guides, hooks & engagement tips" />
+            <Input label="Thread Topic" value={ttTopic} onChange={setTtTopic} placeholder="e.g. GST mistakes startups make, bootstrapping lessons" />
+            <Input label="Brand / Author Name" value={ttBrand} onChange={setTtBrand} placeholder="e.g. Zoho, your personal brand" />
+            <Input label="Industry" value={ttIndustry} onChange={setTtIndustry} placeholder="e.g. SaaS, fintech, D2C" />
+            <Input label="Target Audience" value={ttAudience} onChange={setTtAudience} placeholder="e.g. startup founders, Indian developers" />
+            <Select label="Thread Style" value={ttStyle} onChange={setTtStyle} options={[
+              { label: 'Educational — Teach something valuable', value: 'educational' },
+              { label: 'Storytelling — Share a journey or experience', value: 'storytelling' },
+              { label: 'Listicle — Tips / Tactics numbered list', value: 'listicle' },
+              { label: 'Contrarian — Challenge conventional wisdom', value: 'contrarian' },
+              { label: 'How-To — Step-by-step guide', value: 'how_to' },
+            ]} />
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 6 }}>Number of Tweets: {ttNumTweets}</label>
+              <input type="range" min={5} max={20} value={ttNumTweets} onChange={e => setTtNumTweets(parseInt(e.target.value))}
+                style={{ width: '100%', accentColor: '#1d9bf0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#4b5563' }}><span>5 (mini)</span><span>20 (mega)</span></div>
+            </div>
+            <Btn onClick={runTwitterThread} disabled={ttLoading}>{ttLoading ? 'Building Thread…' : '🧵 Build Twitter Thread'}</Btn>
+            {ttErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{ttErr}</div>}
+          </Card>
+          <Card>
+            {ttRes ? (() => {
+              const r = ttRes
+              const tweets: any[] = r.tweets || []
+              const active = tweets[ttActive] || tweets[0]
+              const statusColor = (s: string) => s === 'above' ? '#22c55e' : s === 'at' ? '#f59e0b' : '#ef4444'
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#1d9bf0' }}>🧵 {r.total_tweets}-Tweet {r.style?.replace('_',' ')} Thread</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>on "{r.topic}"</div>
+                    </div>
+                    <div style={{ background: '#1d9bf020', borderRadius: 8, padding: '6px 12px', fontSize: 11, color: '#1d9bf0' }}>
+                      {r.audience}
+                    </div>
+                  </div>
+
+                  {/* Tweet navigator */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+                    {tweets.map((tw: any, i: number) => (
+                      <span key={i} onClick={() => setTtActive(i)} style={{
+                        padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer',
+                        background: ttActive === i ? '#1d9bf0' : '#1e2535',
+                        color: ttActive === i ? '#fff' : '#6b7280',
+                        fontWeight: ttActive === i ? 700 : 400,
+                      }}>{tw.tweet_num}/{r.total_tweets}</span>
+                    ))}
+                  </div>
+
+                  {/* Active tweet */}
+                  {active && (
+                    <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, marginBottom: 12, border: '1px solid #1e2535' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#1d9bf0', textTransform: 'uppercase', letterSpacing: 1 }}>{active.label}</span>
+                        <span style={{ fontSize: 11, color: active.over_limit ? '#ef4444' : '#6b7280' }}>{active.char_count}/280</span>
+                      </div>
+                      <div style={{ color: '#e2e8f0', fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.7, marginBottom: 10 }}>{active.content}</div>
+                      <div style={{ borderTop: '1px solid #1e2535', paddingTop: 8 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>WRITING GUIDE</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.6 }}>{active.writing_guide}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Hook text highlight */}
+                  {r.hook_text && ttActive === 0 && (
+                    <div style={{ background: '#1d9bf015', border: '1px solid #1d9bf040', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, color: '#1d9bf0', marginBottom: 4 }}>✨ YOUR HOOK (Tweet 1 — most important)</div>
+                      <div style={{ color: '#e2e8f0', fontSize: 12, fontStyle: 'italic' }}>"{r.hook_text}"</div>
+                    </div>
+                  )}
+
+                  {/* Engagement tip */}
+                  {r.engagement_tips && (
+                    <div style={{ background: '#f59e0b15', border: '1px solid #f59e0b30', borderRadius: 6, padding: 10, marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, color: '#f59e0b', marginBottom: 4 }}>💡 ENGAGEMENT TIP FOR THIS STYLE</div>
+                      <div style={{ color: '#d1d5db', fontSize: 11, lineHeight: 1.6 }}>{r.engagement_tips}</div>
+                    </div>
+                  )}
+
+                  {/* Thread Rules */}
+                  {r.thread_rules && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>📋 THREAD RULES</div>
+                      {r.thread_rules.map((rule: string, i: number) => (
+                        <div key={i} style={{ fontSize: 11, color: '#6b7280', padding: '3px 0', borderBottom: '1px solid #111827' }}>• {rule}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Engagement hooks */}
+                  {r.engagement_hooks && (
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>⚡ ENGAGEMENT BOOSTER MOMENTS</div>
+                      {r.engagement_hooks.map((h: string, i: number) => (
+                        <div key={i} style={{ fontSize: 11, color: '#94a3b8', padding: '3px 0' }}>→ {h}</div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill the form and click Build Twitter Thread →</div>}
           </Card>
         </TwoCol>
       )}

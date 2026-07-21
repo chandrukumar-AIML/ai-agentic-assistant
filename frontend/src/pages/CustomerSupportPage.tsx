@@ -57,6 +57,7 @@ const TABS = [
   { id: 'rulebook',   label: 'Escalation Rulebook' },
   { id: 'health',     label: 'Customer Health Score' },
   { id: 'winback',    label: 'Win-back Sequence' },
+  { id: 'scorecard',  label: 'Agent Scorecard' },
 ]
 
 const WA_TYPES = [
@@ -1307,6 +1308,7 @@ export default function CustomerSupportPage() {
         {tab === 'rulebook'    && <EscalationRulebookTab lang={lang} />}
         {tab === 'health'      && <CustomerHealthTab lang={lang} />}
         {tab === 'winback'     && <WinbackTab lang={lang} />}
+        {tab === 'scorecard'   && <AgentScorecardTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -2277,6 +2279,166 @@ function WinbackTab({ lang }: { lang: Lang }) {
             <Empty text="Demo data pre-loaded — click Generate Win-back Sequence →" />
           </Card>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Agent Performance Scorecard Tab (Round 13) ────────────────────────────────
+
+function AgentScorecardTab({ lang }: { lang: Lang }) {
+  const [biz, setBiz]           = useState('')
+  const [period, setPeriod]     = useState('July 2025')
+  const [agentsJson, setAgentsJson] = useState('')
+  const [res, setRes]           = useState<any>(null)
+  const [loading, setLoading]   = useState(false)
+  const [err, setErr]           = useState('')
+  const [activeAgent, setActiveAgent] = useState(0)
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null); setActiveAgent(0)
+    try {
+      let agents: any[] = []
+      if (agentsJson.trim()) {
+        try { agents = JSON.parse(agentsJson) } catch { setErr('Invalid JSON for agents list'); setLoading(false); return }
+      }
+      setRes(await csAction('agent_performance_scorecard', { business_name: biz, period, agents, team_targets: {} }))
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+
+  const tierColor: Record<string, string> = { star: '#22c55e', solid: '#60a5fa', developing: '#f59e0b', needs_help: '#ef4444' }
+  const statusColor = (s: string) => s === 'above' ? '#22c55e' : s === 'at' ? '#f59e0b' : '#ef4444'
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
+        {/* Left — inputs */}
+        <div style={{ background: '#141b2d', borderRadius: 12, padding: 20, border: '1px solid #1e2535' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>📊 Agent Performance Scorecard</div>
+          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 16 }}>Score agents on CSAT, FCR, response time & more. Demo data pre-loaded.</div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Business Name</label>
+            <input value={biz} onChange={e => setBiz(e.target.value)} placeholder="e.g. Acme Support Team"
+              style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Period</label>
+            <input value={period} onChange={e => setPeriod(e.target.value)} placeholder="e.g. July 2025"
+              style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Agent Data JSON (blank = demo team of 5)</label>
+            <textarea value={agentsJson} onChange={e => setAgentsJson(e.target.value)} rows={6}
+              placeholder={'[\n  {"name":"Priya S.","csat_score":4.7,"fcr_pct":88,"tickets_per_day":28,"first_response_time_min":18,"resolution_time_hours":6,"reopen_rate_pct":2,"escalation_rate_pct":4,"tenure_months":18}\n]'}
+              style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 11, fontFamily: 'monospace', boxSizing: 'border-box', resize: 'vertical' }} />
+          </div>
+          <button onClick={run} disabled={loading} style={{ width: '100%', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontSize: 13, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'Scoring agents…' : '📊 Generate Scorecard'}
+          </button>
+          {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{err}</div>}
+        </div>
+
+        {/* Right — results */}
+        <div style={{ background: '#141b2d', borderRadius: 12, padding: 20, border: '1px solid #1e2535' }}>
+          {res ? (() => {
+            const agents: any[] = res.agents || []
+            const active = agents[activeAgent] || agents[0]
+            return (
+              <>
+                {/* Team summary */}
+                <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, background: '#0f172a', borderRadius: 8, padding: 12, textAlign: 'center', minWidth: 80 }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: '#60a5fa' }}>{res.team_avg_score}</div>
+                    <div style={{ fontSize: 10, color: '#6b7280' }}>Team Avg Score</div>
+                  </div>
+                  <div style={{ flex: 1, background: '#0f172a', borderRadius: 8, padding: 12, textAlign: 'center', minWidth: 80 }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: '#22c55e' }}>{res.tier_distribution?.star || 0}</div>
+                    <div style={{ fontSize: 10, color: '#6b7280' }}>Star Agents</div>
+                  </div>
+                  <div style={{ flex: 1, background: '#0f172a', borderRadius: 8, padding: 12, textAlign: 'center', minWidth: 80 }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: '#ef4444' }}>{res.tier_distribution?.needs_help || 0}</div>
+                    <div style={{ fontSize: 10, color: '#6b7280' }}>Need Coaching</div>
+                  </div>
+                  <div style={{ flex: 1, background: '#0f172a', borderRadius: 8, padding: 12, textAlign: 'center', minWidth: 80 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#f59e0b' }}>{res.top_performer || '—'}</div>
+                    <div style={{ fontSize: 10, color: '#6b7280' }}>Top Performer</div>
+                  </div>
+                </div>
+
+                {/* Agent selector chips */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                  {agents.map((a: any, i: number) => (
+                    <span key={i} onClick={() => setActiveAgent(i)} style={{
+                      padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer', fontWeight: activeAgent === i ? 700 : 400,
+                      background: activeAgent === i ? tierColor[a.tier_key] || '#4f46e5' : '#1e2535',
+                      color: activeAgent === i ? '#fff' : '#9ca3af',
+                      border: `1px solid ${activeAgent === i ? tierColor[a.tier_key] + '80' : 'transparent'}`,
+                    }}>
+                      {a.name} — {a.overall_score}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Active agent detail */}
+                {active && (
+                  <div style={{ background: '#0f172a', borderRadius: 10, padding: 16, marginBottom: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>{active.name}</div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>{active.tenure_months} months tenure</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: tierColor[active.tier_key] || '#6b7280' }}>{active.overall_score}</div>
+                        <Badge label={active.tier} color={active.tier_key === 'star' ? 'green' : active.tier_key === 'solid' ? 'blue' : active.tier_key === 'developing' ? 'yellow' : 'red'} />
+                      </div>
+                    </div>
+
+                    {/* Metrics */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                      {(active.metrics || []).map((m: any, i: number) => (
+                        <div key={i} style={{ background: '#141b2d', borderRadius: 6, padding: 8 }}>
+                          <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2 }}>{m.label}</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: statusColor(m.status) }}>{m.actual}{m.unit}</span>
+                            <span style={{ fontSize: 10, color: '#4b5563' }}>target: {m.target}{m.unit}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Strengths & Gaps */}
+                    {active.strengths?.length > 0 && (
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 10, color: '#22c55e', marginBottom: 3 }}>STRENGTHS</div>
+                        <div style={{ fontSize: 11, color: '#d1d5db' }}>{active.strengths.join(' • ')}</div>
+                      </div>
+                    )}
+                    {active.gaps?.length > 0 && (
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 10, color: '#ef4444', marginBottom: 3 }}>GAPS</div>
+                        <div style={{ fontSize: 11, color: '#d1d5db' }}>{active.gaps.join(' • ')}</div>
+                      </div>
+                    )}
+
+                    {/* Coaching tips */}
+                    {active.coaching_tips?.length > 0 && (
+                      <div style={{ borderTop: '1px solid #1e2535', paddingTop: 10 }}>
+                        <div style={{ fontSize: 10, color: '#f59e0b', marginBottom: 6 }}>COACHING ACTIONS</div>
+                        {active.coaching_tips.map((ct: any, i: number) => (
+                          <div key={i} style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: '#e2e8f0' }}>{ct.area}</div>
+                            <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5 }}>{ct.tip}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )
+          })() : <Empty text="Demo data pre-loaded — click Generate Scorecard →" />}
+        </div>
       </div>
     </div>
   )

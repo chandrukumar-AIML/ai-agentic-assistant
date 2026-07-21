@@ -953,6 +953,20 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "msme_loan_eligibility":
+        return calculate_msme_loan_eligibility(
+            company_name=payload.get("company_name", ""),
+            business_type=payload.get("business_type", "manufacturing"),
+            annual_turnover=float(payload.get("annual_turnover", 0) or 0),
+            plant_machinery_value=float(payload.get("plant_machinery_value", 0) or 0),
+            years_in_business=int(payload.get("years_in_business", 1) or 1),
+            loan_purpose=payload.get("loan_purpose", "working_capital"),
+            loan_amount_requested=float(payload.get("loan_amount_requested", 0) or 0),
+            existing_loans=float(payload.get("existing_loans", 0) or 0),
+            monthly_revenue=float(payload.get("monthly_revenue", 0) or 0),
+            gst_registered=bool(payload.get("gst_registered", True)),
+        )
+
     elif action == "pl_statement":
         return generate_pl_statement(
             company_name=payload.get("company_name", ""),
@@ -1950,6 +1964,250 @@ _INDUSTRY_BENCHMARKS = {
     "food_beverage": {"gross_margin": 40, "ebitda_margin": 10, "net_margin": 6},
     "general":       {"gross_margin": 45, "ebitda_margin": 12, "net_margin": 8},
 }
+
+
+# ── MSME Loan Eligibility Calculator (Round 13) ──────────────────────────────
+
+_MSME_CATEGORIES = {
+    "manufacturing": {
+        "micro":  {"turnover": 5_00_00_000,   "investment": 1_00_00_000},
+        "small":  {"turnover": 50_00_00_000,  "investment": 10_00_00_000},
+        "medium": {"turnover": 250_00_00_000, "investment": 50_00_00_000},
+    },
+    "service": {
+        "micro":  {"turnover": 5_00_00_000,   "investment": 50_00_000},
+        "small":  {"turnover": 50_00_00_000,  "investment": 5_00_00_000},
+        "medium": {"turnover": 250_00_00_000, "investment": 10_00_00_000},
+    },
+}
+
+_LOAN_SCHEMES = {
+    "working_capital": {
+        "schemes": ["CC/OD from banks under CGTMSE", "MUDRA Loan (Tarun/Shishu/Kishor)", "SIDBI Direct Lending"],
+        "max_without_collateral": 2_00_00_000,
+        "interest_range": "8.5% – 12% p.a.",
+        "tenure": "12 months (renewable)",
+        "processing_fee": "0.5% – 1%",
+    },
+    "term_loan": {
+        "schemes": ["SIDBI Term Loan", "PSB 59-minute loan", "Stand-Up India Scheme"],
+        "max_without_collateral": 2_00_00_000,
+        "interest_range": "9% – 14% p.a.",
+        "tenure": "3 – 7 years",
+        "processing_fee": "1% – 2%",
+    },
+    "machinery": {
+        "schemes": ["SIDBI Equipment Finance", "TReDS platform", "CGTMSE covered term loan"],
+        "max_without_collateral": 1_00_00_000,
+        "interest_range": "9% – 13% p.a.",
+        "tenure": "5 – 10 years",
+        "processing_fee": "1%",
+    },
+    "export": {
+        "schemes": ["ECGC Export Credit", "SIDBI Export Finance", "Bank Pre-shipment Credit"],
+        "max_without_collateral": 5_00_00_000,
+        "interest_range": "7% – 10% p.a. (subsidised)",
+        "tenure": "180 days per cycle",
+        "processing_fee": "0.5%",
+    },
+    "trade_receivables": {
+        "schemes": ["TReDS (Invoice Discounting)", "Factoring via RXIL/M1xchange/INVOICEMART"],
+        "max_without_collateral": 10_00_00_000,
+        "interest_range": "7% – 11% p.a.",
+        "tenure": "30 – 90 days",
+        "processing_fee": "0.3% – 0.5% per invoice",
+    },
+}
+
+_GOVERNMENT_SUBSIDIES = [
+    {
+        "name":        "CGTMSE (Credit Guarantee)",
+        "benefit":     "Collateral-free loans up to ₹2 Cr. Bank gets 75-85% guarantee from govt.",
+        "eligibility": "All MSMEs. No collateral or third-party guarantee needed.",
+        "apply_via":   "Through your bank — just ask for 'CGTMSE covered loan'",
+    },
+    {
+        "name":        "MUDRA Yojana",
+        "benefit":     "₹10L (Shishu), ₹10L-50L (Kishor), ₹50L-10L (Tarun) at subsidised rates",
+        "eligibility": "Non-corporate, non-farm businesses. No minimum turnover.",
+        "apply_via":   "Any bank, NBFC, or MFI. Apply at mudramitra.in",
+    },
+    {
+        "name":        "Stand-Up India",
+        "benefit":     "₹10L – ₹1Cr greenfield enterprise loans for SC/ST and Women entrepreneurs",
+        "eligibility": "SC/ST or Women promoters. First-time entrepreneurs. Min 51% stake.",
+        "apply_via":   "standupmitra.in or any scheduled commercial bank",
+    },
+    {
+        "name":        "PSB 59-Minute Loan",
+        "benefit":     "In-principle approval in 59 minutes for ₹1L – ₹5Cr",
+        "eligibility": "GST-registered MSMEs with 6+ months IT returns. CIBIL 700+",
+        "apply_via":   "psbloansin59minutes.com",
+    },
+    {
+        "name":        "SIDBI Make in India Loans for Enterprises (SMILE)",
+        "benefit":     "Soft loans at 8-9% for manufacturing MSMEs. Moratorium up to 36 months.",
+        "eligibility": "Manufacturing units with 3+ years operations and positive net worth.",
+        "apply_via":   "sidbi.in or SIDBI branch offices",
+    },
+]
+
+
+def calculate_msme_loan_eligibility(
+    company_name: str,
+    business_type: str,
+    annual_turnover: float,
+    plant_machinery_value: float,
+    years_in_business: int,
+    loan_purpose: str,
+    loan_amount_requested: float,
+    existing_loans: float,
+    monthly_revenue: float,
+    gst_registered: bool,
+) -> dict:
+    company = company_name or "Your Company"
+    btype = business_type if business_type in _MSME_CATEGORIES else "service"
+    purpose_key = loan_purpose if loan_purpose in _LOAN_SCHEMES else "working_capital"
+
+    # Determine MSME category
+    cats = _MSME_CATEGORIES[btype]
+    msme_category = "not_eligible"
+    for cat in ["micro", "small", "medium"]:
+        if annual_turnover <= cats[cat]["turnover"] and plant_machinery_value <= cats[cat]["investment"]:
+            msme_category = cat
+            break
+
+    # Eligibility scoring
+    score = 0
+    score_details = []
+
+    if msme_category != "not_eligible":
+        score += 25
+        score_details.append({"factor": "MSME Classification", "status": "pass", "points": 25, "note": f"Classified as {msme_category.title()} Enterprise"})
+    else:
+        score_details.append({"factor": "MSME Classification", "status": "fail", "points": 0, "note": "Turnover or investment exceeds MSME limits"})
+
+    if gst_registered:
+        score += 20
+        score_details.append({"factor": "GST Registration", "status": "pass", "points": 20, "note": "GST registration verified"})
+    else:
+        score_details.append({"factor": "GST Registration", "status": "warn", "points": 0, "note": "Not GST registered — limits eligibility for bank loans and PSB 59-min scheme"})
+
+    if years_in_business >= 3:
+        score += 20
+        score_details.append({"factor": "Business Vintage", "status": "pass", "points": 20, "note": f"{years_in_business} years — meets 3-year minimum for most schemes"})
+    elif years_in_business >= 1:
+        score += 10
+        score_details.append({"factor": "Business Vintage", "status": "warn", "points": 10, "note": f"{years_in_business} year(s) — eligible for MUDRA but not SIDBI/SMILE"})
+    else:
+        score_details.append({"factor": "Business Vintage", "status": "fail", "points": 0, "note": "Less than 1 year — very limited options (startup schemes only)"})
+
+    # DSCR (Debt Service Coverage Ratio)
+    annual_revenue = monthly_revenue * 12 if monthly_revenue else annual_turnover
+    if loan_amount_requested > 0 and annual_revenue > 0:
+        assumed_emi = (loan_amount_requested * 0.01)  # rough 1% monthly EMI estimate
+        annual_debt_service = (assumed_emi * 12) + (existing_loans * 0.15)
+        net_income_estimate = annual_revenue * 0.15  # assume 15% net margin
+        dscr = net_income_estimate / max(annual_debt_service, 1)
+        if dscr >= 1.5:
+            score += 20
+            score_details.append({"factor": "DSCR", "status": "pass", "points": 20, "note": f"Est. DSCR {dscr:.2f} — strong repayment capacity"})
+        elif dscr >= 1.0:
+            score += 10
+            score_details.append({"factor": "DSCR", "status": "warn", "points": 10, "note": f"Est. DSCR {dscr:.2f} — marginal. Banks prefer 1.5+"})
+        else:
+            score_details.append({"factor": "DSCR", "status": "fail", "points": 0, "note": f"Est. DSCR {dscr:.2f} — repayment risk. Reduce loan amount or increase revenue"})
+    else:
+        dscr = 0
+        score += 10
+        score_details.append({"factor": "DSCR", "status": "info", "points": 10, "note": "Provide monthly revenue and loan amount for DSCR calculation"})
+
+    # Loan amount vs turnover sanity
+    if loan_amount_requested > 0 and annual_turnover > 0:
+        loan_to_turnover = loan_amount_requested / annual_turnover
+        if loan_to_turnover <= 0.25:
+            score += 15
+            score_details.append({"factor": "Loan-to-Turnover Ratio", "status": "pass", "points": 15, "note": f"{loan_to_turnover*100:.0f}% of turnover — conservative ask"})
+        elif loan_to_turnover <= 0.5:
+            score += 8
+            score_details.append({"factor": "Loan-to-Turnover Ratio", "status": "warn", "points": 8, "note": f"{loan_to_turnover*100:.0f}% of turnover — acceptable but at the limit"})
+        else:
+            score_details.append({"factor": "Loan-to-Turnover Ratio", "status": "fail", "points": 0, "note": f"{loan_to_turnover*100:.0f}% of turnover — too high. Banks typically lend up to 25-50% of annual turnover"})
+    else:
+        score += 0
+        score_details.append({"factor": "Loan-to-Turnover Ratio", "status": "info", "points": 0, "note": "Provide loan amount and turnover for ratio analysis"})
+
+    # Eligibility verdict
+    if score >= 70:
+        verdict = "Strong"
+        verdict_color = "green"
+        verdict_msg = "You have strong loan eligibility. Multiple schemes available at competitive rates."
+    elif score >= 45:
+        verdict = "Moderate"
+        verdict_color = "yellow"
+        verdict_msg = "Moderate eligibility. Some gaps to address — see recommendations below."
+    else:
+        verdict = "Weak"
+        verdict_color = "red"
+        verdict_msg = "Several eligibility gaps found. Address these before applying to avoid rejection which impacts CIBIL."
+
+    scheme_cfg = _LOAN_SCHEMES[purpose_key]
+    applicable_subsidies = _GOVERNMENT_SUBSIDIES[:]
+    if not gst_registered:
+        applicable_subsidies = [s for s in applicable_subsidies if "PSB" not in s["name"]]
+
+    # Document checklist
+    docs_checklist = [
+        {"doc": "Udyam Registration Certificate", "mandatory": True, "note": "Register free at udyamregistration.gov.in"},
+        {"doc": "GST Registration + 12 months GSTR returns", "mandatory": gst_registered, "note": "Banks use GSTR data to verify turnover"},
+        {"doc": "3 years ITR + P&L + Balance Sheet (CA certified)", "mandatory": years_in_business >= 3, "note": "Audited statements required for loans > ₹25L"},
+        {"doc": "6 months bank statements (all accounts)", "mandatory": True, "note": "Must show consistent cash flow"},
+        {"doc": "KYC — Aadhaar, PAN (promoter + business)", "mandatory": True, "note": "Both promoter and business PAN needed"},
+        {"doc": "Business proof (GST cert / Shop Act / MCA registration)", "mandatory": True, "note": "Any one is sufficient"},
+        {"doc": "Property documents (if offering collateral)", "mandatory": False, "note": "Optional under CGTMSE scheme — skip if going collateral-free"},
+        {"doc": "Projected financials (for new or young businesses)", "mandatory": years_in_business < 3, "note": "CA-certified 3-year projections required"},
+    ]
+
+    recommendations = []
+    for sd in score_details:
+        if sd["status"] in ("fail", "warn"):
+            if "GST" in sd["factor"]:
+                recommendations.append("Register for GST immediately at gst.gov.in — unlocks PSB 59-min loan, SIDBI, and most bank schemes.")
+            elif "Vintage" in sd["factor"]:
+                recommendations.append("While under 3 years, focus on MUDRA Kishor (up to ₹50L) and CGTMSE-covered loans via local banks.")
+            elif "DSCR" in sd["factor"]:
+                recommendations.append("Reduce loan amount requested OR show higher revenue via GSTR/bank statements to improve repayment capacity ratio.")
+            elif "Turnover" in sd["factor"]:
+                recommendations.append(f"Reduce loan request to ≤25% of annual turnover (≤₹{annual_turnover*0.25/1e5:.0f}L) for easier approval.")
+
+    def fmt_cr(amt):
+        if amt >= 1e7:
+            return f"₹{amt/1e7:.1f} Cr"
+        return f"₹{amt/1e5:.0f}L"
+
+    return {
+        "action":              "msme_loan_eligibility",
+        "company":             company,
+        "msme_category":       msme_category,
+        "business_type":       btype,
+        "eligibility_score":   score,
+        "eligibility_max":     100,
+        "verdict":             verdict,
+        "verdict_color":       verdict_color,
+        "verdict_message":     verdict_msg,
+        "score_breakdown":     score_details,
+        "annual_turnover_fmt": fmt_cr(annual_turnover) if annual_turnover else "Not provided",
+        "loan_requested_fmt":  fmt_cr(loan_amount_requested) if loan_amount_requested else "Not provided",
+        "recommended_schemes": scheme_cfg["schemes"],
+        "max_without_collateral": fmt_cr(scheme_cfg["max_without_collateral"]),
+        "interest_range":      scheme_cfg["interest_range"],
+        "tenure":              scheme_cfg["tenure"],
+        "government_subsidies": applicable_subsidies,
+        "document_checklist":  docs_checklist,
+        "recommendations":     recommendations,
+        "dscr_estimate":       round(dscr, 2) if dscr else None,
+        "summary":             f"{company} — {msme_category.title()} Enterprise. Eligibility score {score}/100 ({verdict}). {len(applicable_subsidies)} schemes applicable.",
+    }
 
 
 def generate_pl_statement(
