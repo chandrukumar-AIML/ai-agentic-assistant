@@ -282,6 +282,39 @@ export default function CAPage() {
     { label: 'Mature / Profitable', value: 'mature' },
   ]
   const [bvRevenue, setBvRevenue]       = useState('5000000')
+  // P&L Statement Builder (Round 12)
+  const [plCompany, setPlCompany]   = useState('Acme Pvt Ltd')
+  const [plPeriod, setPlPeriod]     = useState('FY 2024-25')
+  const [plIndustry, setPlIndustry] = useState('technology')
+  const [plTaxRate, setPlTaxRate]   = useState('25')
+  const [plPrevRev, setPlPrevRev]   = useState('4500000')
+  const [plPrevProfit, setPlPrevProfit] = useState('400000')
+  const [plRevJson, setPlRevJson]   = useState('')
+  const [plCogJson, setPlCogJson]   = useState('')
+  const [plOpexJson, setPlOpexJson] = useState('')
+  const [plRes, setPlRes]           = useState<any>(null)
+  const [plLoading, setPlLoading]   = useState(false)
+  const [plErr, setPlErr]           = useState('')
+  const runPL = async () => {
+    setPlLoading(true); setPlErr(''); setPlRes(null)
+    let rev: any[] = [], cogs: any[] = [], opex: any[] = []
+    try {
+      if (plRevJson.trim()) rev = JSON.parse(plRevJson)
+      if (plCogJson.trim()) cogs = JSON.parse(plCogJson)
+      if (plOpexJson.trim()) opex = JSON.parse(plOpexJson)
+    } catch { setPlErr('Invalid JSON in one of the fields'); setPlLoading(false); return }
+    try {
+      setPlRes(await caAction('pl_statement', {
+        company_name: plCompany, period: plPeriod, industry: plIndustry,
+        tax_rate: parseFloat(plTaxRate) || 25, revenue_items: rev,
+        cogs_items: cogs, opex_items: opex, other_income: 0,
+        prev_period_revenue: parseFloat(plPrevRev) || 0,
+        prev_period_profit: parseFloat(plPrevProfit) || 0,
+      }, language))
+    } catch (e: any) { setPlErr(e.message) }
+    finally { setPlLoading(false) }
+  }
+
   // Overdue Invoice Collector (Round 11)
   const [odCompany, setOdCompany]       = useState('Acme Pvt Ltd')
   const [odContact, setOdContact]       = useState('')
@@ -500,6 +533,7 @@ export default function CAPage() {
           { id: 'valuation',         label: 'Business Valuation',      icon: '🏦' },
           { id: 'cashflow',          label: 'Cash Flow Forecast',       icon: '💰' },
           { id: 'overdue',           label: 'Overdue Collector',         icon: '📬' },
+          { id: 'pl',                label: 'P&L Statement',              icon: '📊' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1702,6 +1736,109 @@ export default function CAPage() {
           </div>
         </TwoCol>
       )}
+      {/* ── P&L STATEMENT BUILDER (Round 12) ── */}
+      {tab === 'pl' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="📊 P&L Statement Builder" sub="Generate profit & loss with industry benchmarks and insights" />
+            <Input label="Company Name" value={plCompany} onChange={setPlCompany} placeholder="e.g. Acme Pvt Ltd" />
+            <Input label="Period" value={plPeriod} onChange={setPlPeriod} placeholder="e.g. FY 2024-25 or Q3 FY25" />
+            <Select label="Industry (for benchmarks)" value={plIndustry} onChange={setPlIndustry} options={[
+              { label: 'Technology / SaaS', value: 'technology' },
+              { label: 'E-Commerce', value: 'ecommerce' },
+              { label: 'Manufacturing', value: 'manufacturing' },
+              { label: 'Retail', value: 'retail' },
+              { label: 'Services / Consulting', value: 'services' },
+              { label: 'Healthcare', value: 'healthcare' },
+              { label: 'Food & Beverage', value: 'food_beverage' },
+            ]} />
+            <Input label="Tax Rate %" value={plTaxRate} onChange={setPlTaxRate} placeholder="e.g. 25 (corporate tax rate)" />
+            <Input label="Previous Period Revenue (₹)" value={plPrevRev} onChange={setPlPrevRev} placeholder="e.g. 4500000 (for YoY comparison)" />
+            <Input label="Previous Period Net Profit (₹)" value={plPrevProfit} onChange={setPlPrevProfit} placeholder="e.g. 400000" />
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Revenue Items JSON (blank = demo)</label>
+              <textarea value={plRevJson} onChange={e => setPlRevJson(e.target.value)} rows={3} placeholder={'[{"name":"Product Sales","amount":3500000}]'} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 11, fontFamily: 'monospace', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>COGS Items JSON (blank = demo)</label>
+              <textarea value={plCogJson} onChange={e => setPlCogJson(e.target.value)} rows={3} placeholder={'[{"name":"Raw Materials","amount":1400000}]'} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 11, fontFamily: 'monospace', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Operating Expenses JSON (blank = demo)</label>
+              <textarea value={plOpexJson} onChange={e => setPlOpexJson(e.target.value)} rows={3} placeholder={'[{"name":"Salaries","amount":900000}]'} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 11, fontFamily: 'monospace', boxSizing: 'border-box' }} />
+            </div>
+            <Btn onClick={runPL} loading={plLoading} style={{ width: '100%' }}>Generate P&L Statement</Btn>
+            {plErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{plErr}</div>}
+          </Card>
+          <div>
+            {plRes ? (() => {
+              const r = plRes
+              const rows = [
+                { label: 'Total Revenue',    val: r.revenue?.formatted,    sub: r.revenue?.items?.length + ' line items', color: '#22c55e', bold: true },
+                { label: 'Less: COGS',       val: '(' + r.cogs?.formatted + ')', sub: r.cogs?.items?.length + ' items', color: '#ef4444', bold: false },
+                { label: 'Gross Profit',     val: r.gross_profit_fmt,      sub: `${r.gross_margin_pct}% margin`, color: '#22c55e', bold: true },
+                { label: 'Less: OpEx',       val: '(' + r.opex?.formatted + ')', sub: r.opex?.items?.length + ' items', color: '#ef4444', bold: false },
+                { label: 'EBITDA',           val: r.ebitda_fmt,            sub: `${r.ebitda_margin}% margin`, color: '#10b981', bold: true },
+                { label: 'Less: Tax',        val: `(₹${((r.tax_amount||0)/100000).toFixed(1)}L)`, sub: `${r.tax_rate}% rate`, color: '#f59e0b', bold: false },
+                { label: 'Net Profit (PAT)', val: r.pat_fmt,               sub: `${r.net_margin_pct}% margin`, color: r.pat >= 0 ? '#22c55e' : '#ef4444', bold: true },
+              ]
+              return (
+                <>
+                  {/* P&L table */}
+                  <Card style={{ marginBottom: 12 }}>
+                    <SectionHead title={`${r.company} — ${r.period}`} sub="Profit & Loss Statement" />
+                    {rows.map((row, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #1e2535' }}>
+                        <div>
+                          <div style={{ fontSize: row.bold ? 14 : 13, fontWeight: row.bold ? 700 : 400, color: row.bold ? '#e2e8f0' : '#9ca3af' }}>{row.label}</div>
+                          {row.sub && <div style={{ fontSize: 11, color: '#4b5563' }}>{row.sub}</div>}
+                        </div>
+                        <div style={{ fontSize: row.bold ? 16 : 13, fontWeight: row.bold ? 800 : 400, color: row.color, fontVariantNumeric: 'tabular-nums' }}>{row.val}</div>
+                      </div>
+                    ))}
+                    {(r.yoy_revenue_growth !== null && r.yoy_revenue_growth !== undefined) && (
+                      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                        <Badge label={`Revenue YoY: ${r.yoy_revenue_growth > 0 ? '+' : ''}${r.yoy_revenue_growth}%`} color={r.yoy_revenue_growth >= 10 ? '#22c55e' : '#f59e0b'} />
+                        {r.yoy_profit_growth !== null && r.yoy_profit_growth !== undefined && <Badge label={`Profit YoY: ${r.yoy_profit_growth > 0 ? '+' : ''}${r.yoy_profit_growth}%`} color={r.yoy_profit_growth >= 0 ? '#22c55e' : '#ef4444'} />}
+                      </div>
+                    )}
+                  </Card>
+
+                  {/* Benchmark comparison */}
+                  <Card style={{ marginBottom: 12 }}>
+                    <SectionHead title="Industry Benchmark" sub={`vs ${r.industry} sector averages`} />
+                    {(r.benchmark_comparison || []).map((b: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #1e2535' }}>
+                        <span style={{ fontSize: 13, color: '#9ca3af' }}>{b.label}</span>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, color: '#6b7280' }}>Bench: {b.benchmark}%</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: b.color }}>{b.actual}%</span>
+                          <Badge label={`${b.diff > 0 ? '+' : ''}${b.diff}pp`} color={b.color} />
+                        </div>
+                      </div>
+                    ))}
+                  </Card>
+
+                  {/* Insights */}
+                  <Card>
+                    <SectionHead title="CA Insights" sub="Actionable observations from your P&L" />
+                    {(r.insights || []).map((ins: string, i: number) => (
+                      <div key={i} style={{ fontSize: 13, color: '#e2e8f0', background: '#0f1117', borderRadius: 6, padding: '8px 12px', marginBottom: 6, borderLeft: '3px solid #818cf8' }}>{ins}</div>
+                    ))}
+                  </Card>
+                </>
+              )
+            })() : !plLoading && (
+              <Card>
+                <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                  Leave JSON fields blank for demo data — click Generate P&L Statement →
+                </div>
+              </Card>
+            )}
+          </div>
+        </TwoCol>
+      )}
+
       {/* ── OVERDUE INVOICE COLLECTOR (Round 11) ── */}
       {tab === 'overdue' && (
         <TwoCol>

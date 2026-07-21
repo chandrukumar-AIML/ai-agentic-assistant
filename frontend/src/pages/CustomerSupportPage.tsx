@@ -56,6 +56,7 @@ const TABS = [
   { id: 'categorizer',label: 'Ticket Categorizer' },
   { id: 'rulebook',   label: 'Escalation Rulebook' },
   { id: 'health',     label: 'Customer Health Score' },
+  { id: 'winback',    label: 'Win-back Sequence' },
 ]
 
 const WA_TYPES = [
@@ -1305,6 +1306,7 @@ export default function CustomerSupportPage() {
         {tab === 'categorizer' && <CategorizerTab lang={lang} />}
         {tab === 'rulebook'    && <EscalationRulebookTab lang={lang} />}
         {tab === 'health'      && <CustomerHealthTab lang={lang} />}
+        {tab === 'winback'     && <WinbackTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -2105,6 +2107,174 @@ function CustomerHealthTab({ lang }: { lang: Lang }) {
         ) : !loading && (
           <Card>
             <Empty text="Demo data pre-loaded — click Score All Customers to see results →" />
+          </Card>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Win-back Email Sequence Tab (Round 12) ───────────────────────────────────
+
+function WinbackTab({ lang }: { lang: Lang }) {
+  const [biz, setBiz]           = useState('Acme SaaS')
+  const [product, setProduct]   = useState('Core Platform')
+  const [reason, setReason]     = useState('unknown')
+  const [offerType, setOfferType] = useState('discount')
+  const [offerVal, setOfferVal] = useState('20%')
+  const [industry, setIndustry] = useState('saas')
+  const [custJson, setCustJson] = useState('')
+  const [res, setRes]           = useState<any>(null)
+  const [loading, setLoading]   = useState(false)
+  const [err, setErr]           = useState('')
+  const [activeEmail, setActiveEmail] = useState(0)
+  const [activeCustomer, setActiveCustomer] = useState<number | null>(null)
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null)
+    let customers: any[] = []
+    try { if (custJson.trim()) customers = JSON.parse(custJson) } catch { setErr('Invalid JSON'); setLoading(false); return }
+    try {
+      const r = await csAction('winback_sequence', {
+        business_name: biz, product_name: product, churn_reason: reason,
+        offer_type: offerType, offer_value: offerVal, industry, churned_customers: customers,
+      }, lang)
+      setRes(r)
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+
+  const PRIORITY_COLOR: Record<string, string> = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 16 }}>
+      <div>
+        <Card>
+          <SectionHead title="Win-back Email Sequence" sub="4-email sequence to re-engage churned customers" />
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Business Name</label>
+            <input value={biz} onChange={e => setBiz(e.target.value)} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Product Name</label>
+            <input value={product} onChange={e => setProduct(e.target.value)} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Primary Churn Reason</label>
+            <select value={reason} onChange={e => setReason(e.target.value)} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }}>
+              <option value="unknown">Unknown / General</option>
+              <option value="price">Price / Too Expensive</option>
+              <option value="competitor">Moved to Competitor</option>
+              <option value="feature_gap">Missing Features</option>
+              <option value="no_use">Not Using Product</option>
+              <option value="bad_support">Poor Support Experience</option>
+            </select>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Win-back Offer Type</label>
+            <select value={offerType} onChange={e => setOfferType(e.target.value)} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }}>
+              <option value="discount">Discount on Return</option>
+              <option value="free_months">Free Months</option>
+              <option value="upgrade">Tier Upgrade</option>
+              <option value="personal_call">Personal Outreach Call</option>
+              <option value="credits">Account Credits</option>
+            </select>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Offer Value</label>
+            <input value={offerVal} onChange={e => setOfferVal(e.target.value)} placeholder="e.g. 20%, 2 months, Pro plan" style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Churned Customers JSON (blank = demo)</label>
+            <textarea value={custJson} onChange={e => setCustJson(e.target.value)} rows={4} placeholder={'[\n  {"name":"Ravi Kumar","company":"Ravi Textiles","churned_months_ago":2,"arr":85000}\n]'} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 11, fontFamily: 'monospace', boxSizing: 'border-box' }} />
+          </div>
+          <button onClick={run} disabled={loading} style={{ width: '100%', padding: '10px 0', background: loading ? '#374151' : '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 14 }}>
+            {loading ? 'Building Sequence…' : 'Generate Win-back Sequence'}
+          </button>
+          {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{err}</div>}
+        </Card>
+      </div>
+      <div>
+        {res ? (
+          <>
+            {/* Summary */}
+            <Card style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Badge label={`${res.email_sequence?.length || 4} emails`} color="#818cf8" />
+                <Badge label={`${res.customer_queue?.length || 0} customers`} color="#6b7280" />
+                <Badge label={`ARR at risk: ₹${((res.total_arr_at_risk || 0)/100000).toFixed(1)}L`} color="#ef4444" />
+                <Badge label={`Reason: ${res.churn_reason}`} color="#f59e0b" />
+              </div>
+            </Card>
+
+            {/* Email sequence tabs */}
+            <Card style={{ marginBottom: 12 }}>
+              <SectionHead title="Email Sequence" sub="Copy, customize and schedule in your CRM" />
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                {(res.email_sequence || []).map((e: any, i: number) => (
+                  <span key={i} onClick={() => setActiveEmail(i)} style={{
+                    padding: '4px 12px', borderRadius: 20, fontSize: 11, cursor: 'pointer',
+                    background: activeEmail === i ? '#10b981' : '#1e2535',
+                    color: activeEmail === i ? '#fff' : '#9ca3af',
+                    border: `1px solid ${activeEmail === i ? '#10b981' : '#374151'}`,
+                  }}>Day {e.sequence_day}</span>
+                ))}
+              </div>
+              {res.email_sequence?.[activeEmail] && (() => {
+                const em = res.email_sequence[activeEmail]
+                return (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#a78bfa' }}>{em.label}</span>
+                      <Badge label={em.goal} color="#6b7280" />
+                    </div>
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>Subject: <span style={{ color: '#e2e8f0' }}>{em.subject}</span></div>
+                    <div style={{ fontSize: 11, color: '#4b5563', marginBottom: 8 }}>Send: {em.send_timing}</div>
+                    <div style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.7, whiteSpace: 'pre-wrap', background: '#0f1117', borderRadius: 6, padding: '10px 12px', maxHeight: 280, overflowY: 'auto', marginBottom: 8 }}>{em.body}</div>
+                    <span onClick={() => navigator.clipboard?.writeText(`Subject: ${em.subject}\n\n${em.body}`)} style={{ cursor: 'pointer', fontSize: 11, color: '#fff', padding: '4px 12px', background: '#374151', borderRadius: 6 }}>Copy Email</span>
+                  </>
+                )
+              })()}
+            </Card>
+
+            {/* Customer queue */}
+            <Card style={{ marginBottom: 12 }}>
+              <SectionHead title="Customer Priority Queue" sub="Sorted by ARR — highest value first" />
+              {(res.customer_queue || []).map((c: any, i: number) => (
+                <div key={i} onClick={() => setActiveCustomer(activeCustomer === i ? null : i)} style={{ background: '#0f1117', borderRadius: 8, padding: '10px 12px', marginBottom: 6, cursor: 'pointer', border: '1px solid #1e2535' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 13 }}>{c.name}</span>
+                      {c.company && <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>{c.company}</span>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <Badge label={c.winback_priority + ' priority'} color={PRIORITY_COLOR[c.winback_priority] || '#6b7280'} />
+                      {c.arr > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: '#22c55e' }}>₹{(c.arr/1000).toFixed(0)}K</span>}
+                    </div>
+                  </div>
+                  {activeCustomer === i && (
+                    <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
+                      <div>Churned: {c.churned_months_ago} month(s) ago • Start at Email {c.start_at_email}</div>
+                      {c.last_feature && <div>Last used: {c.last_feature}</div>}
+                      <div style={{ color: '#f59e0b', marginTop: 4 }}>Tip: {c.personalization_note}</div>
+                      <div>Expected win-back rate: {c.expected_winback_rate}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </Card>
+
+            {/* Best practices */}
+            <Card>
+              <SectionHead title="Best Practices" sub="India B2B win-back playbook" />
+              {(res.best_practices || []).map((bp: string, i: number) => (
+                <div key={i} style={{ fontSize: 12, color: '#9ca3af', padding: '6px 0', borderBottom: '1px solid #1e2535' }}>• {bp}</div>
+              ))}
+            </Card>
+          </>
+        ) : !loading && (
+          <Card>
+            <Empty text="Demo data pre-loaded — click Generate Win-back Sequence →" />
           </Card>
         )}
       </div>

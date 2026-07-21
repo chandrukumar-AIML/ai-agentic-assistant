@@ -266,6 +266,30 @@ export default function SocialPage() {
   // ── Employee Advocacy Generator (Round 9) ──
   const ADVOCACY_TONES = [{ label: 'Professional', value: 'professional' }, { label: 'Casual & Warm', value: 'casual' }, { label: 'Excited / Celebratory', value: 'excited' }, { label: 'Humble & Grateful', value: 'humble' }]
   const EMPLOYEE_ROLES = [{ label: 'Founder / CEO', value: 'founder' }, { label: 'Sales / BD', value: 'sales' }, { label: 'Engineer', value: 'engineer' }, { label: 'HR / People', value: 'hr' }, { label: 'Marketing', value: 'marketing' }, { label: 'Team Member', value: 'team_member' }]
+  // LinkedIn Carousel Generator (Round 12)
+  const [lcTopic, setLcTopic]       = useState('GST compliance for Indian startups')
+  const [lcBrand, setLcBrand]       = useState('')
+  const [lcIndustry, setLcIndustry] = useState('technology')
+  const [lcAudience, setLcAudience] = useState('startup founders')
+  const [lcSlides, setLcSlides]     = useState('8')
+  const [lcGoal, setLcGoal]         = useState('thought leadership')
+  const [lcStyle, setLcStyle]       = useState('educational')
+  const [lcRes, setLcRes]           = useState<any>(null)
+  const [lcLoading, setLcLoading]   = useState(false)
+  const [lcErr, setLcErr]           = useState('')
+  const [lcActive, setLcActive]     = useState(0)
+  const runLinkedInCarousel = async () => {
+    setLcLoading(true); setLcErr(''); setLcRes(null)
+    try {
+      setLcRes(await socialAction('linkedin_carousel', {
+        topic: lcTopic, brand_name: lcBrand, industry: lcIndustry,
+        audience: lcAudience, num_slides: parseInt(lcSlides) || 8,
+        goal: lcGoal, style: lcStyle,
+      }, 'linkedin'))
+    } catch (e: any) { setLcErr(e.message) }
+    finally { setLcLoading(false) }
+  }
+
   // Influencer Outreach Generator (Round 11)
   const [ioInfluencer, setIoInfluencer] = useState('Neha Sharma')
   const [ioBrand, setIoBrand]           = useState('')
@@ -529,6 +553,7 @@ export default function SocialPage() {
           { id: 'advocacy',   label: 'Employee Advocacy',     icon: '📢' },
           { id: 'hooks',      label: 'Viral Hooks',           icon: '🎣' },
           { id: 'outreach',   label: 'Influencer Outreach',   icon: '✉️' },
+          { id: 'carousel',   label: 'LinkedIn Carousel',     icon: '🎠' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2174,6 +2199,117 @@ export default function SocialPage() {
                 </>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Paste mentions JSON and click Generate →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── LINKEDIN CAROUSEL GENERATOR (Round 12) ── */}
+      {tab === 'carousel' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="🎠 LinkedIn Carousel Builder" sub="Slide-by-slide blueprint with headlines, elements & design tips" />
+            <Input label="Topic / Content Idea" value={lcTopic} onChange={setLcTopic} placeholder="e.g. GST compliance, hiring mistakes, AI tools" />
+            <Input label="Brand Name" value={lcBrand} onChange={setLcBrand} placeholder="e.g. Zoho, your startup" />
+            <Input label="Industry" value={lcIndustry} onChange={setLcIndustry} placeholder="e.g. technology, retail, fintech" />
+            <Input label="Target Audience" value={lcAudience} onChange={setLcAudience} placeholder="e.g. startup founders, HR managers" />
+            <Select label="Carousel Style" value={lcStyle} onChange={setLcStyle} options={[
+              { label: 'Educational (teach something)', value: 'educational' },
+              { label: 'Storytelling (brand/founder story)', value: 'storytelling' },
+              { label: 'Listicle (mistakes / tips)', value: 'listicle' },
+              { label: 'How-To (step-by-step)', value: 'how_to' },
+              { label: 'Data-Driven (research / stats)', value: 'data_driven' },
+            ]} />
+            <Select label="Number of Slides" value={lcSlides} onChange={setLcSlides} options={[
+              { label: '6 slides', value: '6' }, { label: '8 slides (recommended)', value: '8' },
+              { label: '10 slides', value: '10' }, { label: '12 slides', value: '12' },
+            ]} />
+            <Select label="Goal" value={lcGoal} onChange={setLcGoal} options={[
+              { label: 'Thought Leadership', value: 'thought leadership' },
+              { label: 'Lead Generation', value: 'lead generation' },
+              { label: 'Brand Awareness', value: 'brand awareness' },
+              { label: 'Product Education', value: 'product education' },
+            ]} />
+            <Btn onClick={runLinkedInCarousel} loading={lcLoading}>Generate Carousel Blueprint</Btn>
+            {lcErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{lcErr}</div>}
+          </Card>
+          <Card>
+            {lcRes ? (() => {
+              const r = lcRes
+              const slides: any[] = r.slides || []
+              const activeSlide = slides[lcActive] || slides[0]
+              return (
+                <>
+                  {/* Hook highlight */}
+                  <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid #10b981', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, color: '#10b981', fontWeight: 700, marginBottom: 4 }}>🪝 HOOK (Slide 1 headline)</div>
+                    <div style={{ fontSize: 14, color: '#e2e8f0', fontWeight: 600, lineHeight: 1.5 }}>{r.hook_text}</div>
+                  </div>
+
+                  {/* Slide navigator */}
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
+                    {slides.map((s: any, i: number) => (
+                      <span key={i} onClick={() => setLcActive(i)} style={{
+                        padding: '3px 10px', borderRadius: 4, fontSize: 11, cursor: 'pointer',
+                        background: lcActive === i ? '#10b981' : '#1e2535',
+                        color: lcActive === i ? '#fff' : '#6b7280',
+                      }}>{s.slide_num}</span>
+                    ))}
+                  </div>
+
+                  {/* Active slide detail */}
+                  {activeSlide && (
+                    <div style={{ background: '#111827', border: '1px solid #1e2535', borderRadius: 8, padding: '14px', marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span style={{ color: '#a78bfa', fontWeight: 700, fontSize: 13 }}>Slide {activeSlide.slide_num}/{r.total_slides} — {activeSlide.label}</span>
+                        <Badge label={activeSlide.type} color="#6b7280" />
+                      </div>
+                      {activeSlide.purpose && <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 10, fontStyle: 'italic' }}>Purpose: {activeSlide.purpose}</div>}
+                      <div style={{ fontSize: 14, color: '#e2e8f0', fontWeight: 600, marginBottom: 10, lineHeight: 1.5, background: '#0f1117', borderRadius: 6, padding: '10px 12px' }}>{activeSlide.headline}</div>
+                      <div style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 700, marginBottom: 4 }}>ELEMENTS TO INCLUDE</div>
+                        {(activeSlide.elements || []).map((el: string, j: number) => (
+                          <div key={j} style={{ fontSize: 12, color: '#6b7280', marginBottom: 3 }}>• {el}</div>
+                        ))}
+                      </div>
+                      {activeSlide.design_tip && <div style={{ fontSize: 12, color: '#f59e0b', background: 'rgba(245,158,11,0.08)', borderRadius: 6, padding: '6px 10px' }}>💡 {activeSlide.design_tip}</div>}
+                    </div>
+                  )}
+
+                  {/* Design guide + tone */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                    <div style={{ background: '#0f1117', borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ fontSize: 11, color: '#818cf8', fontWeight: 700, marginBottom: 4 }}>DESIGN GUIDE</div>
+                      <div style={{ fontSize: 12, color: '#6b7280' }}>{r.design_guide}</div>
+                    </div>
+                    <div style={{ background: '#0f1117', borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ fontSize: 11, color: '#10b981', fontWeight: 700, marginBottom: 4 }}>TONE</div>
+                      <div style={{ fontSize: 12, color: '#6b7280' }}>{r.tone}</div>
+                    </div>
+                  </div>
+
+                  {/* Caption */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 700 }}>CAPTION TEMPLATE</span>
+                      <span onClick={() => navigator.clipboard?.writeText(r.caption_template)} style={{ fontSize: 11, cursor: 'pointer', color: '#fff', padding: '2px 10px', background: '#374151', borderRadius: 6 }}>Copy</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#9ca3af', background: '#0f1117', borderRadius: 6, padding: '10px 12px', whiteSpace: 'pre-wrap', maxHeight: 160, overflowY: 'auto' }}>{r.caption_template}</div>
+                  </div>
+
+                  {/* Distribution tips */}
+                  <div>
+                    <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 700, marginBottom: 6 }}>DISTRIBUTION TIPS</div>
+                    {(r.distribution_tips || []).map((t: string, i: number) => (
+                      <div key={i} style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>• {t}</div>
+                    ))}
+                  </div>
+                </>
+              )
+            })() : (
+              <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                Fill in the topic and click Generate Carousel Blueprint →
+              </div>
+            )}
           </Card>
         </TwoCol>
       )}

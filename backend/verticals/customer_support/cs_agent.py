@@ -560,6 +560,17 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "winback_sequence":
+            return _winback_sequence(
+                business_name=payload.get("business_name", ""),
+                product_name=payload.get("product_name", ""),
+                churned_customers=payload.get("churned_customers", []),
+                churn_reason=payload.get("churn_reason", "unknown"),
+                offer_type=payload.get("offer_type", "discount"),
+                offer_value=payload.get("offer_value", "20%"),
+                industry=payload.get("industry", "saas"),
+            )
+
         elif action == "customer_health_score":
             return _customer_health_score(
                 customers=payload.get("customers", []),
@@ -1590,6 +1601,208 @@ def _escalation_rule_builder(
         "time_based_rules":       _TRIGGER_LIBRARY["time_based"],
         "best_practices":         best_practices,
         "summary":                f"Built {len(escalation_matrix)}-tier escalation matrix for {company} with {tier_key} SLA profile and {len(routing)} routing teams.",
+    }
+
+
+# ── Win-back Email Sequence (Round 12) ───────────────────────────────────────
+
+_CHURN_REASON_FRAMES = {
+    "price":       {"frame": "We heard your feedback on pricing", "angle": "value justification + special offer"},
+    "competitor":  {"frame": "We know you have options", "angle": "differentiation + honest comparison"},
+    "feature_gap": {"frame": "You told us something was missing", "angle": "product update + what's new"},
+    "no_use":      {"frame": "Life gets busy — we get it", "angle": "re-engagement + quick win offer"},
+    "bad_support": {"frame": "We dropped the ball, and we own it", "angle": "apology + new support promise"},
+    "unknown":     {"frame": "We miss you", "angle": "curiosity + value reminder + offer"},
+}
+
+_OFFER_INTROS = {
+    "discount":      "As a welcome-back gesture, we're offering you {value} off your first {period} back.",
+    "free_months":   "We'd love to offer you {value} free — no commitment, no catch.",
+    "upgrade":       "We want you to experience the full power of {product}. We're offering you a complimentary upgrade to {value} for 60 days.",
+    "personal_call": "I'd love to personally jump on a 20-minute call to understand what didn't work and show you what's changed.",
+    "credits":       "We've added {value} in credits to your account — ready and waiting for when you come back.",
+}
+
+
+def _winback_sequence(
+    business_name: str,
+    product_name: str,
+    churned_customers: list,
+    churn_reason: str,
+    offer_type: str,
+    offer_value: str,
+    industry: str,
+) -> dict:
+    company = business_name or "Your Company"
+    product = product_name or "our product"
+    reason_key = churn_reason if churn_reason in _CHURN_REASON_FRAMES else "unknown"
+    reason_cfg = _CHURN_REASON_FRAMES[reason_key]
+    offer_key = offer_type if offer_type in _OFFER_INTROS else "discount"
+    offer_intro = (_OFFER_INTROS[offer_key]
+        .replace("{value}", offer_value)
+        .replace("{product}", product)
+        .replace("{period}", "3 months")
+    )
+
+    if not churned_customers:
+        churned_customers = [
+            {"name": "Ravi Kumar", "company": "Ravi Textiles", "churned_months_ago": 2, "arr": 85000, "last_feature_used": "Invoice Manager"},
+            {"name": "Priya Shah",  "company": "Shah Enterprises", "churned_months_ago": 5, "arr": 120000, "last_feature_used": "GST Filing"},
+        ]
+
+    emails = [
+        {
+            "sequence_day": 1,
+            "label":        "Email 1 — The Check-in (Soft)",
+            "subject":      f"We noticed you left, {'{first_name}'} — can we ask why?",
+            "body":         f"""Hi {{first_name}},
+
+{reason_cfg['frame']}.
+
+I'm [Your Name], and I wanted to reach out personally — not with a sales pitch, but with a genuine question: what didn't work for you with {product}?
+
+Your feedback directly shapes our roadmap. If you have 2 minutes, I'd love to hear what we could have done better.
+
+And if there's any chance we can win you back, I'd love to explore that too.
+
+Just hit reply — I read every response personally.
+
+{company} Team
+[Email] | [Phone]
+
+P.S. If the timing just wasn't right before, we'd love to show you what's changed.""",
+            "send_timing":  "Day 1 — send within 48h of identifying the churned customer",
+            "goal":         "Open the door — get a reply or click",
+        },
+        {
+            "sequence_day": 7,
+            "label":        "Email 2 — The Value Reminder",
+            "subject":      f"Remember when {product} helped you with [specific use case]?",
+            "body":         f"""Hi {{first_name}},
+
+Since you left, here's what's new at {company}:
+
+✅ [New feature 1 — specific to their last used feature]
+✅ [New feature 2 — addresses the gap they had]
+✅ [Improvement — performance / speed / UX]
+
+We've also heard feedback from customers like you and made [specific change] a priority.
+
+{offer_intro}
+
+This offer is exclusively for you — it expires in 7 days.
+
+[CTA Button: Come Back and Try It →]
+
+No long-term commitment. Just a chance to see what's different.
+
+Warm regards,
+[Your Name]
+{company}""",
+            "send_timing":  "Day 7 — after the soft check-in",
+            "goal":         "Show what changed + introduce the offer",
+        },
+        {
+            "sequence_day": 21,
+            "label":        "Email 3 — The Offer + Social Proof",
+            "subject":      f"[First name], other {industry} businesses are seeing [result] with {product}",
+            "body":         f"""Hi {{first_name}},
+
+I wanted to share something before I close the loop.
+
+Since last year, here's what customers like you have achieved with {product}:
+
+"[Customer quote about specific result — 1-2 sentences]" — [Customer Name, Company]
+
+"[Another customer quote]" — [Name, Company]
+
+If you've been on the fence, this might be the nudge you need.
+
+Our offer ({offer_value}) is still available for you — but it expires at end of this week.
+
+[CTA: Claim My Offer →]
+
+If you've moved on for good, no hard feelings — just let me know and I'll stop reaching out. 🙏
+
+[Your Name]
+{company}""",
+            "send_timing":  "Day 21 — social proof + urgency",
+            "goal":         "Convert with social proof + scarcity",
+        },
+        {
+            "sequence_day": 45,
+            "label":        "Email 4 — The Breakup (Final)",
+            "subject":      f"This is our last email, {{first_name}} — closing your file",
+            "body":         f"""Hi {{first_name}},
+
+I don't want to fill your inbox if {product} isn't right for you anymore.
+
+This is the last email we'll send — promise.
+
+But before we go, I'd love to know: is there anything we could have done differently? Even one line would mean a lot to our team.
+
+[CTA: Tell us in 1 click →] (quick 2-question survey)
+
+If you ever want to come back, we'll be here. Your data is kept safe for 90 days.
+
+Thank you for the time you gave us, and I genuinely wish you the best.
+
+[Your Name], {company}
+
+P.S. If your situation changes and you want to try again, just reply to this email. We'll always have a spot for you.""",
+            "send_timing":  "Day 45 — final email, close the loop",
+            "goal":         "Exit survey + leave the door open",
+        },
+    ]
+
+    per_customer = []
+    for c in churned_customers[:10]:
+        name = c.get("name", "Customer")
+        first = name.split()[0]
+        comp = c.get("company", "")
+        months_ago = c.get("churned_months_ago", 3)
+        arr = float(c.get("arr", 0))
+        last_feat = c.get("last_feature_used", "")
+
+        priority = "high" if arr > 100000 else ("medium" if arr > 50000 else "low")
+        start_email = 1 if months_ago <= 3 else (2 if months_ago <= 6 else 3)
+
+        per_customer.append({
+            "name":           name,
+            "first_name":     first,
+            "company":        comp,
+            "churned_months_ago": months_ago,
+            "arr":            arr,
+            "last_feature":   last_feat,
+            "winback_priority": priority,
+            "start_at_email": start_email,
+            "personalization_note": f"Mention {last_feat} improvement in Email 2" if last_feat else "Highlight top 3 new features",
+            "expected_winback_rate": "15-25%" if priority == "high" else "8-15%",
+        })
+
+    per_customer.sort(key=lambda x: x["arr"], reverse=True)
+
+    best_practices = [
+        "Win-back campaigns work best within 90 days of churn — after that, conversion rates drop significantly.",
+        "Personalize the subject line with their first name AND their company — doubles open rates.",
+        "Never start with the offer — build curiosity and empathy first (Email 1 is a check-in, not a pitch).",
+        "High-ARR accounts deserve a phone call, not just email — pick up the phone for accounts over ₹1L ARR.",
+        "Exit surveys from churned customers are your best product research — read every response.",
+        f"Average B2B SaaS win-back rate is 10-20%. At {industry} industry rates, expect 8-18% with this sequence.",
+    ]
+
+    return {
+        "action":             "winback_sequence",
+        "business_name":      company,
+        "product_name":       product,
+        "churn_reason":       churn_reason,
+        "offer_type":         offer_type,
+        "offer_value":        offer_value,
+        "email_sequence":     emails,
+        "customer_queue":     per_customer,
+        "total_arr_at_risk":  sum(c["arr"] for c in per_customer),
+        "best_practices":     best_practices,
+        "summary": f"Generated {len(emails)}-email win-back sequence for {len(per_customer)} churned customer(s). Total ARR at stake: ₹{sum(c['arr'] for c in per_customer)/100000:.1f}L. Churn reason: {churn_reason}.",
     }
 
 

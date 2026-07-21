@@ -953,6 +953,20 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "pl_statement":
+        return generate_pl_statement(
+            company_name=payload.get("company_name", ""),
+            period=payload.get("period", ""),
+            revenue_items=payload.get("revenue_items", []),
+            cogs_items=payload.get("cogs_items", []),
+            opex_items=payload.get("opex_items", []),
+            other_income=float(payload.get("other_income", 0) or 0),
+            tax_rate=float(payload.get("tax_rate", 25) or 25),
+            industry=payload.get("industry", "general"),
+            prev_period_revenue=float(payload.get("prev_period_revenue", 0) or 0),
+            prev_period_profit=float(payload.get("prev_period_profit", 0) or 0),
+        )
+
     elif action == "overdue_collector":
         return generate_overdue_collection(
             company_name=payload.get("company_name", ""),
@@ -1921,6 +1935,153 @@ def calculate_cash_flow_forecast(
         "months":           months_data,
         "recommendations":  recommendations,
         "summary":          f"{company_name or 'Company'} 12-month forecast: ₹{annual_profit/100000:.1f}L net profit, {runway_months}m runway, {'⚠️ cash deficit risk' if deficit_months else '✅ healthy cash flow'}.",
+    }
+
+
+# ── P&L Statement Builder (Round 12) ─────────────────────────────────────────
+
+_INDUSTRY_BENCHMARKS = {
+    "technology":    {"gross_margin": 70, "ebitda_margin": 20, "net_margin": 15},
+    "ecommerce":     {"gross_margin": 35, "ebitda_margin": 8,  "net_margin": 5},
+    "manufacturing": {"gross_margin": 30, "ebitda_margin": 12, "net_margin": 8},
+    "retail":        {"gross_margin": 28, "ebitda_margin": 6,  "net_margin": 4},
+    "services":      {"gross_margin": 65, "ebitda_margin": 18, "net_margin": 12},
+    "healthcare":    {"gross_margin": 50, "ebitda_margin": 15, "net_margin": 10},
+    "food_beverage": {"gross_margin": 40, "ebitda_margin": 10, "net_margin": 6},
+    "general":       {"gross_margin": 45, "ebitda_margin": 12, "net_margin": 8},
+}
+
+
+def generate_pl_statement(
+    company_name: str,
+    period: str,
+    revenue_items: list,
+    cogs_items: list,
+    opex_items: list,
+    other_income: float,
+    tax_rate: float,
+    industry: str,
+    prev_period_revenue: float,
+    prev_period_profit: float,
+) -> dict:
+    company = company_name or "Your Company"
+    per = period or "FY 2024-25"
+
+    if not revenue_items:
+        revenue_items = [
+            {"name": "Product Sales",   "amount": 3500000},
+            {"name": "Service Revenue", "amount": 1200000},
+            {"name": "Subscription",    "amount": 800000},
+        ]
+    if not cogs_items:
+        cogs_items = [
+            {"name": "Raw Materials / Inventory", "amount": 1400000},
+            {"name": "Direct Labour",              "amount": 420000},
+            {"name": "Packaging & Delivery",       "amount": 180000},
+        ]
+    if not opex_items:
+        opex_items = [
+            {"name": "Salaries & Benefits",  "amount": 900000},
+            {"name": "Rent & Utilities",     "amount": 240000},
+            {"name": "Marketing & Ads",      "amount": 300000},
+            {"name": "Software & Tech",      "amount": 120000},
+            {"name": "Admin & Legal",        "amount": 80000},
+            {"name": "Depreciation",         "amount": 60000},
+        ]
+
+    total_revenue = sum(float(r.get("amount", 0)) for r in revenue_items)
+    total_cogs    = sum(float(c.get("amount", 0)) for c in cogs_items)
+    gross_profit  = total_revenue - total_cogs
+    gross_margin  = (gross_profit / total_revenue * 100) if total_revenue else 0
+
+    depn_items    = [o for o in opex_items if "depreciation" in o.get("name", "").lower() or "amort" in o.get("name", "").lower()]
+    depn_total    = sum(float(d.get("amount", 0)) for d in depn_items)
+    total_opex    = sum(float(o.get("amount", 0)) for o in opex_items)
+    ebitda        = gross_profit - (total_opex - depn_total)
+    ebit          = gross_profit - total_opex
+    ebitda_margin = (ebitda / total_revenue * 100) if total_revenue else 0
+
+    pbt           = ebit + other_income
+    tax_amount    = max(0, pbt * (tax_rate / 100))
+    pat           = pbt - tax_amount
+    net_margin    = (pat / total_revenue * 100) if total_revenue else 0
+
+    bench = _INDUSTRY_BENCHMARKS.get(industry.lower() if industry else "general", _INDUSTRY_BENCHMARKS["general"])
+
+    def vs_bench(actual: float, bench_val: float, label: str) -> dict:
+        diff = actual - bench_val
+        status = "above" if diff >= 0 else "below"
+        color  = "#22c55e" if diff >= 0 else "#ef4444"
+        return {"label": label, "actual": round(actual, 1), "benchmark": bench_val, "diff": round(diff, 1), "status": status, "color": color}
+
+    benchmarks = [
+        vs_bench(gross_margin,  bench["gross_margin"],  "Gross Margin %"),
+        vs_bench(ebitda_margin, bench["ebitda_margin"], "EBITDA Margin %"),
+        vs_bench(net_margin,    bench["net_margin"],    "Net Margin %"),
+    ]
+
+    yoy_revenue_growth = ((total_revenue - prev_period_revenue) / prev_period_revenue * 100) if prev_period_revenue else None
+    yoy_profit_growth  = ((pat - prev_period_profit) / abs(prev_period_profit) * 100) if prev_period_profit else None
+
+    insights = []
+    if gross_margin < bench["gross_margin"] - 5:
+        insights.append(f"Gross margin ({gross_margin:.1f}%) is {bench['gross_margin'] - gross_margin:.1f}pp below {industry} benchmark — review supplier costs or pricing.")
+    if ebitda_margin < bench["ebitda_margin"] - 3:
+        biggest_opex = max(opex_items, key=lambda x: float(x.get("amount", 0)), default={})
+        insights.append(f"EBITDA margin below benchmark. Largest opex line: {biggest_opex.get('name','Salaries')} (₹{float(biggest_opex.get('amount',0))/100000:.1f}L) — review for optimisation.")
+    if net_margin > bench["net_margin"] + 3:
+        insights.append(f"Net margin ({net_margin:.1f}%) is ahead of industry benchmark — strong position. Consider reinvesting surplus in growth.")
+    if total_cogs / total_revenue > 0.6:
+        insights.append("COGS exceeds 60% of revenue — high cost of delivery. Explore automation or renegotiation of supplier terms.")
+    if not insights:
+        insights.append(f"P&L is broadly healthy. Focus on maintaining gross margin above {bench['gross_margin']}% as you scale.")
+    if yoy_revenue_growth is not None:
+        if yoy_revenue_growth > 20:
+            insights.append(f"Revenue grew {yoy_revenue_growth:.1f}% YoY — strong growth trajectory. Ensure opex scales sub-linearly to protect margins.")
+        elif yoy_revenue_growth < 5:
+            insights.append(f"Revenue growth of {yoy_revenue_growth:.1f}% YoY is below inflation — review pricing strategy and new revenue streams.")
+
+    cr = lambda x: f"₹{x/10000000:.2f} Cr" if x >= 10000000 else f"₹{x/100000:.1f}L"
+
+    return {
+        "action":           "pl_statement",
+        "company":          company,
+        "period":           per,
+        "industry":         industry or "general",
+        "revenue": {
+            "items":        [{"name": r["name"], "amount": float(r["amount"])} for r in revenue_items],
+            "total":        round(total_revenue, 0),
+            "formatted":    cr(total_revenue),
+        },
+        "cogs": {
+            "items":        [{"name": c["name"], "amount": float(c["amount"])} for c in cogs_items],
+            "total":        round(total_cogs, 0),
+            "formatted":    cr(total_cogs),
+        },
+        "gross_profit":     round(gross_profit, 0),
+        "gross_profit_fmt": cr(gross_profit),
+        "gross_margin_pct": round(gross_margin, 1),
+        "opex": {
+            "items":        [{"name": o["name"], "amount": float(o["amount"])} for o in opex_items],
+            "total":        round(total_opex, 0),
+            "formatted":    cr(total_opex),
+        },
+        "ebitda":           round(ebitda, 0),
+        "ebitda_fmt":       cr(ebitda),
+        "ebitda_margin":    round(ebitda_margin, 1),
+        "ebit":             round(ebit, 0),
+        "other_income":     round(other_income, 0),
+        "pbt":              round(pbt, 0),
+        "tax_amount":       round(tax_amount, 0),
+        "tax_rate":         tax_rate,
+        "pat":              round(pat, 0),
+        "pat_fmt":          cr(pat),
+        "net_margin_pct":   round(net_margin, 1),
+        "yoy_revenue_growth": round(yoy_revenue_growth, 1) if yoy_revenue_growth is not None else None,
+        "yoy_profit_growth":  round(yoy_profit_growth, 1) if yoy_profit_growth is not None else None,
+        "benchmark_comparison": benchmarks,
+        "insights":         insights,
+        "summary": f"{company} {per}: Revenue {cr(total_revenue)} | Gross {gross_margin:.0f}% | EBITDA {ebitda_margin:.0f}% | PAT {cr(pat)} ({net_margin:.1f}%)",
     }
 
 

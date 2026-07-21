@@ -2069,6 +2069,17 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "linkedin_carousel":
+        return generate_linkedin_carousel(
+            topic=payload.get("topic", ""),
+            brand_name=payload.get("brand_name", ""),
+            industry=payload.get("industry", ""),
+            audience=payload.get("audience", "professionals"),
+            num_slides=int(payload.get("num_slides", 8) or 8),
+            goal=payload.get("goal", "thought leadership"),
+            style=payload.get("style", "educational"),
+        )
+
     elif action == "influencer_outreach":
         return generate_influencer_outreach(
             brand_name=payload.get("brand_name", ""),
@@ -2142,6 +2153,244 @@ async def social_agent(
         )
 
     return {"error": f"Unknown social action: {action}"}
+
+
+# ── LinkedIn Carousel Generator (Round 12) ───────────────────────────────────
+
+_CAROUSEL_STYLES = {
+    "educational": {
+        "hook_formula":  "X things about {topic} that most {audience} don't know",
+        "slide_pattern": ["hook", "problem", "insight", "insight", "insight", "example", "takeaway", "cta"],
+        "tone":          "informative, clear, scannable",
+        "design_tip":    "Use numbered slides (1/8, 2/8…). Bold the key stat or phrase on each slide. Keep text under 30 words per slide.",
+    },
+    "storytelling": {
+        "hook_formula":  "How {brand} went from {pain} to {outcome} — the real story",
+        "slide_pattern": ["hook", "context", "turning_point", "obstacle", "solution", "result", "lesson", "cta"],
+        "tone":          "personal, vulnerable, narrative arc",
+        "design_tip":    "Start dark (problem) and get lighter (solution). First-person voice works best. End with a question to drive comments.",
+    },
+    "listicle": {
+        "hook_formula":  "{num} {topic} mistakes that are costing {audience} time and money",
+        "slide_pattern": ["hook", "item1", "item2", "item3", "item4", "item5", "bonus", "cta"],
+        "tone":          "punchy, direct, actionable",
+        "design_tip":    "Each slide = one mistake + one fix. Use emoji as visual anchors. Keep consistent layout across all slides.",
+    },
+    "how_to": {
+        "hook_formula":  "How to {outcome} in {timeframe} (step-by-step for {audience})",
+        "slide_pattern": ["hook", "overview", "step1", "step2", "step3", "step4", "common_mistake", "cta"],
+        "tone":          "structured, practical, beginner-friendly",
+        "design_tip":    "Use progress bar or step indicator. Include one actionable tip per step slide. Final slide = summary checklist.",
+    },
+    "data_driven": {
+        "hook_formula":  "We studied {number} {industry} brands. Here's what the data says about {topic}",
+        "slide_pattern": ["hook", "methodology", "finding1", "finding2", "finding3", "surprise", "what_it_means", "cta"],
+        "tone":          "authoritative, credible, insight-led",
+        "design_tip":    "Lead each slide with the stat in large text. Explain in one sentence below. Add source attribution in small text.",
+    },
+}
+
+_SLIDE_TEMPLATES = {
+    "hook": {
+        "label": "Hook (Slide 1)",
+        "purpose": "Stop the scroll — make them swipe to slide 2",
+        "elements": ["Bold, curious headline (max 10 words)", "Teaser of what they'll learn", "Visual: bold text on contrast background"],
+        "tip": "The hook is 80% of carousel performance. Test multiple versions.",
+    },
+    "problem": {
+        "label": "Problem / Pain",
+        "purpose": "Agitate the pain — make them feel seen",
+        "elements": ["Name the specific problem", "1 stat or relatable scenario", "Empathy line: 'If you're feeling X, you're not alone'"],
+        "tip": "Be specific. 'Indian SMBs lose ₹2L/yr to bad invoicing' beats 'businesses lose money'.",
+    },
+    "insight": {
+        "label": "Key Insight",
+        "purpose": "Deliver the 'aha' moment",
+        "elements": ["One insight per slide", "Bold the key phrase", "Optional: counter-intuitive angle"],
+        "tip": "Each insight should be screenshot-worthy on its own.",
+    },
+    "example": {
+        "label": "Real Example",
+        "purpose": "Make it tangible with a case/story",
+        "elements": ["Brand/company name or anonymized case", "Before → After format", "Specific numbers or results"],
+        "tip": "India-specific examples (Zoho, Freshworks, D2C brands) resonate more on Indian LinkedIn.",
+    },
+    "takeaway": {
+        "label": "Key Takeaway",
+        "purpose": "The 'save this slide' moment — summarize learning",
+        "elements": ["Bullet summary of all insights", "Bold the most important one", "Make it standalone without context"],
+        "tip": "This is the most saved slide. Design it as a standalone visual.",
+    },
+    "cta": {
+        "label": "CTA (Last Slide)",
+        "purpose": "Drive the action you want",
+        "elements": ["One clear action (comment / follow / DM / link)", "Restate the value they just received", "Question to spark comments"],
+        "tip": "Ask a question that's easy to answer in 1-2 words — drives comments algorithm boost.",
+    },
+    "context": {
+        "label": "Context / Background",
+        "purpose": "Set the scene before the story unfolds",
+        "elements": ["Where / when / who", "Keep it brief — 2-3 lines max", "Hook them into wanting to know what happened next"],
+        "tip": "Don't over-explain here — save the detail for later slides.",
+    },
+    "turning_point": {
+        "label": "Turning Point",
+        "purpose": "The moment everything changed",
+        "elements": ["The decision / discovery / event", "Why it mattered", "Emotional beat"],
+        "tip": "This is the heart of the story. Give it space.",
+    },
+    "obstacle": {
+        "label": "Obstacle / Challenge",
+        "purpose": "Show the struggle — makes the win more satisfying",
+        "elements": ["What almost derailed it", "Internal or external challenge", "How close they came to giving up"],
+        "tip": "Vulnerability here builds massive trust with the audience.",
+    },
+    "solution": {
+        "label": "The Solution",
+        "purpose": "The breakthrough moment",
+        "elements": ["What actually worked", "Why it worked (the insight)", "How they implemented it"],
+        "tip": "Be specific — generic solutions don't get saved or shared.",
+    },
+    "result": {
+        "label": "Result / Outcome",
+        "purpose": "The payoff the reader has been waiting for",
+        "elements": ["Specific measurable outcome", "Timeframe", "Qualitative change too (not just numbers)"],
+        "tip": "Numbers with context beat raw numbers. '3x revenue in 6 months from ₹10L to ₹30L' > '3x growth'.",
+    },
+    "lesson": {
+        "label": "The Lesson",
+        "purpose": "What others can take away from this story",
+        "elements": ["1-2 transferable lessons", "Who this applies to", "What to avoid"],
+        "tip": "This is why they'll share it. Make it universally applicable.",
+    },
+    "overview": {"label": "Overview", "purpose": "Preview what's coming", "elements": ["List of steps", "Time/effort required", "Who this is for"], "tip": "Set expectations clearly."},
+    "step1":    {"label": "Step 1", "purpose": "First action", "elements": ["Clear action", "Why it matters", "Quick win possible here"], "tip": "Make step 1 easy — build momentum."},
+    "step2":    {"label": "Step 2", "purpose": "Second action", "elements": ["Build on step 1", "Common mistake here", "Pro tip"], "tip": ""},
+    "step3":    {"label": "Step 3", "purpose": "Third action", "elements": ["The pivotal step", "Most people skip this", "Result if done right"], "tip": ""},
+    "step4":    {"label": "Step 4", "purpose": "Final action", "elements": ["Completion step", "How to measure success", "What good looks like"], "tip": ""},
+    "common_mistake": {"label": "Common Mistake", "purpose": "What to avoid", "elements": ["The mistake", "Why people make it", "The fix"], "tip": "Negative framing gets high saves."},
+    "methodology": {"label": "Methodology", "purpose": "Build credibility", "elements": ["How the data was gathered", "Sample size", "Time period"], "tip": ""},
+    "finding1": {"label": "Finding 1", "purpose": "First data insight", "elements": ["Stat in large text", "1-line explanation", "Source"], "tip": ""},
+    "finding2": {"label": "Finding 2", "purpose": "Second data insight", "elements": ["Stat in large text", "1-line explanation", "Implication"], "tip": ""},
+    "finding3": {"label": "Finding 3", "purpose": "Third data insight", "elements": ["Stat in large text", "1-line explanation", "Pattern emerging"], "tip": ""},
+    "surprise": {"label": "Surprising Finding", "purpose": "The unexpected result", "elements": ["Counter-intuitive stat", "Why it surprised us", "What it means"], "tip": "This is your most shareable slide."},
+    "what_it_means": {"label": "What It Means For You", "purpose": "Practical application of data", "elements": ["If you're X, do Y", "Specific action", "Expected outcome"], "tip": ""},
+    "item1": {"label": "Point 1", "purpose": "", "elements": ["The mistake/tip", "Why it happens", "The fix"], "tip": ""},
+    "item2": {"label": "Point 2", "purpose": "", "elements": ["The mistake/tip", "Why it happens", "The fix"], "tip": ""},
+    "item3": {"label": "Point 3", "purpose": "", "elements": ["The mistake/tip", "Why it happens", "The fix"], "tip": ""},
+    "item4": {"label": "Point 4", "purpose": "", "elements": ["The mistake/tip", "Why it happens", "The fix"], "tip": ""},
+    "item5": {"label": "Point 5", "purpose": "", "elements": ["The mistake/tip", "Why it happens", "The fix"], "tip": ""},
+    "bonus":  {"label": "Bonus Point", "purpose": "Surprise extra value", "elements": ["Unexpected tip", "Why it's underrated", "Quick win"], "tip": "Bonus slides get high engagement — people feel they got more than promised."},
+}
+
+
+def generate_linkedin_carousel(
+    topic: str,
+    brand_name: str,
+    industry: str,
+    audience: str,
+    num_slides: int,
+    goal: str,
+    style: str,
+) -> dict:
+    style_key = style if style in _CAROUSEL_STYLES else "educational"
+    style_cfg = _CAROUSEL_STYLES[style_key]
+    brand = brand_name or "your brand"
+    topic_clean = topic or "business growth"
+    aud = audience or "professionals"
+
+    hook_text = (style_cfg["hook_formula"]
+        .replace("{topic}", topic_clean)
+        .replace("{audience}", aud)
+        .replace("{brand}", brand)
+        .replace("{pain}", f"struggling with {topic_clean}")
+        .replace("{outcome}", f"mastering {topic_clean}")
+        .replace("{num}", str(num_slides - 2))
+        .replace("{number}", "100")
+        .replace("{industry}", industry or "industry")
+        .replace("{timeframe}", "30 days")
+    )
+
+    pattern = style_cfg["slide_pattern"]
+    if num_slides < len(pattern):
+        pattern = pattern[:num_slides]
+    elif num_slides > len(pattern):
+        extras = ["insight"] * (num_slides - len(pattern))
+        pattern = pattern[:-1] + extras + [pattern[-1]]
+
+    slides = []
+    for idx, slide_type in enumerate(pattern):
+        tmpl = _SLIDE_TEMPLATES.get(slide_type, _SLIDE_TEMPLATES["insight"])
+        slide_headline = ""
+        if slide_type == "hook":
+            slide_headline = hook_text
+        elif slide_type == "cta":
+            slide_headline = f"Found this useful? Follow {brand} for more {topic_clean} insights for {aud}."
+        elif slide_type in ("insight", "finding1", "finding2", "finding3"):
+            slide_headline = f"[Key insight about {topic_clean} — add your specific data or perspective here]"
+        elif slide_type == "example":
+            slide_headline = f"Real example: How a {industry or 'business'} used {topic_clean} to [achieve outcome]"
+        elif slide_type == "problem":
+            slide_headline = f"Most {aud} are losing [time/money/opportunities] because of {topic_clean} mistakes"
+        elif slide_type == "takeaway":
+            slide_headline = f"TL;DR — Everything you need to know about {topic_clean} in one slide"
+        elif slide_type.startswith("step"):
+            n = slide_type.replace("step", "")
+            slide_headline = f"Step {n}: [Action for {topic_clean}]"
+        elif slide_type.startswith("item"):
+            n = slide_type.replace("item", "")
+            slide_headline = f"Mistake #{n}: [Common {topic_clean} mistake] — and how to fix it"
+        else:
+            slide_headline = f"[{tmpl['label']} — customize for {topic_clean}]"
+
+        slides.append({
+            "slide_num":    idx + 1,
+            "total_slides": len(pattern),
+            "type":         slide_type,
+            "label":        tmpl["label"],
+            "purpose":      tmpl.get("purpose", ""),
+            "headline":     slide_headline,
+            "elements":     tmpl.get("elements", []),
+            "design_tip":   tmpl.get("tip", ""),
+        })
+
+    caption_template = f"""🧵 {hook_text}
+
+Swipe through → (saves this for later!)
+
+{''.join(f"Slide {s['slide_num']}: {s['label']}" + chr(10) for s in slides[:4])}...
+
+If you found this valuable, repost to help other {aud} in {industry or 'your industry'}.
+
+Follow {brand} for weekly {topic_clean} insights.
+
+#{topic_clean.replace(' ', '')} #{industry.replace(' ', '') if industry else 'business'} #LinkedIn #IndianBusiness"""
+
+    distribution_tips = [
+        "Post Tuesday–Thursday between 8–10 AM IST for maximum reach on Indian LinkedIn.",
+        "Slide 1 thumbnail is critical — it shows in the feed. Make it bold, high-contrast, and text-heavy.",
+        "Comment on your own post within the first 60 minutes — it boosts early algorithmic distribution.",
+        "Repurpose this carousel: break each slide into a standalone Twitter thread post.",
+        f"Tag 2-3 relevant people in the caption who'd find this useful (not random tagging — genuine picks).",
+        "First carousel usually gets 50% less reach than your 5th — consistency beats perfection.",
+    ]
+
+    return {
+        "action":             "linkedin_carousel",
+        "topic":              topic_clean,
+        "brand":              brand,
+        "style":              style_key,
+        "goal":               goal,
+        "audience":           aud,
+        "total_slides":       len(slides),
+        "hook_text":          hook_text,
+        "slides":             slides,
+        "caption_template":   caption_template,
+        "design_guide":       style_cfg["design_tip"],
+        "tone":               style_cfg["tone"],
+        "distribution_tips":  distribution_tips,
+        "summary": f"Generated {len(slides)}-slide {style_key} carousel on '{topic_clean}' for {aud}. Hook: '{hook_text[:60]}…'",
+    }
 
 
 # ── Influencer Outreach Generator (Round 11) ────────────────────────────────
