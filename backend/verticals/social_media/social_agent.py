@@ -2069,6 +2069,15 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "viral_hook_generator":
+        return generate_viral_hooks(
+            topic=payload.get("topic", ""),
+            brand_name=payload.get("brand_name", ""),
+            industry=payload.get("industry", ""),
+            platforms=payload.get("platforms", ["linkedin", "twitter"]),
+            goal=payload.get("goal", "engagement"),
+        )
+
     elif action == "employee_advocacy":
         return await generate_employee_advocacy(
             company_name=payload.get("company_name", ""),
@@ -2119,6 +2128,210 @@ async def social_agent(
         )
 
     return {"error": f"Unknown social action: {action}"}
+
+
+# ── Viral Hook Generator (Round 10) ─────────────────────────────────────────
+
+_HOOK_FORMULAS = {
+    "question": {
+        "template": "What if {brand} could {outcome} in {timeframe}?",
+        "variants": [
+            "Are you making this {industry} mistake that costs {pain}?",
+            "What would your business look like if {positive_outcome}?",
+            "Why do {percentage}% of {industry} businesses fail at {topic}?",
+        ],
+        "predicted_ctr_boost": "+34%",
+        "best_platforms": ["linkedin", "twitter", "instagram"],
+        "psychology": "Curiosity gap — forces the reader to keep scrolling to find the answer",
+    },
+    "shocking_stat": {
+        "template": "{percentage}% of {audience} don't know {topic} — do you?",
+        "variants": [
+            "We analyzed {number} {industry} brands. Here's what shocked us about {topic}.",
+            "{number} businesses lose {pain} every year because of this one {topic} mistake.",
+            "In 90 days, {brand} went from 0 to {outcome}. Here's the exact playbook.",
+        ],
+        "predicted_ctr_boost": "+41%",
+        "best_platforms": ["linkedin", "twitter"],
+        "psychology": "Social proof + FOMO — numbers create credibility and urgency",
+    },
+    "bold_claim": {
+        "template": "{topic} is dead. Here's what replaced it.",
+        "variants": [
+            "Stop using {old_approach}. This works 3x better for {industry}.",
+            "I tried every {topic} strategy. Only this one actually worked for {brand}.",
+            "The {topic} advice everyone gives is wrong. Here's why.",
+        ],
+        "predicted_ctr_boost": "+38%",
+        "best_platforms": ["twitter", "linkedin", "instagram"],
+        "psychology": "Pattern interrupt — contradicts expectations and demands attention",
+    },
+    "story_hook": {
+        "template": "6 months ago, {brand} was struggling with {pain}. Today: {outcome}.",
+        "variants": [
+            "I almost gave up on {topic}. Then I discovered {solution}.",
+            "Nobody told me this about {industry} when I started. Now I tell everyone.",
+            "We made every mistake in the {topic} playbook. Here's what we learned.",
+        ],
+        "predicted_ctr_boost": "+29%",
+        "best_platforms": ["instagram", "linkedin", "facebook"],
+        "psychology": "Narrative arc — humans are wired for story structure (conflict → resolution)",
+    },
+    "list_hook": {
+        "template": "{number} {industry} tactics that grew {brand}'s {metric} by {percentage}%",
+        "variants": [
+            "The only {number} {topic} tools you'll ever need (free + paid)",
+            "{number} things I wish I knew about {industry} before starting",
+            "{number} signs your {topic} strategy is broken (and how to fix each one)",
+        ],
+        "predicted_ctr_boost": "+26%",
+        "best_platforms": ["linkedin", "instagram", "youtube"],
+        "psychology": "Completeness bias — our brain wants to consume complete numbered lists",
+    },
+    "direct_address": {
+        "template": "Attention {audience}: your {topic} approach is leaving {pain} on the table.",
+        "variants": [
+            "If you're a {audience} struggling with {topic}, this is for you.",
+            "Hey {audience} — stop scrolling. This {topic} tip alone saved us {outcome}.",
+            "{audience}: here's the {topic} shortcut no one is talking about.",
+        ],
+        "predicted_ctr_boost": "+31%",
+        "best_platforms": ["instagram", "facebook", "linkedin"],
+        "psychology": "Personal address — 'you/your' activates relevance filter in the brain",
+    },
+    "contrast": {
+        "template": "Most {industry} brands do {old}. The best ones do {new}.",
+        "variants": [
+            "Before {topic}: {bad_state}. After {topic}: {good_state}. The difference? {solution}.",
+            "Average {industry} result: {average}. Top 1% result: {excellent}. Here's the gap.",
+            "What {industry} beginners do vs what pros do — a {topic} breakdown.",
+        ],
+        "predicted_ctr_boost": "+33%",
+        "best_platforms": ["instagram", "linkedin", "twitter"],
+        "psychology": "Contrast effect — comparison makes the gap immediately tangible",
+    },
+    "how_to": {
+        "template": "How to {achieve_outcome} in {timeframe} (without {common_pain})",
+        "variants": [
+            "How {brand} increased {metric} by {percentage}% using only {topic}",
+            "The step-by-step {topic} system that works for {industry} every time",
+            "How to fix {pain} in under {timeframe} — no {expensive_solution} needed",
+        ],
+        "predicted_ctr_boost": "+22%",
+        "best_platforms": ["youtube", "linkedin", "instagram"],
+        "psychology": "Utility promise — clear ROI for reading makes the click feel worth it",
+    },
+}
+
+_PLATFORM_HOOK_TIPS = {
+    "linkedin": "Keep first line under 200 chars — LinkedIn truncates at 'see more'. Use line breaks for rhythm. Professional but personal tone wins.",
+    "twitter":  "Lead with the hook in tweet 1. Save the stat or punchline for tweet 2. Threads with 5-10 tweets outperform single tweets by 6x.",
+    "instagram":"First 125 chars show before 'more'. Use emoji strategically (1-2 max). Stories hooks need to work in 3 seconds.",
+    "facebook": "Questions outperform statements by 2x on Facebook. Emotional story hooks drive highest shares.",
+    "youtube":  "Thumbnail + title together are your hook. Start video with a pattern interrupt in first 5 seconds. Promise the payoff early.",
+    "whatsapp": "Short, direct, conversational. Use 'You' language. Value-first without the fluff — people read WhatsApp fast.",
+}
+
+def generate_viral_hooks(
+    topic: str,
+    brand_name: str,
+    industry: str,
+    platforms: list,
+    goal: str,
+) -> dict:
+    hooks_generated = []
+    topic_clean = topic.strip() or "your product"
+    brand_clean = brand_name.strip() or "your brand"
+    industry_clean = industry.strip() or "your industry"
+
+    for formula_key, formula in _HOOK_FORMULAS.items():
+        filled_main = (formula["template"]
+            .replace("{brand}", brand_clean)
+            .replace("{industry}", industry_clean)
+            .replace("{topic}", topic_clean)
+            .replace("{audience}", f"{industry_clean} professionals")
+            .replace("{outcome}", "10x your results")
+            .replace("{timeframe}", "30 days")
+            .replace("{pain}", "time and money")
+            .replace("{percentage}", "73")
+            .replace("{number}", "7")
+            .replace("{metric}", "engagement")
+            .replace("{solution}", "this one strategy")
+            .replace("{positive_outcome}", "you never worried about {topic} again".replace("{topic}", topic_clean))
+            .replace("{old_approach}", f"generic {topic_clean}")
+            .replace("{old}", "follow the crowd")
+            .replace("{new}", "lead with data")
+            .replace("{bad_state}", "stuck and frustrated")
+            .replace("{good_state}", "scaling confidently")
+            .replace("{average}", "2% growth")
+            .replace("{excellent}", "47% growth")
+            .replace("{achieve_outcome}", f"master {topic_clean}")
+            .replace("{common_pain}", "expensive consultants")
+            .replace("{expensive_solution}", "agencies")
+        )
+
+        filled_variants = []
+        for v in formula["variants"][:2]:
+            filled_variants.append(
+                v.replace("{brand}", brand_clean)
+                 .replace("{industry}", industry_clean)
+                 .replace("{topic}", topic_clean)
+                 .replace("{audience}", f"{industry_clean} owners")
+                 .replace("{outcome}", "10x revenue")
+                 .replace("{timeframe}", "30 days")
+                 .replace("{pain}", "₹50,000/mo")
+                 .replace("{percentage}", "73")
+                 .replace("{number}", "7")
+                 .replace("{metric}", "leads")
+                 .replace("{solution}", "automation")
+                 .replace("{positive_outcome}", f"never struggled with {topic_clean} again")
+                 .replace("{old_approach}", f"outdated {topic_clean}")
+                 .replace("{old}", "guesswork")
+                 .replace("{new}", "data-driven content")
+                 .replace("{bad_state}", "0 leads/month")
+                 .replace("{good_state}", "50 leads/month")
+                 .replace("{average}", "5% CTR")
+                 .replace("{excellent}", "22% CTR")
+                 .replace("{achieve_outcome}", f"dominate {topic_clean}")
+                 .replace("{common_pain}", "burning budget")
+                 .replace("{expensive_solution}", "agencies")
+            )
+
+        relevant_platforms = [p for p in platforms if p in formula["best_platforms"]]
+        platform_score = len(relevant_platforms) / max(len(platforms), 1)
+
+        hooks_generated.append({
+            "formula": formula_key.replace("_", " ").title(),
+            "main_hook": filled_main,
+            "variants": filled_variants,
+            "ctr_boost": formula["predicted_ctr_boost"],
+            "psychology": formula["psychology"],
+            "best_for": formula["best_platforms"],
+            "platform_fit": "High" if platform_score >= 0.5 else "Medium",
+            "recommended": platform_score >= 0.5,
+        })
+
+    hooks_generated.sort(key=lambda h: (h["recommended"], h["ctr_boost"]), reverse=True)
+
+    platform_tips = {p: _PLATFORM_HOOK_TIPS.get(p, "Lead with the most valuable insight first.") for p in platforms}
+
+    top_hook = hooks_generated[0] if hooks_generated else {}
+
+    return {
+        "action":       "viral_hook_generator",
+        "topic":        topic_clean,
+        "brand":        brand_clean,
+        "industry":     industry_clean,
+        "goal":         goal,
+        "platforms":    platforms,
+        "total_hooks":  len(hooks_generated),
+        "hooks":        hooks_generated,
+        "platform_tips": platform_tips,
+        "top_pick":     top_hook.get("formula", ""),
+        "top_hook_text": top_hook.get("main_hook", ""),
+        "pro_tip": f"Test 2-3 hooks per week. Track 48h engagement. The hook that gets 2x comments becomes your content pillar for the month.",
+        "summary": f"Generated {len(hooks_generated)} viral hook formulas for '{topic_clean}'. Top pick: {top_hook.get('formula','')} ({top_hook.get('ctr_boost','')}) — {top_hook.get('psychology','')}.",
+    }
 
 
 # ── AI Content Scheduler (Round 4) ───────────────────────────────────────────

@@ -54,6 +54,7 @@ const TABS = [
   { id: 'churn',      label: 'Churn Risk' },
   { id: 'onboarding', label: 'Onboarding Planner' },
   { id: 'categorizer',label: 'Ticket Categorizer' },
+  { id: 'rulebook',   label: 'Escalation Rulebook' },
 ]
 
 const WA_TYPES = [
@@ -1301,6 +1302,7 @@ export default function CustomerSupportPage() {
         {tab === 'churn'      && <ChurnRiskTab lang={lang} />}
         {tab === 'onboarding'  && <OnboardingTab lang={lang} />}
         {tab === 'categorizer' && <CategorizerTab lang={lang} />}
+        {tab === 'rulebook'    && <EscalationRulebookTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -1844,6 +1846,147 @@ function CategorizerTab({ lang }: { lang: Lang }) {
           </div>
         ) : (
           <Empty text="Demo tickets pre-loaded — click Auto-Categorize to see results →" />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Escalation Rulebook Tab (Round 10) ───────────────────────────────────────
+
+function EscalationRulebookTab({ lang }: { lang: Lang }) {
+  const [biz, setBiz]           = useState('Acme SaaS')
+  const [industry, setIndustry] = useState('saas')
+  const [slaTier, setSlaTier]   = useState('standard')
+  const [products, setProducts] = useState('Core Platform, Mobile App')
+  const [res, setRes]           = useState<any>(null)
+  const [loading, setLoading]   = useState(false)
+  const [err, setErr]           = useState('')
+  const [copyMsg, setCopyMsg]   = useState('')
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null)
+    try {
+      const r = await csAction('escalation_rule_builder', {
+        business_name: biz, industry, sla_tier: slaTier,
+        products: products.split(',').map(s => s.trim()).filter(Boolean),
+        team_structure: [],
+      }, lang)
+      setRes(r)
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+
+  const copyTemplate = (text: string) => {
+    navigator.clipboard?.writeText(text)
+    setCopyMsg('Copied!'); setTimeout(() => setCopyMsg(''), 1500)
+  }
+
+  const PRIORITY_COLOR: Record<string, string> = { critical: '#ef4444', high: '#f97316', medium: '#f59e0b', low: '#22c55e' }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 16 }}>
+      <div>
+        <Card>
+          <SectionHead title="Escalation Rulebook Builder" sub="Generate a complete SLA + routing matrix for your support team" />
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Business Name</label>
+            <input value={biz} onChange={e => setBiz(e.target.value)} placeholder="e.g. Acme SaaS" style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Industry</label>
+            <select value={industry} onChange={e => setIndustry(e.target.value)} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }}>
+              <option value="saas">SaaS / Software</option>
+              <option value="ecommerce">E-Commerce / Retail</option>
+              <option value="default">General Business</option>
+            </select>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>SLA Tier</label>
+            <select value={slaTier} onChange={e => setSlaTier(e.target.value)} style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }}>
+              <option value="startup">Startup (lean SLAs)</option>
+              <option value="standard">Standard (growing team)</option>
+              <option value="enterprise">Enterprise (strict SLAs)</option>
+            </select>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Products (comma-separated)</label>
+            <input value={products} onChange={e => setProducts(e.target.value)} placeholder="e.g. Core Platform, Mobile App" style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <button onClick={run} disabled={loading} style={{ width: '100%', padding: '10px 0', background: loading ? '#374151' : '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 14 }}>
+            {loading ? 'Building Rulebook…' : 'Build Escalation Rulebook'}
+          </button>
+          {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{err}</div>}
+          {copyMsg && <div style={{ color: '#22c55e', fontSize: 12, marginTop: 6, textAlign: 'center' }}>{copyMsg}</div>}
+        </Card>
+      </div>
+      <div>
+        {res ? (
+          <>
+            {/* Priority Matrix */}
+            <Card style={{ marginBottom: 12 }}>
+              <SectionHead title="Priority Escalation Matrix" sub={`${res.sla_tier} SLA profile — ${res.business_name}`} />
+              {(res.escalation_matrix || []).map((row: any) => (
+                <div key={row.priority} style={{ border: `1px solid ${PRIORITY_COLOR[row.priority] || '#374151'}`, borderRadius: 8, padding: '12px 14px', marginBottom: 8, background: '#0f1117' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ color: PRIORITY_COLOR[row.priority], fontWeight: 700, fontSize: 14, textTransform: 'uppercase' }}>{row.priority}</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <Badge label={`1st resp: ${row.first_response}`} color="#818cf8" />
+                      <Badge label={`Resolve: ${row.resolution_sla}`} color="#6b7280" />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 6 }}>Breach action: <span style={{ color: '#e2e8f0' }}>{row.breach_action}</span></div>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {(row.trigger_keywords || []).map((kw: string) => (
+                      <span key={kw} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.05)', color: '#9ca3af', border: '1px solid #374151' }}>{kw}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </Card>
+
+            {/* Routing Teams */}
+            <Card style={{ marginBottom: 12 }}>
+              <SectionHead title="Routing Teams" sub="Who handles what — in order of escalation" />
+              {(res.routing_teams || []).map((team: any, i: number) => (
+                <div key={i} style={{ background: '#111827', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ color: '#e2e8f0', fontWeight: 600, fontSize: 13 }}>Tier {i + 1}: {team.name}</span>
+                    <Badge label={`max: ${team.max_priority}`} color={PRIORITY_COLOR[team.max_priority] || '#6b7280'} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {(team.handles || []).map((h: string) => <span key={h} style={{ fontSize: 11, color: '#6b7280', background: '#1e2535', borderRadius: 4, padding: '2px 8px' }}>{h}</span>)}
+                  </div>
+                </div>
+              ))}
+            </Card>
+
+            {/* Notification Templates */}
+            <Card style={{ marginBottom: 12 }}>
+              <SectionHead title="Notification Templates" sub="Copy and configure in your helpdesk" />
+              {Object.entries(res.notification_templates || {}).map(([key, text]: [string, any]) => (
+                <div key={key} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, color: '#a78bfa', fontWeight: 700, textTransform: 'uppercase' }}>{key.replace(/_/g, ' ')}</span>
+                    <span onClick={() => copyTemplate(text)} style={{ fontSize: 11, cursor: 'pointer', color: '#fff', padding: '2px 10px', background: '#374151', borderRadius: 6 }}>Copy</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#9ca3af', lineHeight: 1.5 }}>{text}</div>
+                </div>
+              ))}
+            </Card>
+
+            {/* Best Practices */}
+            <Card>
+              <SectionHead title="Best Practices" sub="Implementation checklist for your team" />
+              {(res.best_practices || []).map((bp: string, i: number) => (
+                <div key={i} style={{ fontSize: 13, color: '#e2e8f0', background: '#0f1117', borderRadius: 6, padding: '8px 12px', marginBottom: 6, borderLeft: '3px solid #10b981' }}>{bp}</div>
+              ))}
+            </Card>
+          </>
+        ) : (
+          <Card>
+            <Empty text="Demo values pre-filled — click Build Escalation Rulebook to generate your custom matrix →" />
+          </Card>
         )}
       </div>
     </div>

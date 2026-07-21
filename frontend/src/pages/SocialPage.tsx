@@ -266,6 +266,28 @@ export default function SocialPage() {
   // ── Employee Advocacy Generator (Round 9) ──
   const ADVOCACY_TONES = [{ label: 'Professional', value: 'professional' }, { label: 'Casual & Warm', value: 'casual' }, { label: 'Excited / Celebratory', value: 'excited' }, { label: 'Humble & Grateful', value: 'humble' }]
   const EMPLOYEE_ROLES = [{ label: 'Founder / CEO', value: 'founder' }, { label: 'Sales / BD', value: 'sales' }, { label: 'Engineer', value: 'engineer' }, { label: 'HR / People', value: 'hr' }, { label: 'Marketing', value: 'marketing' }, { label: 'Team Member', value: 'team_member' }]
+  // Viral Hook Generator (Round 10)
+  const [hookTopic, setHookTopic]       = useState('')
+  const [hookBrand, setHookBrand]       = useState('')
+  const [hookIndustry, setHookIndustry] = useState('')
+  const [hookGoal, setHookGoal]         = useState('engagement')
+  const [hookPlatforms, setHookPlatforms] = useState<string[]>(['linkedin', 'twitter'])
+  const [hookRes, setHookRes]           = useState<any>(null)
+  const [hookLoading, setHookLoading]   = useState(false)
+  const [hookErr, setHookErr]           = useState('')
+  const toggleHookPlatform = (p: string) => setHookPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  const runViralHooks = async () => {
+    setHookLoading(true); setHookErr(''); setHookRes(null)
+    try {
+      const r = await socialAction('viral_hook_generator', {
+        topic: hookTopic, brand_name: hookBrand, industry: hookIndustry,
+        platforms: hookPlatforms, goal: hookGoal,
+      }, hookPlatforms[0] || 'linkedin')
+      setHookRes(r)
+    } catch (e: any) { setHookErr(e.message) }
+    finally { setHookLoading(false) }
+  }
+
   const [advCompany, setAdvCompany]     = useState('')
   const [advNews, setAdvNews]           = useState('')
   const [advRole, setAdvRole]           = useState('founder')
@@ -479,6 +501,7 @@ export default function SocialPage() {
           { id: 'roi',        label: 'Social ROI',            icon: '📈' },
           { id: 'spy',        label: 'Competitor Spy',        icon: '🕵️' },
           { id: 'advocacy',   label: 'Employee Advocacy',     icon: '📢' },
+          { id: 'hooks',      label: 'Viral Hooks',           icon: '🎣' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2124,6 +2147,94 @@ export default function SocialPage() {
                 </>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Paste mentions JSON and click Generate →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── VIRAL HOOK GENERATOR (Round 10) ── */}
+      {tab === 'hooks' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="🎣 Viral Hook Generator" sub="8 proven hook formulas that boost CTR up to 41%" />
+            <Input label="Topic / Content Idea" value={hookTopic} onChange={setHookTopic} placeholder="e.g. GST compliance, AI automation, hiring tips" />
+            <Input label="Brand Name" value={hookBrand} onChange={setHookBrand} placeholder="e.g. Zoho, your startup name" />
+            <Input label="Industry" value={hookIndustry} onChange={setHookIndustry} placeholder="e.g. SaaS, Fintech, D2C" />
+            <Select label="Goal" value={hookGoal} onChange={setHookGoal} options={[
+              { label: 'Engagement (likes, comments)', value: 'engagement' },
+              { label: 'Clicks & Traffic', value: 'clicks' },
+              { label: 'Lead Generation', value: 'leads' },
+              { label: 'Brand Awareness', value: 'awareness' },
+              { label: 'Thought Leadership', value: 'thought_leadership' },
+            ]} />
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 6 }}>Target Platforms</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {['linkedin', 'twitter', 'instagram', 'facebook', 'youtube', 'whatsapp'].map(p => (
+                  <span key={p} onClick={() => toggleHookPlatform(p)} style={{
+                    padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                    background: hookPlatforms.includes(p) ? 'rgba(16,185,129,0.15)' : '#1e2535',
+                    border: `1px solid ${hookPlatforms.includes(p) ? '#10b981' : '#374151'}`,
+                    color: hookPlatforms.includes(p) ? '#5eead4' : '#9ca3af',
+                  }}>{p}</span>
+                ))}
+              </div>
+            </div>
+            <Btn onClick={runViralHooks} loading={hookLoading}>Generate Viral Hooks</Btn>
+            {hookErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{hookErr}</div>}
+          </Card>
+          <Card>
+            <SectionHead title="Hook Formulas" sub="Ranked by platform fit — click any variant to copy" />
+            {hookRes ? (() => {
+              const r = hookRes
+              return (
+                <>
+                  {r.top_hook_text && (
+                    <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid #10b981', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+                      <div style={{ fontSize: 11, color: '#10b981', fontWeight: 700, marginBottom: 4 }}>⭐ TOP PICK — {r.top_pick}</div>
+                      <div style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600, lineHeight: 1.5 }}>{r.top_hook_text}</div>
+                      <span onClick={() => navigator.clipboard?.writeText(r.top_hook_text)} style={{ display: 'inline-block', marginTop: 8, cursor: 'pointer', color: '#fff', fontSize: 11, padding: '3px 10px', background: '#374151', borderRadius: 6 }}>Copy</span>
+                    </div>
+                  )}
+                  {(r.hooks || []).map((h: any, i: number) => (
+                    <div key={i} style={{ background: '#111827', border: `1px solid ${h.recommended ? '#1e3a5f' : '#1e2535'}`, borderRadius: 8, padding: '12px 14px', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span style={{ color: '#a78bfa', fontSize: 13, fontWeight: 700 }}>{h.formula}</span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <Badge label={h.ctr_boost} color="#22c55e" />
+                          <Badge label={h.platform_fit + ' fit'} color={h.recommended ? '#10b981' : '#f59e0b'} />
+                        </div>
+                      </div>
+                      <div style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{h.main_hook}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, fontStyle: 'italic' }}>"{h.psychology}"</div>
+                      {(h.variants || []).map((v: string, j: number) => (
+                        <div key={j} onClick={() => navigator.clipboard?.writeText(v)} style={{ fontSize: 12, color: '#9ca3af', background: '#0f1117', borderRadius: 4, padding: '6px 10px', marginBottom: 4, cursor: 'pointer' }} title="Click to copy">↪ {v}</div>
+                      ))}
+                      <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, color: '#4b5563' }}>Best for:</span>
+                        {(h.best_for || []).map((bp: string) => <Badge key={bp} label={bp} color="#6b7280" />)}
+                      </div>
+                    </div>
+                  ))}
+                  {r.platform_tips && (
+                    <div style={{ marginTop: 12, background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: '12px 14px' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#9ca3af', marginBottom: 8 }}>Platform Writing Tips</div>
+                      {Object.entries(r.platform_tips).map(([plat, tip]: [string, any]) => (
+                        <div key={plat} style={{ marginBottom: 8 }}>
+                          <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, textTransform: 'uppercase' }}>{plat}</div>
+                          <div style={{ fontSize: 12, color: '#6b7280' }}>{tip}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {r.pro_tip && <div style={{ marginTop: 12, fontSize: 12, color: '#f59e0b', background: 'rgba(245,158,11,0.08)', borderRadius: 6, padding: '8px 12px' }}>💡 {r.pro_tip}</div>}
+                </>
+              )
+            })() : (
+              <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                Enter your topic and click Generate Viral Hooks →<br /><br />
+                <span style={{ fontSize: 11, color: '#374151' }}>Demo topics: "AI automation", "GST compliance", "Instagram growth"</span>
+              </div>
+            )}
           </Card>
         </TwoCol>
       )}

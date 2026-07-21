@@ -953,6 +953,19 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "cash_flow_forecast":
+        return calculate_cash_flow_forecast(
+            company_name=payload.get("company_name", ""),
+            monthly_revenue=float(payload.get("monthly_revenue", 0) or 0),
+            revenue_growth=float(payload.get("revenue_growth", 5) or 5),
+            fixed_expenses=float(payload.get("fixed_expenses", 0) or 0),
+            variable_expense_pct=float(payload.get("variable_expense_pct", 30) or 30),
+            opening_cash=float(payload.get("opening_cash", 0) or 0),
+            one_time_inflows=payload.get("one_time_inflows", []),
+            one_time_outflows=payload.get("one_time_outflows", []),
+            industry=payload.get("industry", "general"),
+        )
+
     elif action == "business_valuation":
         return calculate_business_valuation(
             revenue=float(payload.get("revenue", 0) or 0),
@@ -1770,4 +1783,132 @@ We therefore request that the above reply be accepted and the notice proceedings
             "Keep a copy of the reply with proof of submission (acknowledgement).",
             "If demand is upheld, you can file an appeal under Section 107 within 3 months.",
         ],
+    }
+
+
+# ── Cash Flow Forecaster (Round 10) ──────────────────────────────────────────
+
+_INDUSTRY_SEASONALITY = {
+    "retail":       [0.8, 0.7, 0.9, 1.0, 1.1, 1.0, 0.9, 0.9, 1.0, 1.1, 1.3, 1.5],
+    "ecommerce":    [0.7, 0.8, 0.9, 1.0, 1.1, 1.0, 1.1, 1.0, 1.0, 1.1, 1.3, 1.6],
+    "education":    [0.9, 0.8, 0.9, 1.0, 1.3, 1.4, 0.7, 1.5, 1.2, 1.0, 0.9, 0.8],
+    "agriculture":  [0.6, 0.7, 0.9, 1.2, 1.3, 0.8, 0.7, 0.8, 1.2, 1.3, 1.1, 0.9],
+    "hospitality":  [0.9, 0.9, 1.1, 1.2, 0.9, 0.8, 1.1, 1.0, 0.9, 1.0, 1.1, 1.3],
+    "technology":   [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.9, 0.9, 1.1, 1.1, 1.0, 0.9],
+    "manufacturing":[0.9, 0.9, 1.0, 1.1, 1.1, 1.0, 0.9, 1.0, 1.1, 1.1, 1.0, 0.9],
+    "general":      [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+}
+
+_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def calculate_cash_flow_forecast(
+    company_name: str,
+    monthly_revenue: float,
+    revenue_growth: float,
+    fixed_expenses: float,
+    variable_expense_pct: float,
+    opening_cash: float,
+    one_time_inflows: list,
+    one_time_outflows: list,
+    industry: str,
+) -> dict:
+    industry_key = industry.lower() if industry.lower() in _INDUSTRY_SEASONALITY else "general"
+    seasonality = _INDUSTRY_SEASONALITY[industry_key]
+    var_pct = variable_expense_pct / 100.0
+    growth_factor = 1 + (revenue_growth / 100.0)
+
+    months_data = []
+    running_cash = opening_cash
+    cumulative_inflow = 0.0
+    cumulative_outflow = 0.0
+    lowest_cash = opening_cash
+    lowest_month = "Start"
+    highest_cash = opening_cash
+    highest_month = "Start"
+
+    one_time_in_map = {}
+    for oi in one_time_inflows:
+        m = int(oi.get("month", 1)) - 1
+        one_time_in_map[m] = one_time_in_map.get(m, 0) + float(oi.get("amount", 0))
+
+    one_time_out_map = {}
+    for oo in one_time_outflows:
+        m = int(oo.get("month", 1)) - 1
+        one_time_out_map[m] = one_time_out_map.get(m, 0) + float(oo.get("amount", 0))
+
+    for i in range(12):
+        base_rev = monthly_revenue * (growth_factor ** i)
+        season_rev = base_rev * seasonality[i]
+        extra_in = one_time_in_map.get(i, 0.0)
+        total_inflow = season_rev + extra_in
+
+        variable_exp = season_rev * var_pct
+        total_outflow = fixed_expenses + variable_exp + one_time_out_map.get(i, 0.0)
+
+        net_cash = total_inflow - total_outflow
+        running_cash += net_cash
+        cumulative_inflow += total_inflow
+        cumulative_outflow += total_outflow
+
+        if running_cash < lowest_cash:
+            lowest_cash = running_cash
+            lowest_month = _MONTHS[i]
+        if running_cash > highest_cash:
+            highest_cash = running_cash
+            highest_month = _MONTHS[i]
+
+        months_data.append({
+            "month": _MONTHS[i],
+            "month_num": i + 1,
+            "revenue": round(season_rev, 0),
+            "extra_inflow": round(extra_in, 0),
+            "total_inflow": round(total_inflow, 0),
+            "fixed_expenses": round(fixed_expenses, 0),
+            "variable_expenses": round(variable_exp, 0),
+            "extra_outflow": round(one_time_out_map.get(i, 0.0), 0),
+            "total_outflow": round(total_outflow, 0),
+            "net_cashflow": round(net_cash, 0),
+            "closing_cash": round(running_cash, 0),
+            "status": "surplus" if net_cash >= 0 else "deficit",
+        })
+
+    avg_monthly_burn = cumulative_outflow / 12
+    runway_months = round(running_cash / avg_monthly_burn, 1) if avg_monthly_burn > 0 else 99
+    annual_profit = cumulative_inflow - cumulative_outflow
+
+    deficit_months = [m for m in months_data if m["status"] == "deficit"]
+
+    recommendations = []
+    if deficit_months:
+        recommendations.append(f"Cash deficit in {len(deficit_months)} month(s) — arrange overdraft facility or accelerate receivables before {deficit_months[0]['month']}.")
+    if runway_months < 6:
+        recommendations.append(f"Runway is only {runway_months} months — prioritize fundraising or cost reduction immediately.")
+    if revenue_growth < 5:
+        recommendations.append("Revenue growth below 5% — explore upsell/cross-sell or new revenue streams to improve trajectory.")
+    if variable_expense_pct > 50:
+        recommendations.append(f"Variable costs at {variable_expense_pct}% of revenue — negotiate supplier contracts or automate to reduce below 40%.")
+    if not recommendations:
+        recommendations.append("Cash flow is healthy. Consider investing surplus in growth or building a 3-month emergency reserve.")
+
+    return {
+        "action":           "cash_flow_forecast",
+        "company_name":     company_name or "Your Company",
+        "industry":         industry,
+        "forecast_period":  "12 months",
+        "opening_cash":     round(opening_cash, 0),
+        "closing_cash":     round(running_cash, 0),
+        "annual_revenue":   round(cumulative_inflow, 0),
+        "annual_expenses":  round(cumulative_outflow, 0),
+        "annual_profit":    round(annual_profit, 0),
+        "avg_monthly_burn": round(avg_monthly_burn, 0),
+        "runway_months":    runway_months,
+        "lowest_cash":      round(lowest_cash, 0),
+        "lowest_month":     lowest_month,
+        "highest_cash":     round(highest_cash, 0),
+        "highest_month":    highest_month,
+        "deficit_months":   len(deficit_months),
+        "months":           months_data,
+        "recommendations":  recommendations,
+        "summary":          f"{company_name or 'Company'} 12-month forecast: ₹{annual_profit/100000:.1f}L net profit, {runway_months}m runway, {'⚠️ cash deficit risk' if deficit_months else '✅ healthy cash flow'}.",
     }

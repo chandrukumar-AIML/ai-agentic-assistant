@@ -282,6 +282,30 @@ export default function CAPage() {
     { label: 'Mature / Profitable', value: 'mature' },
   ]
   const [bvRevenue, setBvRevenue]       = useState('5000000')
+  // Cash Flow Forecaster (Round 10)
+  const [cfCompany, setCfCompany]       = useState('Acme Pvt Ltd')
+  const [cfRevenue, setCfRevenue]       = useState('500000')
+  const [cfGrowth, setCfGrowth]         = useState('5')
+  const [cfFixed, setCfFixed]           = useState('200000')
+  const [cfVarPct, setCfVarPct]         = useState('25')
+  const [cfOpenCash, setCfOpenCash]     = useState('1000000')
+  const [cfIndustry, setCfIndustry]     = useState('technology')
+  const [cfRes, setCfRes]               = useState<any>(null)
+  const [cfLoading, setCfLoading]       = useState(false)
+  const [cfErr, setCfErr]               = useState('')
+  const runCashFlow = async () => {
+    setCfLoading(true); setCfErr(''); setCfRes(null)
+    try {
+      setCfRes(await caAction('cash_flow_forecast', {
+        company_name: cfCompany, monthly_revenue: parseFloat(cfRevenue) || 0,
+        revenue_growth: parseFloat(cfGrowth) || 5, fixed_expenses: parseFloat(cfFixed) || 0,
+        variable_expense_pct: parseFloat(cfVarPct) || 25, opening_cash: parseFloat(cfOpenCash) || 0,
+        one_time_inflows: [], one_time_outflows: [], industry: cfIndustry,
+      }, language))
+    } catch (e: any) { setCfErr(e.message) }
+    finally { setCfLoading(false) }
+  }
+
   const [bvEbitda, setBvEbitda]         = useState('1000000')
   const [bvNetProfit, setBvNetProfit]   = useState('700000')
   const [bvAssets, setBvAssets]         = useState('2000000')
@@ -451,6 +475,7 @@ export default function CAPage() {
           { id: 'payroll',           label: 'Payroll Processor',       icon: '💰' },
           { id: 'notice_reply',      label: 'GST Notice Reply',        icon: '📨' },
           { id: 'valuation',         label: 'Business Valuation',      icon: '🏦' },
+          { id: 'cashflow',          label: 'Cash Flow Forecast',       icon: '💰' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1531,6 +1556,124 @@ export default function CAPage() {
               <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
                 Demo data is pre-loaded — click Process Payroll to see results →
               </div>
+            )}
+          </div>
+        </TwoCol>
+      )}
+
+      {/* ── CASH FLOW FORECASTER (Round 10) ── */}
+      {tab === 'cashflow' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="💰 12-Month Cash Flow Forecast" sub="Rolling projection with burn rate, runway & seasonality" />
+            <Input label="Company Name" value={cfCompany} onChange={setCfCompany} placeholder="e.g. Acme Pvt Ltd" />
+            <Select label="Industry (Seasonality)" value={cfIndustry} onChange={setCfIndustry} options={[
+              { label: 'Technology / SaaS', value: 'technology' },
+              { label: 'Retail', value: 'retail' },
+              { label: 'E-Commerce', value: 'ecommerce' },
+              { label: 'Education', value: 'education' },
+              { label: 'Agriculture', value: 'agriculture' },
+              { label: 'Hospitality', value: 'hospitality' },
+              { label: 'Manufacturing', value: 'manufacturing' },
+              { label: 'General', value: 'general' },
+            ]} />
+            <Input label="Monthly Revenue (₹)" value={cfRevenue} onChange={setCfRevenue} placeholder="e.g. 500000" />
+            <Input label="Monthly Revenue Growth (%)" value={cfGrowth} onChange={setCfGrowth} placeholder="e.g. 5" />
+            <Input label="Fixed Expenses / Month (₹)" value={cfFixed} onChange={setCfFixed} placeholder="e.g. 200000 (rent, salaries, subscriptions)" />
+            <Input label="Variable Expenses (% of Revenue)" value={cfVarPct} onChange={setCfVarPct} placeholder="e.g. 25" />
+            <Input label="Opening Cash Balance (₹)" value={cfOpenCash} onChange={setCfOpenCash} placeholder="e.g. 1000000" />
+            <Btn onClick={runCashFlow} loading={cfLoading} style={{ marginTop: 14, width: '100%' }}>Generate 12-Month Forecast</Btn>
+            {cfErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{cfErr}</div>}
+          </Card>
+          <div>
+            {cfRes ? (() => {
+              const r = cfRes
+              const maxVal = Math.max(...(r.months || []).map((m: any) => m.closing_cash), 1)
+              return (
+                <>
+                  {/* KPI Hero */}
+                  <Card style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                      {[
+                        { label: 'Annual Revenue', val: `₹${((r.annual_revenue || 0) / 100000).toFixed(1)}L`, color: '#22c55e' },
+                        { label: 'Annual Profit', val: `₹${((r.annual_profit || 0) / 100000).toFixed(1)}L`, color: (r.annual_profit || 0) >= 0 ? '#22c55e' : '#ef4444' },
+                        { label: 'Cash Runway', val: `${r.runway_months}m`, color: r.runway_months >= 12 ? '#22c55e' : r.runway_months >= 6 ? '#f59e0b' : '#ef4444' },
+                      ].map(k => (
+                        <div key={k.label} style={{ background: '#0f1117', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>{k.label}</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: k.color, fontVariantNumeric: 'tabular-nums' }}>{k.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <Badge label={`Burn: ₹${((r.avg_monthly_burn || 0) / 1000).toFixed(0)}K/mo`} color="#f59e0b" />
+                      <Badge label={`Peak: ₹${((r.highest_cash || 0) / 100000).toFixed(1)}L in ${r.highest_month}`} color="#22c55e" />
+                      {r.deficit_months > 0 && <Badge label={`⚠️ ${r.deficit_months} deficit month(s)`} color="#ef4444" />}
+                    </div>
+                  </Card>
+
+                  {/* Monthly Table */}
+                  <Card style={{ marginBottom: 12 }}>
+                    <SectionHead title="Monthly Breakdown" sub="Net cashflow and closing balance per month" />
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #1e2535' }}>
+                            {['Month', 'Revenue', 'Expenses', 'Net', 'Closing Cash', 'Status'].map(h => (
+                              <th key={h} style={{ padding: '6px 8px', textAlign: 'right', color: '#6b7280', fontWeight: 600, fontSize: 11 }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(r.months || []).map((m: any) => (
+                            <tr key={m.month} style={{ borderBottom: '1px solid #1e2535' }}>
+                              <td style={{ padding: '6px 8px', color: '#e2e8f0', fontWeight: 600 }}>{m.month}</td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>₹{((m.total_inflow || 0) / 1000).toFixed(0)}K</td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', color: '#ef4444', fontVariantNumeric: 'tabular-nums' }}>₹{((m.total_outflow || 0) / 1000).toFixed(0)}K</td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', color: m.net_cashflow >= 0 ? '#22c55e' : '#ef4444', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                                {m.net_cashflow >= 0 ? '+' : ''}₹{((m.net_cashflow || 0) / 1000).toFixed(0)}K
+                              </td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', color: '#e2e8f0', fontVariantNumeric: 'tabular-nums' }}>₹{((m.closing_cash || 0) / 1000).toFixed(0)}K</td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: m.status === 'surplus' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: m.status === 'surplus' ? '#22c55e' : '#ef4444' }}>{m.status}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+
+                  {/* Bar Chart */}
+                  <Card style={{ marginBottom: 12 }}>
+                    <SectionHead title="Cash Balance Trend" sub="Closing cash position each month" />
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80, marginTop: 8 }}>
+                      {(r.months || []).map((m: any) => (
+                        <div key={m.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                          <div style={{ width: '100%', height: `${Math.max((m.closing_cash / maxVal) * 72, 4)}px`, background: m.closing_cash >= 0 ? '#22c55e' : '#ef4444', borderRadius: '2px 2px 0 0', minHeight: 4 }} title={`${m.month}: ₹${(m.closing_cash/1000).toFixed(0)}K`} />
+                          <div style={{ fontSize: 9, color: '#6b7280' }}>{m.month.slice(0, 1)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+
+                  {/* Recommendations */}
+                  {(r.recommendations || []).length > 0 && (
+                    <Card>
+                      <SectionHead title="Recommendations" sub="Based on your 12-month projection" />
+                      {(r.recommendations || []).map((rec: string, i: number) => (
+                        <div key={i} style={{ fontSize: 13, color: '#e2e8f0', background: '#0f1117', borderRadius: 6, padding: '8px 12px', marginBottom: 6, borderLeft: '3px solid #f59e0b' }}>{rec}</div>
+                      ))}
+                    </Card>
+                  )}
+                </>
+              )
+            })() : !cfLoading && (
+              <Card>
+                <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>
+                  Demo values are pre-filled — click Generate 12-Month Forecast to see results →
+                </div>
+              </Card>
             )}
           </div>
         </TwoCol>

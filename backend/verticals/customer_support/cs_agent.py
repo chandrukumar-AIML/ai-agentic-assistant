@@ -560,6 +560,15 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "escalation_rule_builder":
+            return _escalation_rule_builder(
+                business_name=payload.get("business_name", ""),
+                industry=payload.get("industry", "saas"),
+                team_structure=payload.get("team_structure", []),
+                products=payload.get("products", []),
+                sla_tier=payload.get("sla_tier", "standard"),
+            )
+
         elif action == "ticket_categorizer":
             return _ticket_categorizer(
                 tickets=payload.get("tickets", []),
@@ -1414,4 +1423,163 @@ def _escalation_manager(
         "email_draft":    email_draft,
         "health":         "Critical" if stats["critical"] > 0 else ("At Risk" if stats["escalated"] > 0 else "Healthy"),
         "health_color":   "red" if stats["critical"] > 0 else ("orange" if stats["escalated"] > 0 else "green"),
+    }
+
+
+# ── Escalation Rule Builder (Round 10) ───────────────────────────────────────
+
+_SLA_TIERS = {
+    "startup": {
+        "critical":  {"first_response": "1h",  "resolution": "4h",  "breach_action": "CEO notified"},
+        "high":      {"first_response": "4h",  "resolution": "24h", "breach_action": "Team lead escalated"},
+        "medium":    {"first_response": "8h",  "resolution": "48h", "breach_action": "Queue priority bumped"},
+        "low":       {"first_response": "24h", "resolution": "72h", "breach_action": "Auto-reminder sent"},
+    },
+    "standard": {
+        "critical":  {"first_response": "30m", "resolution": "2h",  "breach_action": "On-call engineer paged"},
+        "high":      {"first_response": "2h",  "resolution": "8h",  "breach_action": "Manager escalated"},
+        "medium":    {"first_response": "4h",  "resolution": "24h", "breach_action": "Priority bumped"},
+        "low":       {"first_response": "8h",  "resolution": "48h", "breach_action": "Follow-up scheduled"},
+    },
+    "enterprise": {
+        "critical":  {"first_response": "15m", "resolution": "1h",  "breach_action": "VP Customer Success paged + war room opened"},
+        "high":      {"first_response": "1h",  "resolution": "4h",  "breach_action": "Senior engineer + CSM assigned"},
+        "medium":    {"first_response": "2h",  "resolution": "12h", "breach_action": "Dedicated agent assigned"},
+        "low":       {"first_response": "4h",  "resolution": "24h", "breach_action": "Next-day batch resolved"},
+    },
+}
+
+_TRIGGER_LIBRARY = {
+    "keyword_triggers": {
+        "critical": ["down", "outage", "data loss", "breach", "hacked", "stolen", "refund", "legal", "lawyer", "fraud", "payment failed", "production down"],
+        "high":     ["error", "broken", "not working", "urgent", "ASAP", "escalate", "frustrated", "disappointed", "cancel", "cancellation"],
+        "medium":   ["slow", "delay", "waiting", "missing", "confused", "help", "issue", "problem", "bug"],
+        "low":      ["question", "how to", "feature request", "suggestion", "inquiry", "information"],
+    },
+    "channel_priority": {
+        "phone":     "high",
+        "live_chat": "high",
+        "email":     "medium",
+        "whatsapp":  "medium",
+        "twitter":   "high",
+        "facebook":  "low",
+        "portal":    "medium",
+    },
+    "customer_tier_boost": {
+        "enterprise": "+1 level (low to medium, medium to high, high to critical)",
+        "premium":    "+1 level for high and above",
+        "standard":   "No boost",
+        "trial":      "Medium cap (max medium priority)",
+    },
+    "time_based": [
+        {"rule": "After 2h no first response: auto-bump priority by 1 level", "applies_to": "all"},
+        {"rule": "After 50% SLA elapsed with no update: assign to available agent", "applies_to": "all"},
+        {"rule": "After 80% SLA elapsed: manager notification sent", "applies_to": "critical, high"},
+        {"rule": "After SLA breach: automatic CSAT score penalized; flagged in reporting", "applies_to": "all"},
+    ],
+}
+
+_ROUTING_TEMPLATES = {
+    "saas": [
+        {"name": "Tier 1 Frontline", "handles": ["billing", "account", "password", "how-to", "feature questions"], "max_priority": "medium"},
+        {"name": "Tier 2 Technical", "handles": ["bugs", "integrations", "API errors", "data issues"], "max_priority": "high"},
+        {"name": "Tier 3 Engineering", "handles": ["production outages", "data loss", "security incidents"], "max_priority": "critical"},
+        {"name": "CSM Team", "handles": ["enterprise renewals", "churn risk", "upsell conversations"], "max_priority": "high"},
+    ],
+    "ecommerce": [
+        {"name": "Order Team", "handles": ["order status", "tracking", "delivery issues"], "max_priority": "medium"},
+        {"name": "Returns Team", "handles": ["returns", "refunds", "exchanges"], "max_priority": "high"},
+        {"name": "Payments Team", "handles": ["payment failures", "billing disputes", "fraud"], "max_priority": "critical"},
+        {"name": "VIP Team", "handles": ["high-value customers", "repeat complainers"], "max_priority": "high"},
+    ],
+    "default": [
+        {"name": "General Support", "handles": ["general inquiries", "basic troubleshooting"], "max_priority": "medium"},
+        {"name": "Senior Support", "handles": ["complex issues", "complaints", "account issues"], "max_priority": "high"},
+        {"name": "Management", "handles": ["escalations", "refunds above limit", "legal threats"], "max_priority": "critical"},
+    ],
+}
+
+_NOTIFICATION_TEMPLATES = {
+    "critical_breach":       "CRITICAL SLA BREACH — Ticket #{ticket_id} | Customer: {customer} | Issue: {summary} | Breached by: {breach_time} | Assigned to: {agent} | ACTION REQUIRED",
+    "high_at_risk":          "SLA AT RISK — Ticket #{ticket_id} | {customer} | {category} | {pct}% SLA used | Reassign if {agent} is unavailable",
+    "escalation_triggered":  "ESCALATION — {customer} ({tier} tier) escalated from {from_team} to {to_team} | Reason: {reason} | Priority: {priority}",
+    "customer_update":       "Hi {customer_name}, your request (#{ticket_id}) has been escalated to our senior team and is now top priority. We will update you within {next_update_time}. — {company_name} Support",
+    "breach_report":         "Daily SLA Report | {date} | Total: {total} | Breached: {breached} ({pct}%) | Critical open: {critical} | Avg resolution: {avg_res}h",
+}
+
+
+def _escalation_rule_builder(
+    business_name: str,
+    industry: str,
+    team_structure: list,
+    products: list,
+    sla_tier: str,
+) -> dict:
+    tier_key = sla_tier if sla_tier in _SLA_TIERS else "standard"
+    sla_rules = _SLA_TIERS[tier_key]
+
+    industry_key = industry.lower() if industry.lower() in _ROUTING_TEMPLATES else "default"
+    routing = _ROUTING_TEMPLATES[industry_key]
+
+    if team_structure:
+        routing = [
+            {
+                "name": t.get("name", "Support Team"),
+                "handles": t.get("handles", ["general"]),
+                "max_priority": t.get("max_priority", "medium"),
+            }
+            for t in team_structure
+        ]
+
+    priority_colors = {"critical": "#ef4444", "high": "#f97316", "medium": "#f59e0b", "low": "#22c55e"}
+    escalation_matrix = []
+    for priority in ["critical", "high", "medium", "low"]:
+        sla = sla_rules[priority]
+        keywords = _TRIGGER_LIBRARY["keyword_triggers"].get(priority, [])
+        escalation_matrix.append({
+            "priority":        priority,
+            "color":           priority_colors[priority],
+            "first_response":  sla["first_response"],
+            "resolution_sla":  sla["resolution"],
+            "breach_action":   sla["breach_action"],
+            "trigger_keywords": keywords[:6],
+            "notify_channels": ["email", "slack"] if priority in ["critical", "high"] else ["email"],
+            "auto_assign":     priority in ["critical", "high"],
+        })
+
+    company = business_name or "Your Company"
+    notification_templates = {k: v.replace("{company_name}", company) for k, v in _NOTIFICATION_TEMPLATES.items()}
+
+    product_list = products if products else [f"{company} Core Product"]
+    product_rules = [
+        {
+            "product": prod,
+            "critical_keywords": ["down", "error", f"{prod} not working"],
+            "owner_team": routing[min(2, len(routing) - 1)]["name"] if routing else "Senior Support",
+        }
+        for prod in product_list
+    ]
+
+    best_practices = [
+        "Set up a Slack channel for critical escalations — real-time beats email for P1s.",
+        "Use a warm transfer protocol so the receiving team has full context before the customer call.",
+        f"Review SLA compliance weekly — target less than 5% breach rate at {tier_key} tier.",
+        "Auto-tag VIP/enterprise customers in your helpdesk so routing fires immediately on ticket creation.",
+        "Run monthly escalation retrospectives to identify recurring root causes and prevent repeats.",
+        "Build a knowledge base article for every P1 ticket resolved — it prevents the next one.",
+    ]
+
+    return {
+        "action":                 "escalation_rule_builder",
+        "business_name":          company,
+        "industry":               industry,
+        "sla_tier":               tier_key,
+        "escalation_matrix":      escalation_matrix,
+        "routing_teams":          routing,
+        "trigger_library":        _TRIGGER_LIBRARY,
+        "notification_templates": notification_templates,
+        "product_rules":          product_rules,
+        "time_based_rules":       _TRIGGER_LIBRARY["time_based"],
+        "best_practices":         best_practices,
+        "summary":                f"Built {len(escalation_matrix)}-tier escalation matrix for {company} with {tier_key} SLA profile and {len(routing)} routing teams.",
     }
