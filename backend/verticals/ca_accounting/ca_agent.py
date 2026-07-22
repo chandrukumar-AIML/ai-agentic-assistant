@@ -953,6 +953,19 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "itr_checklist":
+        return generate_itr_checklist(
+            taxpayer_name=payload.get("taxpayer_name", ""),
+            pan=payload.get("pan", ""),
+            assessment_year=payload.get("assessment_year", "2025-26"),
+            income_sources=payload.get("income_sources", []),
+            has_foreign_income=payload.get("has_foreign_income", False),
+            has_crypto=payload.get("has_crypto", False),
+            has_home_loan=payload.get("has_home_loan", False),
+            deductions=payload.get("deductions", []),
+            taxpayer_type=payload.get("taxpayer_type", "individual"),
+        )
+
     elif action == "depreciation_calc":
         return generate_depreciation_calc(
             asset_name=payload.get("asset_name", ""),
@@ -2268,6 +2281,281 @@ _DEPRECIATION_NOTES = {
         "Common in IFRS; not standard under Indian IT Act but useful for management accounts.",
     ],
 }
+
+
+# ── Round 18: ITR Filing Checklist ───────────────────────────────────────────
+
+_ITR_FORMS = {
+    "salary_only":     {"form": "ITR-1 (Sahaj)", "who": "Salaried individuals with income up to ₹50L"},
+    "salary_capital":  {"form": "ITR-2", "who": "Salaried + capital gains / foreign income / multiple properties"},
+    "business":        {"form": "ITR-3", "who": "Individuals/HUF with business or profession income"},
+    "presumptive":     {"form": "ITR-4 (Sugam)", "who": "Presumptive business income (44AD/44ADA/44AE)"},
+    "company":         {"form": "ITR-6", "who": "Companies other than charitable trust"},
+    "trust":           {"form": "ITR-7", "who": "Trusts / political parties / charitable institutions"},
+}
+
+_INCOME_SOURCE_DOCS = {
+    "salary": {
+        "label": "Salary Income",
+        "documents": [
+            "Form 16 (Part A + Part B) from all employers",
+            "Salary slips for the full year (April to March)",
+            "Form 12BB (if submitted to employer)",
+            "Joining / relieving letter if changed jobs",
+        ],
+        "itr_schedule": "Schedule S — Salary",
+    },
+    "business": {
+        "label": "Business / Professional Income",
+        "documents": [
+            "P&L Statement (audited if turnover > ₹1 crore; ₹50L for professionals)",
+            "Balance Sheet as on 31st March",
+            "GST returns (GSTR-1, GSTR-3B) for the full year",
+            "Bank statements for all business accounts",
+            "Purchase / sales invoices (sample set)",
+            "Audit report (Form 3CD) if audit applicable",
+            "Partnership deed / MoA / AoA if applicable",
+        ],
+        "itr_schedule": "Schedule BP — Business / Profession",
+    },
+    "capital_gains": {
+        "label": "Capital Gains",
+        "documents": [
+            "Broker contract notes / P&L report for equity / mutual funds",
+            "Form 26AS (capital gains section)",
+            "Purchase deeds / cost of acquisition for property sold",
+            "Indexed cost calculation worksheet for property",
+            "Mutual fund capital gains statement (from AMC / CAMS / KFintech)",
+            "Statement showing STT paid on equity transactions",
+        ],
+        "itr_schedule": "Schedule CG — Capital Gains",
+    },
+    "rental": {
+        "label": "House Property / Rental Income",
+        "documents": [
+            "Rent receipts / rental agreement for each property",
+            "Municipal tax receipts (deductible under Sec 24)",
+            "Home loan interest certificate from bank (Sec 24(b))",
+            "Property tax payment receipt",
+            "Details of co-owner(s) and their share",
+        ],
+        "itr_schedule": "Schedule HP — House Property",
+    },
+    "other_income": {
+        "label": "Other Income (Interest, Dividends, Gifts)",
+        "documents": [
+            "Bank interest certificates / passbook (FD, savings)",
+            "Dividend warrants or Form 26AS (dividend section)",
+            "Winning from lottery / game shows (if any)",
+            "Gift deeds / receipts (gifts above ₹50,000 taxable)",
+            "Interest on NSC, KVP, Post Office schemes",
+        ],
+        "itr_schedule": "Schedule OS — Other Sources",
+    },
+    "agriculture": {
+        "label": "Agricultural Income",
+        "documents": [
+            "Land records / patta (proof of agricultural land ownership)",
+            "Sale receipts for agricultural produce",
+            "Revenue receipts from state government if exempt",
+        ],
+        "itr_schedule": "Schedule EI — Exempt Income",
+    },
+}
+
+_DEDUCTION_DOCS = {
+    "80c": {
+        "label": "Section 80C (up to ₹1.5L)",
+        "items": [
+            "LIC premium receipts",
+            "ELSS / Tax-saving mutual fund statements",
+            "PPF passbook (contribution proof)",
+            "EPF contribution (from Form 16)",
+            "Children's school tuition fee receipts",
+            "Home loan principal repayment certificate",
+            "5-year FD / NSC certificates",
+            "Sukanya Samriddhi account passbook",
+        ],
+    },
+    "80d": {
+        "label": "Section 80D — Health Insurance Premium (up to ₹25K / ₹50K senior)",
+        "items": [
+            "Health insurance premium receipt",
+            "Premium receipt for parents' health insurance",
+            "Preventive health check-up receipt (up to ₹5,000)",
+        ],
+    },
+    "80e": {
+        "label": "Section 80E — Education Loan Interest",
+        "items": ["Education loan interest certificate from bank / NBFC"],
+    },
+    "80g": {
+        "label": "Section 80G — Donations",
+        "items": [
+            "Donation receipts with PAN and 80G registration number of trust",
+            "Bank statement showing donation payment",
+        ],
+    },
+    "hra": {
+        "label": "HRA Exemption (Sec 10(13A))",
+        "items": [
+            "Rent receipts (monthly, with landlord signature)",
+            "Rental agreement",
+            "Landlord's PAN (mandatory if annual rent > ₹1L)",
+        ],
+    },
+    "nps": {
+        "label": "Section 80CCD(1B) — NPS Additional ₹50K",
+        "items": [
+            "NPS Tier-1 contribution statement (PRAN statement)",
+            "Transaction statement from NSDL CRA",
+        ],
+    },
+    "home_loan_interest": {
+        "label": "Section 24(b) — Home Loan Interest (up to ₹2L for self-occupied)",
+        "items": [
+            "Home loan interest certificate from lender",
+            "Possession letter (for under-construction property)",
+            "Provisional certificate if final not received",
+        ],
+    },
+}
+
+_COMMON_DOCS = [
+    "PAN card",
+    "Aadhaar card (linked to PAN)",
+    "Form 26AS / Annual Information Statement (AIS) — download from IT portal",
+    "Bank account details (IFSC + account number for refund)",
+    "Bank statements for all accounts (April–March)",
+    "Last year's ITR acknowledgement (ITR-V)",
+    "Last year's assessment order / intimation (if any)",
+]
+
+_DEADLINES = {
+    "non_audit_individual": "31st July of assessment year",
+    "audit_required":       "31st October of assessment year",
+    "company":              "31st October of assessment year",
+    "revised_return":       "31st December of assessment year",
+    "belated_return":       "31st December of assessment year (with penalty)",
+}
+
+_ITR_FORM_SELECTOR = {
+    ("salary",):                                    "ITR-1 (Sahaj)",
+    ("salary", "rental"):                           "ITR-1 (Sahaj)",
+    ("salary", "capital_gains"):                    "ITR-2",
+    ("salary", "rental", "capital_gains"):          "ITR-2",
+    ("business",):                                  "ITR-3 or ITR-4 (Sugam if presumptive)",
+    ("salary", "business"):                         "ITR-3",
+}
+
+
+def generate_itr_checklist(
+    taxpayer_name: str,
+    pan: str,
+    assessment_year: str,
+    income_sources: list,
+    has_foreign_income: bool,
+    has_crypto: bool,
+    has_home_loan: bool,
+    deductions: list,
+    taxpayer_type: str,
+) -> dict:
+    name = taxpayer_name or "Taxpayer"
+    ay   = assessment_year or "2025-26"
+
+    # Determine recommended ITR form
+    sources_set = tuple(sorted(set(income_sources)))
+    itr_form = _ITR_FORM_SELECTOR.get(sources_set, "ITR-2 or ITR-3 (consult CA)")
+    if has_foreign_income:
+        itr_form = "ITR-2 (mandatory for foreign income/assets)"
+    if "business" in income_sources:
+        itr_form = "ITR-3 or ITR-4 (Sugam if opting for presumptive scheme)"
+    if taxpayer_type == "company":
+        itr_form = "ITR-6"
+
+    # Build income document checklist
+    income_checklist = []
+    for src in (income_sources or ["salary"]):
+        src_info = _INCOME_SOURCE_DOCS.get(src)
+        if src_info:
+            income_checklist.append({
+                "category": src_info["label"],
+                "schedule": src_info["itr_schedule"],
+                "documents": [{"doc": d, "collected": False} for d in src_info["documents"]],
+            })
+
+    # Special additions
+    if has_foreign_income:
+        income_checklist.append({
+            "category": "Foreign Income / Assets",
+            "schedule": "Schedule FA / Schedule FSI",
+            "documents": [
+                {"doc": "Foreign bank account statements", "collected": False},
+                {"doc": "Foreign income proof (salary slip / dividend statement)", "collected": False},
+                {"doc": "DTAA (Double Tax Avoidance Agreement) details", "collected": False},
+                {"doc": "Form 67 (if claiming foreign tax credit)", "collected": False},
+            ],
+        })
+
+    if has_crypto:
+        income_checklist.append({
+            "category": "Virtual Digital Assets (Crypto / NFT)",
+            "schedule": "Schedule VDA",
+            "documents": [
+                {"doc": "Exchange P&L report / trade history (CoinDCX, WazirX, Binance, etc.)", "collected": False},
+                {"doc": "Purchase price and date of each crypto asset", "collected": False},
+                {"doc": "TDS certificate (Form 26AS — 1% TDS under Sec 194S)", "collected": False},
+                {"doc": "Wallet transfer statements if moved between wallets", "collected": False},
+            ],
+        })
+
+    # Deduction checklist
+    deduction_checklist = []
+    deduct_list = deductions if deductions else []
+    if has_home_loan and "home_loan_interest" not in deduct_list:
+        deduct_list.append("home_loan_interest")
+
+    for ded in deduct_list:
+        ded_info = _DEDUCTION_DOCS.get(ded)
+        if ded_info:
+            deduction_checklist.append({
+                "section": ded_info["label"],
+                "documents": [{"doc": d, "collected": False} for d in ded_info["items"]],
+            })
+
+    # Deadline
+    deadline = _DEADLINES["audit_required"] if "business" in income_sources else _DEADLINES["non_audit_individual"]
+    if taxpayer_type == "company":
+        deadline = _DEADLINES["company"]
+
+    # Key reminders
+    reminders = [
+        f"File by {deadline} to avoid penalty under Sec 234F (₹5,000 / ₹1,000 for income ≤ ₹5L)",
+        "Download AIS and Form 26AS before filing — reconcile with your records",
+        "Pre-validate bank account on IT portal for faster refund",
+        "Link Aadhaar with PAN if not done — mandatory for filing",
+        "Check Form 26AS for any TDS mismatch before filing",
+    ]
+    if has_crypto:
+        reminders.append("Crypto gains taxed at flat 30% + 4% cess — no deductions allowed (Sec 115BBH)")
+    if "capital_gains" in income_sources:
+        reminders.append("LTCG above ₹1.25L on equity/mutual funds taxed at 12.5% from FY 2024-25 Budget changes")
+
+    return {
+        "action": "itr_checklist",
+        "taxpayer_name": name,
+        "pan": pan,
+        "assessment_year": ay,
+        "recommended_itr_form": itr_form,
+        "filing_deadline": deadline,
+        "common_documents": [{"doc": d, "collected": False} for d in _COMMON_DOCS],
+        "income_checklist": income_checklist,
+        "deduction_checklist": deduction_checklist,
+        "key_reminders": reminders,
+        "total_document_count": len(_COMMON_DOCS) + sum(len(c["documents"]) for c in income_checklist) + sum(len(d["documents"]) for d in deduction_checklist),
+        "portal_link": "https://www.incometax.gov.in/iec/foportal/",
+        "form_26as_link": "https://www.incometax.gov.in (Login → e-file → Income Tax Returns → View Form 26AS)",
+    }
 
 
 def generate_depreciation_calc(

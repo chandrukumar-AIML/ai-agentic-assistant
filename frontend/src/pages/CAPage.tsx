@@ -381,6 +381,35 @@ export default function CAPage() {
   const [dpLoading, setDpLoading]   = useState(false)
   const [dpErr, setDpErr]           = useState('')
   const [dpView, setDpView]         = useState<'schedule'|'summary'|'compliance'>('schedule')
+  // ITR Filing Checklist (Round 18)
+  const [icName, setIcName]         = useState('')
+  const [icPan, setIcPan]           = useState('')
+  const [icAY, setIcAY]             = useState('2025-26')
+  const [icSources, setIcSources]   = useState<string[]>(['salary'])
+  const [icForeign, setIcForeign]   = useState(false)
+  const [icCrypto, setIcCrypto]     = useState(false)
+  const [icHomeLoan, setIcHomeLoan] = useState(false)
+  const [icDeductions, setIcDeductions] = useState<string[]>(['80c'])
+  const [icType, setIcType]         = useState('individual')
+  const [icRes, setIcRes]           = useState<any>(null)
+  const [icLoading, setIcLoading]   = useState(false)
+  const [icErr, setIcErr]           = useState('')
+  const [icView, setIcView]         = useState<'income'|'deductions'|'common'>('common')
+  const toggleIcSource = (s: string) => setIcSources(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  const toggleIcDed = (d: string) => setIcDeductions(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])
+  const runItrChecklist = async () => {
+    setIcLoading(true); setIcErr(''); setIcRes(null)
+    try {
+      setIcRes(await caAction('itr_checklist', {
+        taxpayer_name: icName, pan: icPan, assessment_year: icAY,
+        income_sources: icSources, has_foreign_income: icForeign,
+        has_crypto: icCrypto, has_home_loan: icHomeLoan,
+        deductions: icDeductions, taxpayer_type: icType,
+      }))
+    } catch (e: any) { setIcErr(e.message) }
+    finally { setIcLoading(false) }
+  }
+
   const runDepreciation = async () => {
     setDpLoading(true); setDpErr(''); setDpRes(null)
     try {
@@ -676,6 +705,7 @@ export default function CAPage() {
           { id: 'proposal',          label: 'Client Proposal',            icon: '📋' },
           { id: 'gst_invoice',       label: 'GST Invoice',                icon: '🧾' },
           { id: 'depreciation',     label: 'Depreciation Calculator',    icon: '📉' },
+          { id: 'itr_checklist',   label: 'ITR Filing Checklist',       icon: '📋' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2554,6 +2584,150 @@ export default function CAPage() {
                 </div>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter asset details and click Calculate Depreciation →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── ITR FILING CHECKLIST (Round 18) ── */}
+      {tab === 'itr_checklist' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="📋 ITR Filing Checklist" subtitle="Personalised document checklist based on your income sources & deductions" />
+            <Input label="Taxpayer Name" value={icName} onChange={setIcName} placeholder="e.g. Rahul Sharma" />
+            <Input label="PAN" value={icPan} onChange={setIcPan} placeholder="ABCDE1234F" />
+            <Select label="Assessment Year" value={icAY} onChange={setIcAY} options={[
+              { value: '2024-25', label: 'AY 2024-25 (FY 2023-24)' },
+              { value: '2025-26', label: 'AY 2025-26 (FY 2024-25)' },
+            ]} />
+            <Select label="Taxpayer Type" value={icType} onChange={setIcType} options={[
+              { value: 'individual', label: 'Individual' },
+              { value: 'huf',       label: 'HUF' },
+              { value: 'company',   label: 'Company' },
+              { value: 'firm',      label: 'Partnership Firm' },
+            ]} />
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: '#374151', fontWeight: 600, display: 'block', marginBottom: 6 }}>Income Sources (select all that apply)</label>
+              {[
+                ['salary','💼 Salary / Pension'],['business','🏢 Business / Profession'],
+                ['capital_gains','📈 Capital Gains'],['rental','🏠 Rental Income'],
+                ['other_income','💳 Other Income (Interest/Dividends)'],['agriculture','🌾 Agricultural Income'],
+              ].map(([val, lbl]) => (
+                <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer', fontSize: 13 }}>
+                  <input type="checkbox" checked={icSources.includes(val)} onChange={() => toggleIcSource(val)} />
+                  {lbl}
+                </label>
+              ))}
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: '#374151', fontWeight: 600, display: 'block', marginBottom: 6 }}>Deductions to Claim</label>
+              {[
+                ['80c','80C — LIC/ELSS/PPF/EPF (₹1.5L)'],['80d','80D — Health Insurance'],
+                ['80e','80E — Education Loan'],['80g','80G — Donations'],
+                ['hra','HRA Exemption'],['nps','80CCD(1B) — NPS ₹50K'],
+                ['home_loan_interest','24(b) — Home Loan Interest'],
+              ].map(([val, lbl]) => (
+                <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer', fontSize: 13 }}>
+                  <input type="checkbox" checked={icDeductions.includes(val)} onChange={() => toggleIcDed(val)} />
+                  {lbl}
+                </label>
+              ))}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: '#374151', fontWeight: 600, display: 'block', marginBottom: 6 }}>Special Situations</label>
+              {[
+                [icForeign, setIcForeign, '🌍 Foreign Income / Assets'],
+                [icCrypto, setIcCrypto, '₿ Crypto / NFT / VDA Income'],
+                [icHomeLoan, setIcHomeLoan, '🏠 Home Loan (if not already in deductions)'],
+              ].map(([val, set, lbl]: any) => (
+                <label key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer', fontSize: 13 }}>
+                  <input type="checkbox" checked={val} onChange={() => set(!val)} />
+                  {lbl}
+                </label>
+              ))}
+            </div>
+            <Btn onClick={runItrChecklist} loading={icLoading}>Generate ITR Checklist →</Btn>
+            {icErr && <div style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{icErr}</div>}
+          </Card>
+          <Card>
+            {icRes ? (() => {
+              const r = icRes
+              const views = [
+                { id: 'common',     label: '📌 Common Docs' },
+                { id: 'income',     label: '💰 Income Docs' },
+                { id: 'deductions', label: '🧾 Deductions' },
+              ] as const
+              return (
+                <div>
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, color: '#166534', fontWeight: 700 }}>Recommended Form: {r.recommended_itr_form}</div>
+                    <div style={{ fontSize: 12, color: '#166534', marginTop: 2 }}>Deadline: {r.filing_deadline}</div>
+                    <div style={{ fontSize: 12, color: '#166534', marginTop: 2 }}>Total documents: {r.total_document_count}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {views.map(v => (
+                      <button key={v.id} onClick={() => setIcView(v.id as any)} style={{
+                        padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                        background: icView === v.id ? '#059669' : '#f3f4f6', color: icView === v.id ? '#fff' : '#374151',
+                      }}>{v.label}</button>
+                    ))}
+                  </div>
+
+                  {icView === 'common' && (
+                    <div>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>ALWAYS REQUIRED</div>
+                      {r.common_documents?.map((d: any, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, fontSize: 13, alignItems: 'flex-start' }}>
+                          <span style={{ color: '#059669', marginTop: 1 }}>☐</span>
+                          <span>{d.doc}</span>
+                        </div>
+                      ))}
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, margin: '14px 0 8px' }}>KEY REMINDERS</div>
+                      {r.key_reminders?.map((rem: string, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, fontSize: 12, color: '#374151', alignItems: 'flex-start' }}>
+                          <span style={{ color: '#d97706' }}>⚠️</span>
+                          <span>{rem}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {icView === 'income' && (
+                    <div>
+                      {r.income_checklist?.map((cat: any, ci: number) => (
+                        <div key={ci} style={{ marginBottom: 16 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>{cat.category}</span>
+                            <span style={{ fontSize: 11, background: '#ede9fe', color: '#7c3aed', borderRadius: 10, padding: '2px 8px' }}>{cat.schedule}</span>
+                          </div>
+                          {cat.documents?.map((d: any, di: number) => (
+                            <div key={di} style={{ display: 'flex', gap: 8, marginBottom: 5, fontSize: 13, alignItems: 'flex-start' }}>
+                              <span style={{ color: '#059669', marginTop: 1 }}>☐</span>
+                              <span>{d.doc}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {icView === 'deductions' && (
+                    <div>
+                      {r.deduction_checklist?.length > 0 ? r.deduction_checklist.map((ded: any, di: number) => (
+                        <div key={di} style={{ marginBottom: 16 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', marginBottom: 6 }}>{ded.section}</div>
+                          {ded.documents?.map((d: any, i: number) => (
+                            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 5, fontSize: 13, alignItems: 'flex-start' }}>
+                              <span style={{ color: '#059669', marginTop: 1 }}>☐</span>
+                              <span>{d.doc}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )) : <div style={{ fontSize: 13, color: '#6b7280' }}>No deductions selected. Go back and tick the deductions you want to claim.</div>}
+                    </div>
+                  )}
+                </div>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Select your income sources and click Generate ITR Checklist →</div>}
           </Card>
         </TwoCol>
       )}

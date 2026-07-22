@@ -62,6 +62,7 @@ const TABS = [
   { id: 'onboarding_seq', label: 'Onboarding Sequence' },
   { id: 'kb_article',    label: 'Knowledge Base Article' },
   { id: 'escalation',   label: 'Escalation Email' },
+  { id: 'winback',      label: 'Win-Back Campaign' },
 ]
 
 const WA_TYPES = [
@@ -1317,6 +1318,7 @@ export default function CustomerSupportPage() {
         {tab === 'onboarding_seq' && <OnboardingSequenceTab lang={lang} />}
         {tab === 'kb_article'     && <KbArticleTab lang={lang} />}
         {tab === 'escalation'     && <EscalationEmailTab lang={lang} />}
+        {tab === 'winback'        && <WinBackTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -3216,6 +3218,162 @@ export function EscalationEmailTab({ lang }: { lang: string }) {
           </div>
         ) : (
           <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill ticket details and click Generate Escalation Emails →</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Round 18: Customer Win-Back Campaign ─────────────────────────────────────
+export function WinBackTab({ lang }: { lang: string }) {
+  const { csAction } = useApi()
+  const [bizName, setBizName]     = useState('')
+  const [prodName, setProdName]   = useState('')
+  const [custName, setCustName]   = useState('')
+  const [churnReason, setChurnReason] = useState('unknown')
+  const [inactiveDays, setInactiveDays] = useState('30')
+  const [industry, setIndustry]   = useState('saas')
+  const [offerType, setOfferType] = useState('discount')
+  const [offerValue, setOfferValue] = useState('20%')
+  const [repName, setRepName]     = useState('')
+  const [res, setRes]             = useState<any>(null)
+  const [loading, setLoading]     = useState(false)
+  const [err, setErr]             = useState('')
+  const [activeStep, setActiveStep] = useState(1)
+  const [view, setView]           = useState<'emails'|'whatsapp'|'strategy'>('emails')
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null)
+    try {
+      setRes(await csAction('winback_campaign', {
+        business_name: bizName, product_name: prodName, customer_name: custName,
+        churn_reason: churnReason, inactive_days: parseInt(inactiveDays) || 30,
+        industry, offer_type: offerType, offer_value: offerValue, cs_rep_name: repName,
+      }))
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+
+  const STEP_COLORS = ['#4f46e5','#0891b2','#059669','#d97706','#6b7280']
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e5e7eb' }}>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>💌 Win-Back Campaign Generator</div>
+          <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>5-email re-engagement sequence + WhatsApp messages for churned customers</div>
+        </div>
+        {[
+          { label: 'Business Name', val: bizName, set: setBizName, ph: 'e.g. Zoho, Swiggy' },
+          { label: 'Product Name', val: prodName, set: setProdName, ph: 'e.g. Zoho CRM, Swiggy One' },
+          { label: 'Customer Name', val: custName, set: setCustName, ph: 'e.g. Priya Sharma' },
+          { label: 'CS Rep Name', val: repName, set: setRepName, ph: 'e.g. Ananya' },
+          { label: 'Days Inactive', val: inactiveDays, set: setInactiveDays, ph: 'e.g. 30, 60, 90' },
+          { label: 'Offer Value', val: offerValue, set: setOfferValue, ph: 'e.g. 20%, 1 month free, ₹500 credit' },
+        ].map(f => (
+          <div key={f.label} style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#374151', fontWeight: 600, display: 'block', marginBottom: 4 }}>{f.label}</label>
+            <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+        ))}
+        {[
+          { label: 'Churn Reason', val: churnReason, set: setChurnReason, opts: [['price','💸 Price/Budget'],['competitor','🔄 Switched Competitor'],['no_use','😴 Not Using Product'],['support','😤 Bad Support'],['features','🔧 Missing Features'],['unknown','❓ Unknown/Lapsed']] },
+          { label: 'Industry', val: industry, set: setIndustry, opts: [['saas','SaaS'],['ecomm','E-Commerce'],['retail','Retail'],['finance','Finance'],['health','Health'],['education','Education']] },
+          { label: 'Offer Type', val: offerType, set: setOfferType, opts: [['discount','% Discount'],['free_trial','Free Trial'],['free_month','Free Month'],['upgrade','Free Upgrade'],['consultation','Free Consultation'],['credit','Account Credits']] },
+        ].map(f => (
+          <div key={f.label} style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#374151', fontWeight: 600, display: 'block', marginBottom: 4 }}>{f.label}</label>
+            <select value={f.val} onChange={e => f.set(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13 }}>
+              {f.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+        ))}
+        <button onClick={run} disabled={loading}
+          style={{ width: '100%', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 6 }}>
+          {loading ? 'Generating…' : 'Generate Win-Back Campaign →'}
+        </button>
+        {err && <div style={{ color: '#dc2626', fontSize: 12, marginTop: 8 }}>{err}</div>}
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e5e7eb' }}>
+        {res ? (
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ background: '#ede9fe', color: '#4f46e5', borderRadius: 12, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>{res.churn_reason}</span>
+              <span style={{ background: '#f0fdf4', color: '#059669', borderRadius: 12, padding: '3px 10px', fontSize: 12 }}>{res.offer?.label}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+              {([['emails','📧 Emails'],['whatsapp','💬 WhatsApp'],['strategy','📊 Strategy']] as const).map(([id, lbl]) => (
+                <button key={id} onClick={() => setView(id)} style={{
+                  padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                  background: view === id ? '#4f46e5' : '#f3f4f6', color: view === id ? '#fff' : '#374151',
+                }}>{lbl}</button>
+              ))}
+            </div>
+
+            {view === 'emails' && (
+              <div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+                  {res.email_sequence?.map((email: any) => (
+                    <button key={email.step} onClick={() => setActiveStep(email.step)} style={{
+                      padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: activeStep === email.step ? STEP_COLORS[email.step - 1] : '#f3f4f6',
+                      color: activeStep === email.step ? '#fff' : '#374151',
+                    }}>Day {email.day}</button>
+                  ))}
+                </div>
+                {res.email_sequence?.filter((e: any) => e.step === activeStep).map((email: any) => (
+                  <div key={email.step}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', marginBottom: 2 }}>{email.name}</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>Subject: <span style={{ color: '#374151', fontWeight: 600 }}>{email.subject}</span></div>
+                    <textarea readOnly value={email.body} rows={14}
+                      style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, fontSize: 12, fontFamily: 'inherit', color: '#374151', resize: 'vertical', boxSizing: 'border-box', background: '#f9fafb' }} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {view === 'whatsapp' && (
+              <div>
+                {Object.entries(res.whatsapp_sequence || {}).map(([day, msg]) => (
+                  <div key={day} style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#059669', marginBottom: 4 }}>{day}</div>
+                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, fontSize: 13, color: '#374151' }}>
+                      {msg as string}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {view === 'strategy' && (
+              <div>
+                <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>SEGMENTATION GUIDE</div>
+                {res.segmentation_guide?.map((seg: any, i: number) => (
+                  <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>{seg.segment}</div>
+                    <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>{seg.approach}</div>
+                    <div style={{ fontSize: 12, color: '#4f46e5', marginTop: 2 }}>📅 Offer timing: {seg.offer_timing}</div>
+                  </div>
+                ))}
+                <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, margin: '14px 0 8px' }}>METRICS TO TRACK</div>
+                {res.metrics_to_track?.map((m: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f3f4f6', fontSize: 12 }}>
+                    <span style={{ color: '#374151', fontWeight: 600 }}>{m.metric}</span>
+                    <span style={{ color: '#059669' }}>{m.good}</span>
+                  </div>
+                ))}
+                <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, margin: '14px 0 8px' }}>PRO TIPS</div>
+                {res.pro_tips?.map((tip: string, i: number) => (
+                  <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 5 }}>💡 {tip}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill customer details and click Generate Win-Back Campaign →</div>
         )}
       </div>
     </div>

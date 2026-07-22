@@ -560,6 +560,19 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "winback_campaign":
+            return _winback_campaign_generator(
+                business_name=payload.get("business_name", ""),
+                product_name=payload.get("product_name", ""),
+                customer_name=payload.get("customer_name", ""),
+                churn_reason=payload.get("churn_reason", "unknown"),
+                inactive_days=payload.get("inactive_days", 30),
+                industry=payload.get("industry", "saas"),
+                offer_type=payload.get("offer_type", "discount"),
+                offer_value=payload.get("offer_value", "20%"),
+                cs_rep_name=payload.get("cs_rep_name", ""),
+            )
+
         elif action == "escalation_email":
             return _escalation_email_generator(
                 business_name=payload.get("business_name", ""),
@@ -2609,6 +2622,239 @@ _IMMEDIATE_CONTACT = {
     "standard":   "reply to this email and we will prioritise your response",
     "trial":      "reply to this email and our team will get back to you shortly",
 }
+
+
+# ── Round 18: Customer Win-Back Campaign ─────────────────────────────────────
+
+_CHURN_REASONS = {
+    "price":       {"label": "Price / Budget Concerns",    "angle": "value and ROI"},
+    "competitor":  {"label": "Switched to Competitor",     "angle": "what's new and improved"},
+    "no_use":      {"label": "Not Using the Product",      "angle": "quick wins and ease of use"},
+    "support":     {"label": "Bad Support Experience",     "angle": "improved support and personal attention"},
+    "features":    {"label": "Missing Features",           "angle": "new features they asked for"},
+    "unknown":     {"label": "Unknown / Lapsed",           "angle": "value and what they're missing"},
+}
+
+_OFFER_INTROS = {
+    "discount":     "We'd like to offer you an exclusive returning customer discount",
+    "free_trial":   "We'd love to give you a free extended trial — no strings attached",
+    "free_month":   "We're offering you a complimentary month, completely on us",
+    "upgrade":      "We'd like to upgrade your account for free for 3 months",
+    "consultation": "We'd love to offer a free 1-on-1 session with our specialist",
+    "credit":       "We've added account credits that you can use immediately",
+}
+
+_WINBACK_EMAIL_SEQUENCE = [
+    {"step": 1, "day": 0,  "name": "The Breakup Email",    "tone": "warm, no pressure",    "cta": "See what's new"},
+    {"step": 2, "day": 7,  "name": "The Value Reminder",   "tone": "helpful, educational", "cta": "Read success story"},
+    {"step": 3, "day": 14, "name": "The Offer Email",      "tone": "generous, urgent",     "cta": "Claim your offer"},
+    {"step": 4, "day": 21, "name": "The Last Chance",      "tone": "honest, final",        "cta": "Reclaim offer (expires soon)"},
+    {"step": 5, "day": 30, "name": "The Goodbye (Optional)", "tone": "gracious, memorable", "cta": "Stay connected"},
+]
+
+_INDUSTRY_PAIN_POINTS = {
+    "saas":     ["losing hours to manual work", "your team is still using spreadsheets", "your data is scattered across tools"],
+    "ecomm":    ["missing out on sales", "your competitors are growing while your store sits idle", "customers are buying elsewhere"],
+    "retail":   ["stock going unnoticed", "footfall dropping while costs rise", "losing regulars to online stores"],
+    "finance":  ["leaving money on the table", "missing tax savings", "financial clarity slipping away"],
+    "health":   ["your wellness goals are still waiting", "you were making progress — don't stop now", "your health goals deserve attention"],
+    "education":["your skills gap is growing", "your competition keeps learning", "your career growth has paused"],
+}
+
+_WHATSAPP_WINBACK = {
+    "day0":  "Hi {customer}! 👋 It's been a while since we've seen you on {product}. We miss you! 😊 We've made some big improvements and would love to show you. Can I take 5 minutes to catch up? — {rep}",
+    "day7":  "Hey {customer}! Quick one — did you know we recently launched [new feature]? A lot of customers like you are using it to [key benefit]. Worth a look? 🚀 — {rep}, {business}",
+    "day14": "Hi {customer}! 🎁 We have a special returning-customer offer just for you: {offer}. Valid for 7 days only. Want me to activate it for you right now? — {rep}",
+    "day21": "Last chance, {customer}! Your exclusive {offer} expires tomorrow. Don't miss this — reply YES and I'll set it up in 2 minutes. — {rep}, {business} 🙏",
+}
+
+
+def _winback_campaign_generator(
+    business_name: str,
+    product_name: str,
+    customer_name: str,
+    churn_reason: str,
+    inactive_days: int,
+    industry: str,
+    offer_type: str,
+    offer_value: str,
+    cs_rep_name: str,
+) -> dict:
+    biz      = business_name or "Our Company"
+    product  = product_name or "our platform"
+    cust     = customer_name or "there"
+    rep      = cs_rep_name or "The Team"
+    offer_v  = offer_value or "20%"
+    reason   = _CHURN_REASONS.get(churn_reason, _CHURN_REASONS["unknown"])
+    angle    = reason["angle"]
+    offer_intro = _OFFER_INTROS.get(offer_type, _OFFER_INTROS["discount"])
+    pain_points = _INDUSTRY_PAIN_POINTS.get(industry, _INDUSTRY_PAIN_POINTS["saas"])
+    offer_label = f"{offer_v} off" if offer_type == "discount" else f"{offer_type.replace('_',' ')} ({offer_v})"
+
+    # Build 5-email sequence
+    emails = []
+
+    # Email 1 — The Breakup Email
+    emails.append({
+        "step": 1, "day": 0, "name": "The Breakup Email",
+        "subject": f"We miss you, {cust} 💙",
+        "body": f"""Hi {cust},
+
+We noticed you haven't been around {product} in a while, and we just wanted to check in.
+
+We know life gets busy. And we know {biz} may not have been perfect.
+
+But here's what's changed since you left:
+• [New feature 1 — address {angle}]
+• [New feature 2 — improvement since they left]
+• [Customer success story relevant to their use case]
+
+No pitch, no pressure — we just wanted you to know the door is always open.
+
+If there's anything we got wrong, I'd genuinely love to hear it. Hit reply and let's talk.
+
+Warmly,
+{rep}
+{biz}
+
+P.S. If you're just not interested anymore, no hard feelings. We'll always be here if you change your mind.""",
+    })
+
+    # Email 2 — Value Reminder
+    emails.append({
+        "step": 2, "day": 7, "name": "The Value Reminder",
+        "subject": f"While you were away, here's what {product} helped others achieve",
+        "body": f"""Hi {cust},
+
+Quick story: one of our customers — a {industry} business just like yours — was {pain_points[0]}.
+
+They came back to {product} and within 30 days:
+✅ [Result 1 — specific and measurable]
+✅ [Result 2 — specific and measurable]
+✅ [Result 3 — specific and measurable]
+
+Sound familiar? That's exactly what we want to help you achieve too.
+
+We've put together a short guide just for returning customers: [link]
+
+No login needed to read. Just 3 minutes that might change your mind.
+
+{rep}
+{biz}""",
+    })
+
+    # Email 3 — The Offer
+    emails.append({
+        "step": 3, "day": 14, "name": "The Offer Email",
+        "subject": f"A special offer for you, {cust} — {offer_label} to come back",
+        "body": f"""Hi {cust},
+
+I'll get straight to the point.
+
+{offer_intro}: {offer_label}.
+
+This is exclusive for returning customers — we're not offering this publicly.
+
+Here's how to claim it:
+1. Click this link: [your reactivation link]
+2. Your {offer_type.replace('_',' ')} is applied automatically
+3. You're back in — with everything waiting for you exactly as you left it
+
+This offer expires in 7 days, on [date].
+
+We'd love to have you back. And if there's anything you need help with when you return, I'll personally make sure you're taken care of.
+
+{rep}
+{biz}
+
+[CLAIM MY OFFER →]""",
+    })
+
+    # Email 4 — Last Chance
+    emails.append({
+        "step": 4, "day": 21, "name": "The Last Chance",
+        "subject": f"Your {offer_label} expires tomorrow, {cust}",
+        "body": f"""Hi {cust},
+
+Just a quick heads-up — your exclusive {offer_label} expires tomorrow.
+
+After that, I can't guarantee we'll be able to extend this offer.
+
+If {pain_points[1]} is still something you're dealing with, {product} can help. Takes less than 5 minutes to reactivate.
+
+[CLAIM MY {offer_type.upper().replace('_',' ')} →]
+
+If the timing still isn't right, I completely understand. No pressure — ever.
+
+{rep}
+{biz}""",
+    })
+
+    # Email 5 — The Goodbye
+    emails.append({
+        "step": 5, "day": 30, "name": "The Goodbye (Optional)",
+        "subject": f"Thank you, {cust} — and goodbye (for now)",
+        "body": f"""Hi {cust},
+
+I'm going to be honest: we're removing you from our win-back sequence today.
+
+Not because we don't want you back — but because we respect your inbox and your decision.
+
+If you ever decide you want to give {product} another shot, the door is always open. Just reply to this email or visit [your website].
+
+And if there's anything we could have done differently — anything at all — I'd genuinely love to know. Your feedback helps us get better for everyone.
+
+Thank you for the time you spent with us. We're rooting for you either way. 💙
+
+{rep}
+{biz}""",
+    })
+
+    # WhatsApp messages
+    wa_messages = {
+        f"Day 0": _WHATSAPP_WINBACK["day0"].format(customer=cust, product=product, rep=rep, business=biz),
+        f"Day 7": _WHATSAPP_WINBACK["day7"].format(customer=cust, product=product, rep=rep, business=biz),
+        f"Day 14": _WHATSAPP_WINBACK["day14"].format(customer=cust, product=product, rep=rep, business=biz, offer=offer_label),
+        f"Day 21": _WHATSAPP_WINBACK["day21"].format(customer=cust, product=product, rep=rep, business=biz, offer=offer_label),
+    }
+
+    # Segmentation strategy
+    segmentation = [
+        {"segment": "Churned < 30 days",  "approach": "Soft check-in — no offer yet. Focus on what changed.", "offer_timing": "Day 14"},
+        {"segment": "Churned 30-90 days", "approach": "Value reminder + offer. They're still warm.", "offer_timing": "Day 7"},
+        {"segment": "Churned > 90 days",  "approach": "Lead with your biggest improvement. Offer immediately.", "offer_timing": "Day 0"},
+        {"segment": "High-value churned", "approach": "Personal call first, then email. Don't lose them to templates.", "offer_timing": "Immediate phone call"},
+    ]
+
+    # Win-back metrics to track
+    metrics = [
+        {"metric": "Open Rate", "benchmark": "20-30% for win-back emails", "good": ">25%"},
+        {"metric": "Click Rate", "benchmark": "5-10% for win-back emails", "good": ">7%"},
+        {"metric": "Reactivation Rate", "benchmark": "5-15% of churned customers", "good": ">10%"},
+        {"metric": "Revenue Recovered", "benchmark": "Track monthly", "good": "Positive ROI vs campaign cost"},
+    ]
+
+    return {
+        "action": "winback_campaign",
+        "business_name": biz,
+        "product_name": product,
+        "customer_name": cust,
+        "churn_reason": reason["label"],
+        "inactive_days": inactive_days,
+        "offer": {"type": offer_type, "value": offer_v, "label": offer_label},
+        "email_sequence": emails,
+        "whatsapp_sequence": wa_messages,
+        "segmentation_guide": segmentation,
+        "metrics_to_track": metrics,
+        "pro_tips": [
+            "Personalise with the customer's actual name — win-back open rates jump 26% with personalisation.",
+            "Send Email 1 from a real person's email (rep@company.com) — not noreply@.",
+            "The offer email (Day 14) typically has the highest conversion — A/B test the subject line.",
+            "WhatsApp messages have 3× the open rate of emails — use for high-value customers.",
+            f"For {reason['label']}: lead every message with {angle}.",
+            "Stop the sequence the moment they reactivate — nobody likes messages after they've already come back.",
+        ],
+    }
 
 
 def _escalation_email_generator(

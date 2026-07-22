@@ -2069,7 +2069,20 @@ async def social_agent(
             language=language,
         )
 
-    elif action == "reel_script":
+    elif action == "youtube_description":
+        return generate_youtube_description(
+            channel_name=payload.get("channel_name", ""),
+            video_title=payload.get("video_title", ""),
+            video_topic=payload.get("video_topic", ""),
+            video_category=payload.get("video_category", "education"),
+            target_audience=payload.get("target_audience", ""),
+            key_points=payload.get("key_points", []),
+            timestamps=payload.get("timestamps", []),
+            website=payload.get("website", ""),
+            social_handles=payload.get("social_handles", {}),
+        )
+
+    elif action == "ig_reel_script":
         return generate_reel_script(
             business_name=payload.get("business_name", ""),
             business_type=payload.get("business_type", ""),
@@ -2629,6 +2642,188 @@ _VISUAL_DIRECTION = {
     "testimonial": ["Customer video clip or photo", "Product in use", "Results / transformation shot", "Happy customer moment"],
     "trending": ["Trending audio synced to visuals", "Quick cuts every 2-3 seconds", "Text memes / POV overlay", "Reaction clips"],
 }
+
+
+# ── Round 18: YouTube Description & Tags Generator ───────────────────────────
+
+_YT_CATEGORIES = {
+    "education":    {"emoji": "📚", "tags": ["tutorial", "howto", "learn", "tips", "explained", "guide"]},
+    "business":     {"emoji": "💼", "tags": ["business", "entrepreneur", "startup", "marketing", "growth", "strategy"]},
+    "finance":      {"emoji": "💰", "tags": ["finance", "investing", "money", "savings", "tax", "wealth"]},
+    "technology":   {"emoji": "💻", "tags": ["tech", "software", "coding", "AI", "digital", "gadgets"]},
+    "health":       {"emoji": "🏥", "tags": ["health", "wellness", "fitness", "nutrition", "lifestyle", "yoga"]},
+    "food":         {"emoji": "🍛", "tags": ["recipe", "cooking", "food", "indianfood", "homemade", "chef"]},
+    "travel":       {"emoji": "✈️", "tags": ["travel", "india", "vlog", "explore", "tourism", "wanderlust"]},
+    "entertainment":{"emoji": "🎬", "tags": ["entertainment", "funny", "comedy", "viral", "trending", "shorts"]},
+}
+
+_YT_END_SCREEN_TEMPLATES = [
+    "📺 Watch next: [your most relevant video]",
+    "🔔 Subscribe for weekly [topic] videos",
+    "▶️ Playlist: [related playlist name]",
+    "👍 If this helped, smash the like button!",
+]
+
+_YT_CHAPTER_INTRO = "⏱️ CHAPTERS (click to jump):\n"
+
+_YT_DESCRIPTION_TEMPLATE = """{hook}
+
+{body}
+
+{chapters_section}
+─────────────────────────────────
+{about_section}
+─────────────────────────────────
+🔔 SUBSCRIBE for more {category} content: {subscribe_cta}
+👍 LIKE if this video helped you
+💬 COMMENT your questions below
+
+{links_section}
+─────────────────────────────────
+📌 RELATED VIDEOS & PLAYLISTS
+• [Add your related video here]
+• [Add your playlist here]
+
+─────────────────────────────────
+{tags_section}
+"""
+
+_YT_SEO_TITLE_FORMULAS = [
+    "{topic} — Complete Guide for {audience} ({year})",
+    "How to {topic} | Step-by-Step for {audience}",
+    "{topic}: Everything You Need to Know (Hindi + English)",
+    "Best {topic} Tips for Indian {audience} | {channel}",
+    "{topic} Explained Simply | {audience} Guide",
+]
+
+
+def generate_youtube_description(
+    channel_name: str,
+    video_title: str,
+    video_topic: str,
+    video_category: str,
+    target_audience: str,
+    key_points: list,
+    timestamps: list,
+    website: str,
+    social_handles: dict,
+) -> dict:
+    from datetime import datetime as _dt
+    year = _dt.now().year
+
+    cat      = _YT_CATEGORIES.get(video_category, _YT_CATEGORIES["education"])
+    channel  = channel_name or "Your Channel"
+    title    = video_title or f"The Ultimate Guide to {video_topic}"
+    topic    = video_topic or "this topic"
+    audience = target_audience or "viewers"
+
+    # Hook (first 2 lines show in search results — critical)
+    hook = f"Want to master {topic}? This video covers everything {audience} need to know — from basics to advanced tips, explained simply. {cat['emoji']}"
+
+    # Body from key points
+    if key_points:
+        body_lines = [f"✅ {pt}" for pt in key_points[:8]]
+        body = "In this video you'll learn:\n" + "\n".join(body_lines)
+    else:
+        body = f"In this video you'll learn:\n✅ What is {topic} and why it matters\n✅ Step-by-step breakdown for {audience}\n✅ Common mistakes to avoid\n✅ Pro tips from real experience\n✅ Action steps you can apply today"
+
+    # Chapters section
+    if timestamps:
+        chapters_lines = [_YT_CHAPTER_INTRO]
+        for ts in timestamps:
+            if isinstance(ts, dict):
+                chapters_lines.append(f"{ts.get('time', '0:00')} — {ts.get('title', 'Section')}")
+            else:
+                chapters_lines.append(str(ts))
+        chapters_section = "\n".join(chapters_lines)
+    else:
+        chapters_section = f"{_YT_CHAPTER_INTRO}0:00 — Introduction\n1:30 — What is {topic}?\n4:00 — Step-by-step guide\n8:30 — Common mistakes\n11:00 — Pro tips\n13:30 — Conclusion & next steps"
+
+    # About section
+    about_section = f"🎯 ABOUT THIS VIDEO\nThis video is designed for {audience} who want to understand {topic} clearly and actionably. {channel} creates content to help you grow — subscribe to never miss an update."
+
+    # Links section
+    links = []
+    if website:
+        links.append(f"🌐 Website: {website}")
+    if social_handles:
+        for platform, handle in social_handles.items():
+            emoji_map = {"instagram": "📸", "twitter": "🐦", "linkedin": "💼", "facebook": "👥"}
+            links.append(f"{emoji_map.get(platform, '🔗')} {platform.title()}: {handle}")
+    if not links:
+        links = ["🌐 Website: [your website]", "📸 Instagram: [your handle]", "💼 LinkedIn: [your profile]"]
+    links_section = "📲 CONNECT WITH US\n" + "\n".join(links)
+
+    # Tags (YouTube allows 500 chars)
+    base_tags = cat["tags"][:]
+    topic_words = topic.lower().replace("-", " ").split()
+    topic_tags = topic_words + [topic.lower(), f"{topic.lower()} india", f"{topic.lower()} hindi", f"best {topic.lower()}"]
+    audience_tags = [audience.lower(), f"{audience.lower()} india"] if audience else []
+    channel_tags = [channel.lower().replace(" ", "")] if channel_name else []
+    general_tags = ["india", "indianyoutuber", "2025", channel.lower()]
+    all_tags = list(dict.fromkeys(topic_tags + base_tags + audience_tags + channel_tags + general_tags))[:30]
+    tags_str = ",".join(all_tags)
+    tags_section = f"🏷️ TAGS (copy-paste into YouTube tag field):\n{tags_str}"
+
+    # SEO title suggestions
+    seo_titles = [f.format(topic=topic, audience=audience, year=year, channel=channel) for f in _YT_SEO_TITLE_FORMULAS]
+
+    # Full description
+    full_description = _YT_DESCRIPTION_TEMPLATE.format(
+        hook=hook, body=body, chapters_section=chapters_section,
+        about_section=about_section, links_section=links_section,
+        category=video_category, subscribe_cta=f"[Subscribe button]",
+        tags_section=tags_section,
+    )
+
+    # End screen suggestions
+    end_screen = [t.replace("[topic]", topic).replace("[your most relevant video]", f"related {topic} video") for t in _YT_END_SCREEN_TEMPLATES]
+
+    # Thumbnail tips
+    thumbnail_tips = [
+        f"Use a bold number: '5 {topic} Tips' or 'Top 3 Mistakes'",
+        "High contrast — bright background (yellow/red) + dark text",
+        "Face with exaggerated expression gets 30% higher CTR",
+        "Include the year (2025) to signal fresh content",
+        "Mobile-test: thumbnail should be readable at 120×67px",
+    ]
+
+    # Upload checklist
+    upload_checklist = [
+        {"item": "Title includes primary keyword in first 60 chars", "done": False},
+        {"item": "Description first 2 lines hook viewer (shown in search)", "done": False},
+        {"item": "Chapters/timestamps added (boosts watch time)", "done": False},
+        {"item": "All tags entered (up to 500 chars)", "done": False},
+        {"item": "End screen added at 20-second mark", "done": False},
+        {"item": "Cards added at relevant moments", "done": False},
+        {"item": "Custom thumbnail uploaded", "done": False},
+        {"item": "Video added to a playlist", "done": False},
+        {"item": "Pinned comment with key links", "done": False},
+        {"item": "Posted to Community tab & social media", "done": False},
+    ]
+
+    return {
+        "action": "youtube_description",
+        "channel_name": channel,
+        "video_title": title,
+        "video_topic": topic,
+        "category": video_category,
+        "hook": hook,
+        "full_description": full_description,
+        "tags": all_tags,
+        "tags_string": tags_str,
+        "seo_title_suggestions": seo_titles,
+        "chapters_section": chapters_section,
+        "end_screen_suggestions": end_screen,
+        "thumbnail_tips": thumbnail_tips,
+        "upload_checklist": upload_checklist,
+        "char_count": {
+            "description": len(full_description),
+            "description_limit": 5000,
+            "tags": len(tags_str),
+            "tags_limit": 500,
+        },
+    }
 
 
 def generate_reel_script(

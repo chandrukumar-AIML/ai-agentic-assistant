@@ -353,13 +353,43 @@ export default function SocialPage() {
   const runReel = async () => {
     setRlLoading(true); setRlErr(''); setRlRes(null)
     try {
-      setRlRes(await socialAction('reel_script', {
+      setRlRes(await socialAction('ig_reel_script', {
         business_name: rlBusiness, business_type: rlBizType, reel_topic: rlTopic,
         reel_goal: rlGoal, target_audience: rlAudience,
         duration: parseInt(rlDuration), style: rlStyle,
       }))
     } catch (e: any) { setRlErr(e.message) }
     finally { setRlLoading(false) }
+  }
+
+  // YouTube Description & Tags (Round 18)
+  const [ydChannel, setYdChannel]   = useState('')
+  const [ydTitle, setYdTitle]       = useState('')
+  const [ydTopic, setYdTopic]       = useState('')
+  const [ydCategory, setYdCategory] = useState('education')
+  const [ydAudience, setYdAudience] = useState('')
+  const [ydPointsRaw, setYdPointsRaw] = useState('')
+  const [ydTsRaw, setYdTsRaw]       = useState('0:00 — Introduction\n2:00 — Main Content\n8:00 — Summary')
+  const [ydWebsite, setYdWebsite]   = useState('')
+  const [ydRes, setYdRes]           = useState<any>(null)
+  const [ydLoading, setYdLoading]   = useState(false)
+  const [ydErr, setYdErr]           = useState('')
+  const [ydView, setYdView]         = useState<'desc'|'tags'|'checklist'>('desc')
+  const runYoutubeDesc = async () => {
+    setYdLoading(true); setYdErr(''); setYdRes(null)
+    try {
+      const keyPoints = ydPointsRaw.trim() ? ydPointsRaw.split('\n').filter(Boolean) : []
+      const timestamps = ydTsRaw.trim() ? ydTsRaw.split('\n').filter(Boolean).map(line => {
+        const [time, ...rest] = line.split('—')
+        return { time: time.trim(), title: rest.join('—').trim() }
+      }) : []
+      setYdRes(await socialAction('youtube_description', {
+        channel_name: ydChannel, video_title: ydTitle, video_topic: ydTopic,
+        video_category: ydCategory, target_audience: ydAudience,
+        key_points: keyPoints, timestamps, website: ydWebsite,
+      }))
+    } catch (e: any) { setYdErr(e.message) }
+    finally { setYdLoading(false) }
   }
 
   const runArticle = async () => {
@@ -682,6 +712,7 @@ export default function SocialPage() {
           { id: 'article',    label: 'LinkedIn Article',       icon: '📝' },
           { id: 'review',     label: 'Review & Testimonial Kit', icon: '⭐' },
           { id: 'reel',       label: 'Instagram Reel Script',   icon: '🎬' },
+          { id: 'youtube',    label: 'YouTube Description',      icon: '▶️' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3337,6 +3368,114 @@ export default function SocialPage() {
                 </div>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill details and click Generate Reel Script →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── YOUTUBE DESCRIPTION & TAGS (Round 18) ── */}
+      {tab === 'youtube' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="▶️ YouTube Description Generator" subtitle="SEO-optimised description, chapters, tags & upload checklist" />
+            <Input label="Channel Name" value={ydChannel} onChange={setYdChannel} placeholder="e.g. CA Rahul Explains" />
+            <Input label="Video Title" value={ydTitle} onChange={setYdTitle} placeholder="e.g. GST Filing for Small Business Owners 2025" />
+            <Input label="Video Topic / Keyword" value={ydTopic} onChange={setYdTopic} placeholder="e.g. GST filing, income tax saving, digital marketing" />
+            <Input label="Target Audience" value={ydAudience} onChange={setYdAudience} placeholder="e.g. small business owners, salaried employees" />
+            <Select label="Video Category" value={ydCategory} onChange={setYdCategory} options={[
+              { value: 'education',     label: '📚 Education / Tutorial' },
+              { value: 'business',      label: '💼 Business & Entrepreneurship' },
+              { value: 'finance',       label: '💰 Finance & Tax' },
+              { value: 'technology',    label: '💻 Technology' },
+              { value: 'health',        label: '🏥 Health & Wellness' },
+              { value: 'food',          label: '🍛 Food & Cooking' },
+              { value: 'travel',        label: '✈️ Travel & Vlog' },
+              { value: 'entertainment', label: '🎬 Entertainment' },
+            ]} />
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: '#374151', fontWeight: 600, display: 'block', marginBottom: 4 }}>Key Points (one per line)</label>
+              <textarea value={ydPointsRaw} onChange={e => setYdPointsRaw(e.target.value)} placeholder={"What is GST and who needs to file\nStep-by-step portal walkthrough\nCommon mistakes to avoid"} rows={4}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: '#374151', fontWeight: 600, display: 'block', marginBottom: 4 }}>Timestamps (time — title, one per line)</label>
+              <textarea value={ydTsRaw} onChange={e => setYdTsRaw(e.target.value)} rows={4}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'monospace' }} />
+            </div>
+            <Input label="Website URL (optional)" value={ydWebsite} onChange={setYdWebsite} placeholder="https://yourwebsite.com" />
+            <Btn onClick={runYoutubeDesc} loading={ydLoading}>Generate YouTube Description →</Btn>
+            {ydErr && <div style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{ydErr}</div>}
+          </Card>
+          <Card>
+            {ydRes ? (() => {
+              const r = ydRes
+              const views = [
+                { id: 'desc',      label: '📄 Description' },
+                { id: 'tags',      label: '🏷️ Tags & Titles' },
+                { id: 'checklist', label: '✅ Upload Checklist' },
+              ] as const
+              return (
+                <div>
+                  <div style={{ marginBottom: 12 }}>
+                    <Badge color="#dc2626">YouTube</Badge>{' '}
+                    <Badge color="#0891b2">{r.category}</Badge>{' '}
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>{r.char_count?.description} / {r.char_count?.description_limit} chars</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {views.map(v => (
+                      <button key={v.id} onClick={() => setYdView(v.id as any)} style={{
+                        padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                        background: ydView === v.id ? '#dc2626' : '#f3f4f6', color: ydView === v.id ? '#fff' : '#374151',
+                      }}>{v.label}</button>
+                    ))}
+                  </div>
+
+                  {ydView === 'desc' && (
+                    <div>
+                      <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 700, marginBottom: 4 }}>HOOK (first 2 lines — shown in search)</div>
+                        <div style={{ fontSize: 13, color: '#374151' }}>{r.hook}</div>
+                      </div>
+                      <ResultBox value={r.full_description} />
+                    </div>
+                  )}
+
+                  {ydView === 'tags' && (
+                    <div>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 6 }}>SEO TITLE SUGGESTIONS</div>
+                      {r.seo_title_suggestions?.map((t: string, i: number) => (
+                        <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', marginBottom: 6, fontSize: 13, color: '#1f2937' }}>
+                          {t}
+                        </div>
+                      ))}
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, margin: '14px 0 6px' }}>
+                        TAGS ({r.tags?.length}) — {r.char_count?.tags}/{r.char_count?.tags_limit} chars
+                      </div>
+                      <ResultBox value={r.tags_string} />
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, margin: '14px 0 6px' }}>END SCREEN SUGGESTIONS</div>
+                      {r.end_screen_suggestions?.map((s: string, i: number) => (
+                        <div key={i} style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>• {s}</div>
+                      ))}
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, margin: '14px 0 6px' }}>THUMBNAIL TIPS</div>
+                      {r.thumbnail_tips?.map((tip: string, i: number) => (
+                        <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>💡 {tip}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {ydView === 'checklist' && (
+                    <div>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>UPLOAD CHECKLIST</div>
+                      {r.upload_checklist?.map((item: any, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start', fontSize: 13 }}>
+                          <span style={{ color: '#dc2626', marginTop: 1 }}>☐</span>
+                          <span style={{ color: '#374151' }}>{item.item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill video details and click Generate YouTube Description →</div>}
           </Card>
         </TwoCol>
       )}
