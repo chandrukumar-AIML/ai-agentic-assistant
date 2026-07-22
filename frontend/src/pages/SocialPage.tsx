@@ -838,6 +838,7 @@ export default function SocialPage() {
           { id: 'meme_caption',      label: 'Meme Caption',          icon: '😂' },
           { id: 'story_highlights',  label: 'Story Highlights',      icon: '✨' },
           { id: 'twitter_thread',    label: 'X/Twitter Thread',      icon: '🐦' },
+          { id: 'festive_post',      label: 'Festive Post',          icon: '🪔' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1446,6 +1447,7 @@ export default function SocialPage() {
       {tab === 'meme_caption'     && <MemeCaptionTab />}
       {tab === 'story_highlights' && <StoryHighlightsTab />}
       {tab === 'twitter_thread'   && <TwitterThreadTab />}
+      {tab === 'festive_post'     && <FestivePostTab />}
 
       {/* ── ANALYTICS ── */}
       {tab === 'analytics' && (
@@ -3984,6 +3986,135 @@ export default function SocialPage() {
 const BO_TONES    = ['professional','creative','energetic','warm']
 const BO_PLATFORMS = ['instagram','linkedin','twitter','youtube']
 const BO_INDUSTRIES = ['technology','finance','marketing','education','health','ecommerce','consulting','creative']
+
+// ── Final: Festive Post Generator ─────────────────────────────────────────────
+export function FestivePostTab() {
+  const [fpBrand,   setFpBrand]   = useState('')
+  const [fpFest,    setFpFest]    = useState('diwali')
+  const [fpAngle,   setFpAngle]   = useState('appreciation')
+  const [fpInd,     setFpInd]     = useState('general')
+  const [fpOffer,   setFpOffer]   = useState('')
+  const [fpTip,     setFpTip]     = useState('')
+  const [fpPrize,   setFpPrize]   = useState('')
+  const [fpCustom,  setFpCustom]  = useState('')
+  const [fpRes,     setFpRes]     = useState<any>(null)
+  const [fpLoading, setFpLoading] = useState(false)
+  const [fpErr,     setFpErr]     = useState('')
+
+  const festivals = ['diwali','holi','eid','christmas','new_year','independence_day','republic_day','pongal','onam','navratri','raksha_bandhan','valentines','womens_day','teachers_day','childrens_day','mothers_day','ganesh_chaturthi','gst_day','msme_day','custom']
+  const angles    = ['appreciation','offer','brand_story','tip','contest','behind_scenes']
+
+  const generate = async () => {
+    if (!fpBrand.trim()) { setFpErr('Enter brand name'); return }
+    setFpLoading(true); setFpErr(''); setFpRes(null)
+    try {
+      const r = await socialAction('festive_post', {
+        brand_name: fpBrand, festival: fpFest, post_angle: fpAngle, industry: fpInd,
+        offer_text: fpOffer, tip_text: fpTip, prize_text: fpPrize,
+        custom_festival_name: fpCustom,
+      })
+      setFpRes(r)
+    } catch (e: any) { setFpErr(e.message || 'Error') }
+    finally { setFpLoading(false) }
+  }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">🪔 Festive Post Generator</h2>
+      <p className="tool-desc">Create on-brand festive posts for Diwali, Holi, Pongal, Independence Day, and 20+ Indian festivals with platform-specific tips.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Brand Name</label>
+          <input value={fpBrand} onChange={e=>setFpBrand(e.target.value)} placeholder="Your Brand" /></div>
+        <div className="form-group"><label>Festival</label>
+          <select value={fpFest} onChange={e=>setFpFest(e.target.value)}>
+            {festivals.map(f => <option key={f} value={f}>{f.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+          </select>
+        </div>
+        {fpFest === 'custom' && (
+          <div className="form-group"><label>Custom Festival Name</label>
+            <input value={fpCustom} onChange={e=>setFpCustom(e.target.value)} placeholder="e.g. Ugadi, Bihu, Baisakhi" /></div>
+        )}
+        <div className="form-group"><label>Post Angle</label>
+          <select value={fpAngle} onChange={e=>setFpAngle(e.target.value)}>
+            {angles.map(a => <option key={a} value={a}>{a.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Industry</label>
+          <input value={fpInd} onChange={e=>setFpInd(e.target.value)} placeholder="ecommerce, SaaS, retail..." /></div>
+        {fpAngle === 'offer' && (
+          <div className="form-group full"><label>Offer Details</label>
+            <input value={fpOffer} onChange={e=>setFpOffer(e.target.value)} placeholder="e.g. 30% off all plans, free delivery above ₹500" /></div>
+        )}
+        {fpAngle === 'tip' && (
+          <div className="form-group full"><label>Your Tip</label>
+            <input value={fpTip} onChange={e=>setFpTip(e.target.value)} placeholder="e.g. Backup your accounts before the festive rush" /></div>
+        )}
+        {fpAngle === 'contest' && (
+          <div className="form-group full"><label>Prize</label>
+            <input value={fpPrize} onChange={e=>setFpPrize(e.target.value)} placeholder="e.g. ₹1,000 Amazon voucher, 3-month free subscription" /></div>
+        )}
+      </div>
+
+      {fpErr && <div className="error-box">{fpErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={fpLoading}>
+        {fpLoading ? 'Generating…' : 'Generate Festive Post'}
+      </button>
+
+      {fpRes && (
+        <div className="result-box">
+          <h3>{fpRes.emoji} {fpRes.festival} — {fpRes.post_angle?.replace(/_/g,' ').replace(/\b\w/g,(c:string)=>c.toUpperCase())} Post</h3>
+          <p style={{fontSize:'0.85rem',color:'var(--text-muted)'}}>{fpRes.month} · {fpRes.vibe}</p>
+
+          <div className="ca-section">
+            <h4>Post Copy</h4>
+            <div style={{background:'var(--bg-secondary)',padding:'1rem',borderRadius:'8px',whiteSpace:'pre-wrap',lineHeight:1.7}}>
+              {fpRes.post_text}
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>Full Post (with hashtags)</h4>
+            <div style={{background:'var(--bg-secondary)',padding:'1rem',borderRadius:'8px',whiteSpace:'pre-wrap',lineHeight:1.7,fontSize:'0.88rem'}}>
+              {fpRes.full_post}
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>📅 Posting Schedule</h4>
+            {Object.entries(fpRes.posting_schedule||{}).map(([k,v]: any) => (
+              <p key={k}><strong style={{textTransform:'capitalize'}}>{k.replace('_',' ')}:</strong> {v}</p>
+            ))}
+          </div>
+
+          <div className="form-grid">
+            <div className="ca-section">
+              <h4>📱 Platform Tips</h4>
+              {Object.entries(fpRes.platform_tips||{}).map(([p,t]: any) => (
+                <p key={p}><strong style={{textTransform:'capitalize'}}>{p}:</strong> {t}</p>
+              ))}
+            </div>
+            <div className="ca-section">
+              <h4>🎨 Design Tips</h4>
+              <ul>{(fpRes.design_tips||[]).map((t:string,i:number) => <li key={i}>{t}</li>)}</ul>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>Other Angles to Try</h4>
+            <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+              {Object.entries(fpRes.all_angles||{}).map(([k,v]: any) => (
+                <div key={k} style={{background:'var(--bg-secondary)',padding:'0.4rem 0.75rem',borderRadius:'20px',fontSize:'0.82rem',cursor:'pointer'}} onClick={()=>setFpAngle(k)}>
+                  <strong>{k.replace(/_/g,' ')}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R28: Twitter/X Thread Generator ───────────────────────────────────────────
 export function TwitterThreadTab() {

@@ -834,6 +834,9 @@ export default function CAPage() {
           { id: 'directors_report', label: "Director's Report",          icon: '📑' },
           { id: 'mca_calendar',    label: 'MCA/ROC Calendar',           icon: '🗓️' },
           { id: 'gstr_assistant',  label: 'GSTR Assistant',             icon: '🧾' },
+          { id: 'capital_gains',   label: 'Capital Gains Calc',         icon: '📈' },
+          { id: 'rent_receipts',   label: 'Rent Receipts',              icon: '🏠' },
+          { id: 'hra_80c',         label: 'HRA & 80C Planner',          icon: '💰' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3601,6 +3604,9 @@ export default function CAPage() {
       {tab === 'directors_report' && <DirectorsReportTab />}
       {tab === 'mca_calendar'    && <McaCalendarTab />}
       {tab === 'gstr_assistant'  && <GstrAssistantTab />}
+      {tab === 'capital_gains'   && <CapitalGainsTab />}
+      {tab === 'rent_receipts'   && <RentReceiptsTab />}
+      {tab === 'hra_80c'         && <Hra80cTab />}
     </PageShell>
   )
 }
@@ -3608,6 +3614,430 @@ export default function CAPage() {
 // ── R23: Advance Tax Calculator ──────────────────────────────────────────────
 const AT_YEARS = ['2025-26','2026-27','2024-25']
 const AT_TYPES = [{value:'individual',label:'Individual'},{value:'huf',label:'HUF'},{value:'firm',label:'Firm/LLP'},{value:'company',label:'Company'}]
+
+// ── Final: Capital Gains Calculator ───────────────────────────────────────────
+function CapitalGainsTab() {
+  const [cgAsset,  setCgAsset]  = useState('property')
+  const [cgBuy,    setCgBuy]    = useState('')
+  const [cgSell,   setCgSell]   = useState('')
+  const [cgBuyDate,setCgBuyDate]= useState('')
+  const [cgSellDate,setCgSellDate]=useState('')
+  const [cgExp,    setCgExp]    = useState('')
+  const [cgImprove,setCgImprove]= useState('')
+  const [cgExempt, setCgExempt] = useState('')
+  const [cgExemptAmt,setCgExemptAmt]=useState('')
+  const [cgRes,    setCgRes]    = useState<any>(null)
+  const [cgLoading,setCgLoading]= useState(false)
+  const [cgErr,    setCgErr]    = useState('')
+
+  const assets    = ['equity_shares','equity_mf','debt_mf','property','gold','unlisted_shares','bonds_debentures']
+  const exemptions= ['','54','54EC','54F','54B','54GB']
+
+  const generate = async () => {
+    if (!cgBuy || !cgSell || !cgBuyDate || !cgSellDate) { setCgErr('Fill all required fields'); return }
+    setCgLoading(true); setCgErr(''); setCgRes(null)
+    try {
+      const r = await caAction('capital_gains', {
+        asset_type: cgAsset, purchase_price: parseFloat(cgBuy)||0,
+        sale_price: parseFloat(cgSell)||0, purchase_date: cgBuyDate, sale_date: cgSellDate,
+        sale_expenses: parseFloat(cgExp)||0, improvement_cost: parseFloat(cgImprove)||0,
+        applicable_exemption: cgExempt, exemption_investment: parseFloat(cgExemptAmt)||0,
+      })
+      setCgRes(r)
+    } catch (e: any) { setCgErr(e.message || 'Error') }
+    finally { setCgLoading(false) }
+  }
+
+  const fmt = (n: any) => n != null && !isNaN(n) ? `₹${Number(n).toLocaleString('en-IN', {maximumFractionDigits:0})}` : '—'
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">📈 Capital Gains Calculator</h2>
+      <p className="tool-desc">Calculate LTCG / STCG tax with exemptions (Sec 54, 54EC, 54F), grandfathering for equity, and net tax liability.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Asset Type</label>
+          <select value={cgAsset} onChange={e=>setCgAsset(e.target.value)}>
+            {assets.map(a => <option key={a} value={a}>{a.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Purchase Price (₹)</label>
+          <input type="number" value={cgBuy} onChange={e=>setCgBuy(e.target.value)} placeholder="e.g. 5000000" /></div>
+        <div className="form-group"><label>Sale Price (₹)</label>
+          <input type="number" value={cgSell} onChange={e=>setCgSell(e.target.value)} placeholder="e.g. 8000000" /></div>
+        <div className="form-group"><label>Purchase Date</label>
+          <input type="date" value={cgBuyDate} onChange={e=>setCgBuyDate(e.target.value)} /></div>
+        <div className="form-group"><label>Sale Date</label>
+          <input type="date" value={cgSellDate} onChange={e=>setCgSellDate(e.target.value)} /></div>
+        <div className="form-group"><label>Sale Expenses (₹) — brokerage, stamp duty</label>
+          <input type="number" value={cgExp} onChange={e=>setCgExp(e.target.value)} placeholder="0" /></div>
+        <div className="form-group"><label>Improvement Cost (₹)</label>
+          <input type="number" value={cgImprove} onChange={e=>setCgImprove(e.target.value)} placeholder="0" /></div>
+        <div className="form-group"><label>Exemption Section</label>
+          <select value={cgExempt} onChange={e=>setCgExempt(e.target.value)}>
+            {exemptions.map(x => <option key={x} value={x}>{x || 'None'}</option>)}
+          </select>
+        </div>
+        {cgExempt && (
+          <div className="form-group"><label>Exemption Investment Amount (₹)</label>
+            <input type="number" value={cgExemptAmt} onChange={e=>setCgExemptAmt(e.target.value)} placeholder="Amount invested for exemption" /></div>
+        )}
+      </div>
+
+      {cgErr && <div className="error-box">{cgErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={cgLoading}>
+        {cgLoading ? 'Calculating…' : 'Calculate Capital Gains'}
+      </button>
+
+      {cgRes && (
+        <div className="result-box">
+          <div style={{display:'flex',gap:'0.75rem',alignItems:'center',marginBottom:'1rem',flexWrap:'wrap'}}>
+            <h3 style={{margin:0}}>{cgRes.term_label}</h3>
+            <span style={{background:cgRes.is_long_term?'#22c55e':'#f97316',color:'white',padding:'2px 10px',borderRadius:'12px',fontSize:'0.8rem',fontWeight:600}}>
+              {cgRes.holding_months} months held
+            </span>
+          </div>
+
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.9rem'}}>
+              <tbody>
+                {[
+                  ['Sale Price',          fmt(cgRes.net_sale_proceeds)],
+                  ['Cost of Acquisition', `(${fmt(cgRes.cost_of_acquisition)})`],
+                  ['Gross Gain',          fmt(cgRes.gross_gain)],
+                  ['Basic Exemption (Equity ₹1.25L)', cgRes.basic_exemption ? `(${fmt(cgRes.basic_exemption)})` : '—'],
+                  [`Section ${cgRes.applicable_section || '—'} Exemption`, cgRes.section_exemption ? `(${fmt(cgRes.section_exemption)})` : '—'],
+                  ['Taxable Gain',        fmt(cgRes.taxable_gain)],
+                  [`Tax @ ${cgRes.tax_rate_pct}%`, fmt(cgRes.tax_amount)],
+                  ['Surcharge',           fmt(cgRes.surcharge)],
+                  ['Health & Education Cess (4%)', fmt(cgRes.cess)],
+                  ['Total Tax Liability', fmt(cgRes.total_tax_liability)],
+                  ['Net Profit After Tax',fmt(cgRes.net_profit_after_tax)],
+                ].map(([label, value], i) => (
+                  <tr key={i} style={{borderTop:'1px solid var(--border-color)',background:i>=9?'rgba(99,102,241,0.08)':''}}>
+                    <td style={{padding:'0.4rem 0.5rem',color:'var(--text-muted)'}}>{label}</td>
+                    <td style={{padding:'0.4rem 0.5rem',textAlign:'right',fontWeight:i>=9?700:400}}>{value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {cgRes.grandfather_note && (
+            <div className="ca-section" style={{borderLeft:'3px solid #f97316',paddingLeft:'1rem',marginTop:'1rem'}}>
+              <h4>⚠️ Grandfathering Applies</h4>
+              <p>{cgRes.grandfather_note}</p>
+            </div>
+          )}
+
+          {cgRes.applicable_section && cgRes.section_detail?.condition && (
+            <div className="ca-section">
+              <h4>Section {cgRes.applicable_section} Exemption Conditions</h4>
+              <p><strong>Asset:</strong> {cgRes.section_detail.asset}</p>
+              <p><strong>Condition:</strong> {cgRes.section_detail.condition}</p>
+              <p><strong>Max Exemption:</strong> {cgRes.section_detail.max}</p>
+            </div>
+          )}
+
+          <div className="ca-section">
+            <p style={{fontSize:'0.82rem',color:'var(--text-muted)'}}><strong>Note:</strong> {cgRes.asset_note}</p>
+          </div>
+
+          <div className="ca-section">
+            <h4>CA Notes</h4>
+            <ul>{cgRes.ca_notes?.map((n:string,i:number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Final: Rent Receipt Generator ─────────────────────────────────────────────
+function RentReceiptsTab() {
+  const [rrTenant,  setRrTenant]  = useState('')
+  const [rrLandlord,setRrLandlord]= useState('')
+  const [rrPan,     setRrPan]     = useState('')
+  const [rrAddress, setRrAddress] = useState('')
+  const [rrRent,    setRrRent]    = useState('')
+  const [rrFromMonth,setRrFromMonth]=useState('April')
+  const [rrToMonth, setRrToMonth] = useState('March')
+  const [rrFromYear,setRrFromYear]= useState(2024)
+  const [rrMode,    setRrMode]    = useState('Bank Transfer')
+  const [rrRes,     setRrRes]     = useState<any>(null)
+  const [rrLoading, setRrLoading] = useState(false)
+  const [rrErr,     setRrErr]     = useState('')
+  const [rrSelected,setRrSelected]= useState(0)
+
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const modes  = ['Bank Transfer','Cash','UPI','Cheque','NEFT/RTGS']
+
+  const generate = async () => {
+    if (!rrTenant.trim() || !rrLandlord.trim() || !rrRent) { setRrErr('Fill tenant, landlord, and rent amount'); return }
+    setRrLoading(true); setRrErr(''); setRrRes(null)
+    try {
+      const r = await caAction('rent_receipts', {
+        tenant_name: rrTenant, landlord_name: rrLandlord, landlord_pan: rrPan,
+        property_address: rrAddress, monthly_rent: parseFloat(rrRent)||0,
+        from_month: rrFromMonth, to_month: rrToMonth, from_year: rrFromYear,
+        payment_mode: rrMode,
+      })
+      setRrRes(r)
+      setRrSelected(0)
+    } catch (e: any) { setRrErr(e.message || 'Error') }
+    finally { setRrLoading(false) }
+  }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">🏠 Rent Receipt Generator</h2>
+      <p className="tool-desc">Generate month-by-month rent receipts for HRA claims. Includes landlord PAN, property address, and payment mode.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Tenant Name</label>
+          <input value={rrTenant} onChange={e=>setRrTenant(e.target.value)} placeholder="Rahul Kumar" /></div>
+        <div className="form-group"><label>Landlord Name</label>
+          <input value={rrLandlord} onChange={e=>setRrLandlord(e.target.value)} placeholder="Suresh Iyer" /></div>
+        <div className="form-group"><label>Landlord PAN</label>
+          <input value={rrPan} onChange={e=>setRrPan(e.target.value)} placeholder="ABCDE1234F" /></div>
+        <div className="form-group"><label>Monthly Rent (₹)</label>
+          <input type="number" value={rrRent} onChange={e=>setRrRent(e.target.value)} placeholder="25000" /></div>
+        <div className="form-group full"><label>Property Address</label>
+          <input value={rrAddress} onChange={e=>setRrAddress(e.target.value)} placeholder="12, Gandhi Nagar, Chennai - 600020" /></div>
+        <div className="form-group"><label>From Month</label>
+          <select value={rrFromMonth} onChange={e=>setRrFromMonth(e.target.value)}>
+            {months.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>To Month</label>
+          <select value={rrToMonth} onChange={e=>setRrToMonth(e.target.value)}>
+            {months.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>From Year</label>
+          <input type="number" value={rrFromYear} onChange={e=>setRrFromYear(Number(e.target.value))} /></div>
+        <div className="form-group"><label>Payment Mode</label>
+          <select value={rrMode} onChange={e=>setRrMode(e.target.value)}>
+            {modes.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {rrErr && <div className="error-box">{rrErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={rrLoading}>
+        {rrLoading ? 'Generating…' : 'Generate Rent Receipts'}
+      </button>
+
+      {rrRes && (
+        <div className="result-box">
+          <h3>Rent Receipts — {rrRes.total_months} months</h3>
+          <p><strong>Annual Rent:</strong> ₹{rrRes.annual_rent?.toLocaleString('en-IN')} | <strong>PAN Required:</strong> {rrRes.pan_required ? '✅ Yes' : '—'}</p>
+          <p style={{fontSize:'0.85rem',color:'var(--accent)'}}>{rrRes.hra_note}</p>
+
+          <div style={{display:'flex',gap:'0.4rem',flexWrap:'wrap',margin:'0.75rem 0'}}>
+            {rrRes.receipts?.map((_: any, i: number) => (
+              <button key={i} onClick={()=>setRrSelected(i)}
+                style={{padding:'4px 12px',borderRadius:'16px',border:'none',cursor:'pointer',
+                  background:rrSelected===i?'var(--accent)':'var(--bg-secondary)',
+                  color:rrSelected===i?'white':'inherit',fontWeight:rrSelected===i?600:400}}>
+                {rrRes.receipts[i].period}
+              </button>
+            ))}
+          </div>
+
+          {rrRes.receipts?.[rrSelected] && (
+            <div style={{background:'var(--bg-secondary)',padding:'1.25rem',borderRadius:'8px',fontFamily:'monospace',whiteSpace:'pre-wrap',lineHeight:1.8,fontSize:'0.88rem',border:'1px solid var(--border-color)'}}>
+              {rrRes.receipts[rrSelected].receipt_text}
+            </div>
+          )}
+
+          <div className="ca-section" style={{marginTop:'1rem'}}>
+            <h4>CA Notes</h4>
+            <ul>{rrRes.ca_notes?.map((n:string,i:number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Final: HRA & 80C Investment Planner ───────────────────────────────────────
+function Hra80cTab() {
+  const [hpName,    setHpName]    = useState('')
+  const [hpBasic,   setHpBasic]   = useState('')
+  const [hpHra,     setHpHra]     = useState('')
+  const [hpRent,    setHpRent]    = useState('')
+  const [hpCity,    setHpCity]    = useState('metro')
+  const [hpElss,    setHpElss]    = useState('')
+  const [hpPpf,     setHpPpf]     = useState('')
+  const [hpLic,     setHpLic]     = useState('')
+  const [hpPrincipal,setHpPrincipal]=useState('')
+  const [hpInterest,setHpInterest]= useState('')
+  const [hpHealth,  setHpHealth]  = useState('')
+  const [hpParents, setHpParents] = useState('')
+  const [hpNps,     setHpNps]     = useState('')
+  const [hpEduLoan, setHpEduLoan] = useState('')
+  const [hpRes,     setHpRes]     = useState<any>(null)
+  const [hpLoading, setHpLoading] = useState(false)
+  const [hpErr,     setHpErr]     = useState('')
+
+  const generate = async () => {
+    if (!hpName.trim() || !hpBasic) { setHpErr('Enter name and basic salary'); return }
+    setHpLoading(true); setHpErr(''); setHpRes(null)
+    try {
+      const investments: Record<string,number> = {}
+      if (parseFloat(hpElss)>0)  investments['ELSS']       = parseFloat(hpElss)
+      if (parseFloat(hpPpf)>0)   investments['PPF']        = parseFloat(hpPpf)
+      if (parseFloat(hpLic)>0)   investments['LIC_premium']= parseFloat(hpLic)
+      const r = await caAction('hra_80c_planner', {
+        employee_name: hpName,
+        basic_salary_annual: parseFloat(hpBasic)||0,
+        hra_received_annual: parseFloat(hpHra)||0,
+        rent_paid_annual: parseFloat(hpRent)||0,
+        city_type: hpCity,
+        existing_80c_investments: investments,
+        health_insurance_self: parseFloat(hpHealth)||0,
+        health_insurance_parents: parseFloat(hpParents)||0,
+        home_loan_interest: parseFloat(hpInterest)||0,
+        home_loan_principal: parseFloat(hpPrincipal)||0,
+        education_loan_interest: parseFloat(hpEduLoan)||0,
+        nps_contribution: parseFloat(hpNps)||0,
+      })
+      setHpRes(r)
+    } catch (e: any) { setHpErr(e.message || 'Error') }
+    finally { setHpLoading(false) }
+  }
+
+  const fmt = (n: any) => n != null ? `₹${Number(n).toLocaleString('en-IN', {maximumFractionDigits:0})}` : '—'
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">💰 HRA & 80C Investment Planner</h2>
+      <p className="tool-desc">Calculate exact HRA exemption under Sec 10(13A), plan 80C investments to close the gap, and see all other deductions in one view.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Employee Name</label>
+          <input value={hpName} onChange={e=>setHpName(e.target.value)} placeholder="Your Name" /></div>
+        <div className="form-group"><label>Annual Basic Salary (₹)</label>
+          <input type="number" value={hpBasic} onChange={e=>setHpBasic(e.target.value)} placeholder="600000" /></div>
+        <div className="form-group"><label>HRA Received (Annual ₹)</label>
+          <input type="number" value={hpHra} onChange={e=>setHpHra(e.target.value)} placeholder="240000" /></div>
+        <div className="form-group"><label>Rent Paid (Annual ₹)</label>
+          <input type="number" value={hpRent} onChange={e=>setHpRent(e.target.value)} placeholder="300000" /></div>
+        <div className="form-group"><label>City Type</label>
+          <select value={hpCity} onChange={e=>setHpCity(e.target.value)}>
+            <option value="metro">Metro (Mumbai/Delhi/Chennai/Kolkata) — 50%</option>
+            <option value="non_metro">Non-Metro — 40%</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="ca-section">
+        <h4>80C Investments Already Made</h4>
+        <div className="form-grid">
+          {[['ELSS',hpElss,setHpElss],['PPF',hpPpf,setHpPpf],['LIC Premium',hpLic,setHpLic],['Home Loan Principal',hpPrincipal,setHpPrincipal]].map(([label,val,setter]: any) => (
+            <div key={label} className="form-group"><label>{label} (₹)</label>
+              <input type="number" value={val} onChange={(e:any)=>setter(e.target.value)} placeholder="0" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="ca-section">
+        <h4>Other Deductions</h4>
+        <div className="form-grid">
+          {[['Health Insurance (Self) 80D',hpHealth,setHpHealth],['Health Insurance (Parents) 80D',hpParents,setHpParents],['Home Loan Interest 24B',hpInterest,setHpInterest],['Education Loan Interest 80E',hpEduLoan,setHpEduLoan],['NPS Contribution 80CCD(1B)',hpNps,setHpNps]].map(([label,val,setter]: any) => (
+            <div key={label} className="form-group"><label>{label} (₹)</label>
+              <input type="number" value={val} onChange={(e:any)=>setter(e.target.value)} placeholder="0" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {hpErr && <div className="error-box">{hpErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={hpLoading}>
+        {hpLoading ? 'Calculating…' : 'Calculate HRA & 80C'}
+      </button>
+
+      {hpRes && (
+        <div className="result-box">
+          <h3>{hpRes.employee_name} — Tax Deduction Summary</h3>
+
+          <div className="ca-section" style={{borderLeft:'3px solid var(--accent)',paddingLeft:'1rem'}}>
+            <h4>🏠 HRA Exemption Calculation</h4>
+            {[
+              ['HRA Received',              fmt(hpRes.hra_calculation?.hra_received)],
+              [`${hpRes.hra_calculation?.basis}`,fmt(hpRes.hra_calculation?.condition_2_pct)],
+              ['Rent Paid − 10% of Basic',  fmt(hpRes.hra_calculation?.condition_3_rent_minus_10pct)],
+              ['HRA Exempt (least of 3)',   fmt(hpRes.hra_calculation?.hra_exempt)],
+              ['HRA Taxable',               fmt(hpRes.hra_calculation?.hra_taxable)],
+            ].map(([l,v]) => (
+              <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'0.3rem 0',borderBottom:'1px solid var(--border-color)'}}>
+                <span style={{fontSize:'0.85rem',color:'var(--text-muted)'}}>{l}</span>
+                <strong>{v}</strong>
+              </div>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>📋 80C Summary</h4>
+            <p>Invested: <strong>{fmt(hpRes['80c_summary']?.total_80c_claimed)}</strong> / ₹1,50,000 limit</p>
+            {hpRes['80c_summary']?.remaining_gap > 0 && (
+              <p style={{color:'#f97316'}}>Gap remaining: <strong>{fmt(hpRes['80c_summary']?.remaining_gap)}</strong> — invest more to save tax!</p>
+            )}
+            {hpRes.top_up_suggestions?.length > 0 && (
+              <>
+                <h5 style={{marginTop:'0.75rem'}}>Suggested Top-Up Instruments:</h5>
+                <div style={{overflowX:'auto'}}>
+                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.83rem'}}>
+                    <thead><tr style={{background:'var(--bg-secondary)'}}>
+                      {['Instrument','Suggested Amount','Lock-in','Return','Risk'].map(h =>
+                        <th key={h} style={{padding:'0.3rem 0.4rem',textAlign:'left'}}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {hpRes.top_up_suggestions.map((s:any,i:number) => (
+                        <tr key={i} style={{borderTop:'1px solid var(--border-color)'}}>
+                          <td style={{padding:'0.3rem 0.4rem',fontWeight:500}}>{s.instrument}</td>
+                          <td style={{padding:'0.3rem 0.4rem'}}>{fmt(s.suggested_amount)}</td>
+                          <td style={{padding:'0.3rem 0.4rem'}}>{s.lock_in}</td>
+                          <td style={{padding:'0.3rem 0.4rem'}}>{s.return}</td>
+                          <td style={{padding:'0.3rem 0.4rem'}}><span style={{background:s.risk==='Low'||s.risk==='Nil'?'#22c55e20':s.risk==='High'?'#ef444420':'#eab30820',color:s.risk==='Low'||s.risk==='Nil'?'#16a34a':s.risk==='High'?'#ef4444':'#ca8a04',padding:'1px 6px',borderRadius:'8px',fontSize:'0.75rem'}}>{s.risk}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="ca-section">
+            <h4>📊 All Deductions Summary</h4>
+            {[
+              ['80C (incl. principal)', fmt(hpRes['80c_summary']?.total_80c_claimed)],
+              ['NPS 80CCD(1B)',         fmt(hpRes.nps_80ccd1b?.deduction)],
+              ['80D Self',              fmt(hpRes.other_deductions?.['80D_self'])],
+              ['80D Parents',           fmt(hpRes.other_deductions?.['80D_parents'])],
+              ['24B Home Loan Interest',fmt(hpRes.other_deductions?.['24B_home_interest'])],
+              ['80E Education Loan',    fmt(hpRes.other_deductions?.['80E_edu_loan'])],
+              ['Total Deductions',      fmt(hpRes.total_deductions)],
+            ].map(([l,v],i) => (
+              <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'0.35rem 0',borderBottom:'1px solid var(--border-color)',fontWeight:i===6?700:400}}>
+                <span style={{fontSize:'0.85rem',color:i===6?'inherit':'var(--text-muted)'}}>{l}</span>
+                <strong style={{color:i===6?'var(--accent)':'inherit'}}>{v}</strong>
+              </div>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>CA Notes</h4>
+            <ul>{hpRes.ca_notes?.map((n:string,i:number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R28: GSTR Filing Assistant ────────────────────────────────────────────────
 function GstrAssistantTab() {

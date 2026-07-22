@@ -953,6 +953,51 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "capital_gains":
+        return generate_capital_gains_calculator(
+            asset_type=payload.get("asset_type", "property"),
+            purchase_price=payload.get("purchase_price", 0),
+            sale_price=payload.get("sale_price", 0),
+            purchase_date=payload.get("purchase_date", ""),
+            sale_date=payload.get("sale_date", ""),
+            sale_expenses=payload.get("sale_expenses", 0),
+            improvement_cost=payload.get("improvement_cost", 0),
+            applicable_exemption=payload.get("applicable_exemption", ""),
+            exemption_investment=payload.get("exemption_investment", 0),
+            language=language,
+        )
+
+    elif action == "rent_receipts":
+        return generate_rent_receipts(
+            tenant_name=payload.get("tenant_name", ""),
+            landlord_name=payload.get("landlord_name", ""),
+            landlord_pan=payload.get("landlord_pan", ""),
+            property_address=payload.get("property_address", ""),
+            monthly_rent=payload.get("monthly_rent", 0),
+            from_month=payload.get("from_month", "April"),
+            to_month=payload.get("to_month", "March"),
+            from_year=payload.get("from_year", 2024),
+            payment_mode=payload.get("payment_mode", "Bank Transfer"),
+            language=language,
+        )
+
+    elif action == "hra_80c_planner":
+        return generate_hra_80c_planner(
+            employee_name=payload.get("employee_name", ""),
+            basic_salary_annual=payload.get("basic_salary_annual", 0),
+            hra_received_annual=payload.get("hra_received_annual", 0),
+            rent_paid_annual=payload.get("rent_paid_annual", 0),
+            city_type=payload.get("city_type", "metro"),
+            existing_80c_investments=payload.get("existing_80c_investments", {}),
+            health_insurance_self=payload.get("health_insurance_self", 0),
+            health_insurance_parents=payload.get("health_insurance_parents", 0),
+            home_loan_interest=payload.get("home_loan_interest", 0),
+            home_loan_principal=payload.get("home_loan_principal", 0),
+            education_loan_interest=payload.get("education_loan_interest", 0),
+            nps_contribution=payload.get("nps_contribution", 0),
+            language=language,
+        )
+
     elif action == "gstr_assistant":
         return generate_gstr_assistant(
             business_name=payload.get("business_name", ""),
@@ -3194,6 +3239,356 @@ _GST_TURNOVER_SLABS = {
     "₹1.5 Cr–₹5 Cr":{"registration": "Mandatory", "scheme": "Can opt QRMP scheme (quarterly GSTR-1, monthly 3B)"},
     "> ₹5 Cr":       {"registration": "Mandatory", "scheme": "Monthly filing mandatory; GSTR-9C certification required"},
 }
+
+
+# ── Final Round: Capital Gains Calculator ─────────────────────────────────────
+
+_CG_LTCG_EXEMPTIONS = {
+    "54":   {"asset":"Residential Property", "condition":"Invest in another residential property within 2 years (purchase) or 3 years (construction)", "max":"No cap"},
+    "54EC": {"asset":"Any Long-term Asset",   "condition":"Invest in NHAI/REC bonds within 6 months", "max":"₹50 lakh"},
+    "54F":  {"asset":"Non-property asset",    "condition":"Invest entire net consideration in residential property (not just gains)", "max":"No cap if fully invested"},
+    "54B":  {"asset":"Agricultural Land",     "condition":"Purchase agricultural land within 2 years", "max":"No cap"},
+    "54GB": {"asset":"Residential Property",  "condition":"Invest in eligible startup before due date of ITR", "max":"No cap"},
+}
+
+_CG_ASSET_TYPES = {
+    "equity_shares":    {"ltcg_period": 12, "ltcg_rate": 12.5, "stcg_rate": 20.0,  "indexation": False, "grandfathering": True,  "note":"LTCG >₹1.25L taxed @12.5% (no indexation from FY25). STT must be paid."},
+    "equity_mf":        {"ltcg_period": 12, "ltcg_rate": 12.5, "stcg_rate": 20.0,  "indexation": False, "grandfathering": True,  "note":"Equity MF: same as equity shares if >65% equity."},
+    "debt_mf":          {"ltcg_period": 24, "ltcg_rate": 20.0, "stcg_rate": None,   "indexation": False, "grandfathering": False, "note":"Post Apr 2023: all gains taxed as per slab (no LTCG benefit for debt MF)."},
+    "property":         {"ltcg_period": 24, "ltcg_rate": 12.5, "stcg_rate": None,   "indexation": False, "grandfathering": False, "note":"Post Jul 2024 budget: 12.5% without indexation (or 20% with indexation for pre-Jul-2024 sales — check your FY)."},
+    "gold":             {"ltcg_period": 24, "ltcg_rate": 12.5, "stcg_rate": None,   "indexation": False, "grandfathering": False, "note":"Physical gold / gold ETF: 24 months holding for LTCG."},
+    "unlisted_shares":  {"ltcg_period": 24, "ltcg_rate": 12.5, "stcg_rate": None,   "indexation": False, "grandfathering": False, "note":"Unlisted: 24 months LTCG period."},
+    "bonds_debentures": {"ltcg_period": 12, "ltcg_rate": 12.5, "stcg_rate": None,   "indexation": False, "grandfathering": False, "note":"Listed bonds: 12 months LTCG."},
+}
+
+
+def generate_capital_gains_calculator(
+    asset_type: str,
+    purchase_price: float,
+    sale_price: float,
+    purchase_date: str,
+    sale_date: str,
+    sale_expenses: float = 0.0,
+    improvement_cost: float = 0.0,
+    applicable_exemption: str = "",
+    exemption_investment: float = 0.0,
+    language: str = "en",
+) -> dict:
+    from datetime import datetime
+    try:
+        pd_ = datetime.strptime(purchase_date, "%Y-%m-%d")
+        sd_ = datetime.strptime(sale_date,     "%Y-%m-%d")
+        holding_months = (sd_.year - pd_.year) * 12 + (sd_.month - pd_.month)
+    except Exception:
+        holding_months = 0
+        pd_ = sd_ = None
+
+    cfg = _CG_ASSET_TYPES.get(asset_type, _CG_ASSET_TYPES["property"])
+    is_long_term = holding_months >= cfg["ltcg_period"]
+    term_label   = "Long-Term Capital Gain (LTCG)" if is_long_term else "Short-Term Capital Gain (STCG)"
+
+    # Gross gain
+    net_sale       = sale_price - sale_expenses
+    cost_of_acq    = purchase_price + improvement_cost
+    gross_gain     = net_sale - cost_of_acq
+
+    # Tax rate
+    if is_long_term:
+        tax_rate = cfg["ltcg_rate"]
+        # LTCG exemption for equity: ₹1.25L per year
+        exemption_basic = 125000 if asset_type in ("equity_shares","equity_mf") and is_long_term else 0
+    else:
+        tax_rate = cfg["stcg_rate"] if cfg["stcg_rate"] else "As per slab"
+        exemption_basic = 0
+
+    # Section exemption
+    section_exempt  = min(exemption_investment, gross_gain) if applicable_exemption and exemption_investment > 0 else 0
+    taxable_gain    = max(0, gross_gain - exemption_basic - section_exempt)
+
+    if isinstance(tax_rate, float):
+        tax_amount  = taxable_gain * tax_rate / 100
+        surcharge   = tax_amount * 0.15 if tax_amount > 500000 else 0
+        cess        = (tax_amount + surcharge) * 0.04
+        total_tax   = tax_amount + surcharge + cess
+    else:
+        tax_amount = total_tax = surcharge = cess = None
+
+    # Section 112A grandfathering note
+    grandfather_note = None
+    if cfg.get("grandfathering") and pd_ and pd_.date() < __import__("datetime").date(2018, 2, 1):
+        grandfather_note = "Grandfathering applies (pre-Feb 1, 2018 purchase): FMV on Jan 31, 2018 is deemed cost of acquisition. Use NSE historical price to determine FMV."
+
+    exemption_detail = _CG_LTCG_EXEMPTIONS.get(applicable_exemption, {}) if applicable_exemption else {}
+
+    return {
+        "asset_type":        asset_type,
+        "purchase_price":    purchase_price,
+        "sale_price":        sale_price,
+        "sale_expenses":     sale_expenses,
+        "improvement_cost":  improvement_cost,
+        "holding_months":    holding_months,
+        "ltcg_period_months": cfg["ltcg_period"],
+        "is_long_term":      is_long_term,
+        "term_label":        term_label,
+        "net_sale_proceeds": net_sale,
+        "cost_of_acquisition": cost_of_acq,
+        "gross_gain":        gross_gain,
+        "basic_exemption":   exemption_basic,
+        "section_exemption": section_exempt,
+        "applicable_section": applicable_exemption,
+        "section_detail":    exemption_detail,
+        "taxable_gain":      taxable_gain,
+        "tax_rate_pct":      tax_rate,
+        "tax_amount":        tax_amount,
+        "surcharge":         surcharge,
+        "cess":              cess,
+        "total_tax_liability": total_tax,
+        "net_profit_after_tax": gross_gain - (total_tax or 0),
+        "asset_note":        cfg["note"],
+        "grandfather_note":  grandfather_note,
+        "all_exemptions":    _CG_LTCG_EXEMPTIONS,
+        "ca_notes": [
+            "File Schedule CG in ITR-2 / ITR-3 for capital gains",
+            "STT paid is mandatory to claim concessional LTCG rate on equity",
+            "Capital loss can be set off against capital gains only (not salary/other income)",
+            "LTCL can be carried forward for 8 years; STCL can offset LTCG and STCG",
+            "For property sold post Jul 23, 2024 — choose 12.5% (no indexation) vs 20% (with indexation) whichever is lower",
+            "Invest in 54EC bonds within 6 months of sale — don't miss the deadline",
+        ],
+    }
+
+
+# ── Final Round: Rent Receipt Generator ───────────────────────────────────────
+
+_RENT_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+
+
+def generate_rent_receipts(
+    tenant_name: str,
+    landlord_name: str,
+    landlord_pan: str,
+    property_address: str,
+    monthly_rent: float,
+    from_month: str,
+    to_month: str,
+    from_year: int,
+    payment_mode: str = "Bank Transfer",
+    language: str = "en",
+) -> dict:
+    # Parse months
+    try:
+        fm_idx = _RENT_MONTHS.index(from_month)
+    except ValueError:
+        fm_idx = 3  # April default
+
+    try:
+        tm_idx = _RENT_MONTHS.index(to_month)
+    except ValueError:
+        tm_idx = fm_idx
+
+    # Build receipt list (FY runs Apr–Mar so handle year rollover)
+    receipts = []
+    month_idx = fm_idx
+    year = from_year
+    month_count = 0
+    max_months = 12  # safety cap
+
+    while month_count <= max_months:
+        month_name = _RENT_MONTHS[month_idx]
+        receipt_no = f"RR/{year}/{str(month_count+1).zfill(2)}"
+        receipts.append({
+            "receipt_no":    receipt_no,
+            "period":        f"{month_name} {year}",
+            "amount":        monthly_rent,
+            "payment_mode":  payment_mode,
+            "receipt_text":  (
+                f"RENT RECEIPT\n"
+                f"Receipt No.: {receipt_no}\n\n"
+                f"Received with thanks from {tenant_name}, a sum of ₹{monthly_rent:,.0f}/- "
+                f"(Rupees {_num_to_words(monthly_rent)} Only) towards rent for the premises "
+                f"at {property_address} for the month of {month_name} {year}.\n\n"
+                f"Payment Mode: {payment_mode}\n\n"
+                f"Landlord Name: {landlord_name}\n"
+                f"Landlord PAN:  {landlord_pan}\n\n"
+                f"Signature: ________________\n"
+                f"Date: {month_name} {year}"
+            ),
+        })
+        if month_idx == tm_idx and year == (from_year if tm_idx >= fm_idx else from_year + 1):
+            break
+        month_idx = (month_idx + 1) % 12
+        if month_idx == 0:
+            year += 1
+        month_count += 1
+
+    annual_rent = monthly_rent * len(receipts)
+    pan_required = annual_rent > 100000
+
+    return {
+        "tenant_name":     tenant_name,
+        "landlord_name":   landlord_name,
+        "landlord_pan":    landlord_pan,
+        "property_address": property_address,
+        "monthly_rent":    monthly_rent,
+        "total_months":    len(receipts),
+        "annual_rent":     annual_rent,
+        "receipts":        receipts,
+        "pan_required":    pan_required,
+        "pan_note":        "Landlord PAN mandatory when annual rent >₹1 lakh (per IT rules)" if pan_required else "PAN not mandatory (rent <₹1L/year) but good practice",
+        "hra_note":        f"Annual rent paid: ₹{annual_rent:,.0f}. Employee can claim HRA exemption under Sec 10(13A). Submit these receipts to employer for Form 16 adjustment.",
+        "ca_notes": [
+            "TDS @10% on rent if monthly rent >₹50,000 (Sec 194-IB — applicable to individuals/HUF)",
+            "Landlord must declare rent income in ITR; ensure PAN is correct",
+            "Receipts must be physically signed by landlord — stamp not mandatory but advisable",
+            "For HRA >₹1L/year, Form 12BB must be submitted to employer with PAN of landlord",
+        ],
+    }
+
+
+def _num_to_words(n: float) -> str:
+    ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
+            "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen",
+            "Seventeen","Eighteen","Nineteen"]
+    tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
+    n = int(n)
+    if n == 0: return "Zero"
+    if n < 20: return ones[n]
+    if n < 100: return tens[n//10] + (" " + ones[n%10] if n%10 else "")
+    if n < 1000: return ones[n//100] + " Hundred" + (" " + _num_to_words(n%100) if n%100 else "")
+    if n < 100000: return _num_to_words(n//1000) + " Thousand" + (" " + _num_to_words(n%1000) if n%1000 else "")
+    if n < 10000000: return _num_to_words(n//100000) + " Lakh" + (" " + _num_to_words(n%100000) if n%100000 else "")
+    return _num_to_words(n//10000000) + " Crore" + (" " + _num_to_words(n%10000000) if n%10000000 else "")
+
+
+# ── Final Round: HRA & 80C Investment Planner ────────────────────────────────
+
+_80C_INSTRUMENTS = {
+    "ELSS":         {"name":"ELSS Mutual Fund",         "lock_in":"3 years",  "return":"12–15% (market-linked)", "limit":150000, "risk":"High"},
+    "PPF":          {"name":"Public Provident Fund",     "lock_in":"15 years", "return":"7.1% (tax-free)",        "limit":150000, "risk":"Low"},
+    "EPF":          {"name":"Employee Provident Fund",   "lock_in":"Till retirement","return":"8.25%",            "limit":150000, "risk":"Nil"},
+    "NPS_80CCD1B":  {"name":"NPS (Sec 80CCD(1B))",      "lock_in":"Till 60",  "return":"10–12%",                 "limit":50000,  "risk":"Medium", "extra_deduction":True},
+    "NSC":          {"name":"National Savings Certificate","lock_in":"5 years","return":"7.7%",                   "limit":150000, "risk":"Nil"},
+    "SCSS":         {"name":"Senior Citizen Savings Scheme","lock_in":"5 years","return":"8.2%",                  "limit":1500000,"risk":"Nil"},
+    "Tax_FD":       {"name":"5-Year Tax Saver FD",       "lock_in":"5 years", "return":"6.5–7.5%",               "limit":150000, "risk":"Nil"},
+    "LIC_premium":  {"name":"Life Insurance Premium",    "lock_in":"Policy tenure","return":"4–6%",               "limit":150000, "risk":"Low"},
+    "Sukanya":      {"name":"Sukanya Samriddhi Yojana",  "lock_in":"Till girl's 21","return":"8.2% (tax-free)",   "limit":150000, "risk":"Nil"},
+    "Home_loan":    {"name":"Home Loan Principal Repayment","lock_in":"N/A",  "return":"Asset appreciation",      "limit":150000, "risk":"Low"},
+    "tuition":      {"name":"Children's Tuition Fee",    "lock_in":"N/A",     "return":"N/A",                     "limit":150000, "risk":"Nil"},
+}
+
+_OTHER_DEDUCTIONS = {
+    "80D":      {"name":"Health Insurance Premium",   "limit_self":25000, "limit_parents":50000, "note":"₹5,000 extra for preventive health checkup"},
+    "80E":      {"name":"Education Loan Interest",    "limit":"No cap",   "note":"Only interest component; 8 consecutive years"},
+    "80EE":     {"name":"Home Loan Interest (first-time buyer)","limit":50000,"note":"Loan <₹35L, property value <₹50L"},
+    "80G":      {"name":"Charitable Donations",       "limit":"50% or 100% of donation","note":"Only approved institutions; keep Form 10BE"},
+    "80TTA":    {"name":"Savings Bank Interest",      "limit":10000,      "note":"Savings account interest only (not FD)"},
+    "80TTB":    {"name":"Senior Citizen Interest",    "limit":50000,      "note":"For 60+ years; includes FD interest"},
+    "24B":      {"name":"Home Loan Interest",         "limit":200000,     "note":"Self-occupied: ₹2L cap. Let-out: no cap."},
+    "HRA":      {"name":"HRA Exemption (Sec 10(13A))","limit":"Least of 3 conditions","note":"Min of: (i) actual HRA, (ii) 50%/40% of basic, (iii) actual rent minus 10% of basic"},
+}
+
+
+def generate_hra_80c_planner(
+    employee_name: str,
+    basic_salary_annual: float,
+    hra_received_annual: float,
+    rent_paid_annual: float,
+    city_type: str = "metro",
+    existing_80c_investments: dict = None,
+    health_insurance_self: float = 0,
+    health_insurance_parents: float = 0,
+    home_loan_interest: float = 0,
+    home_loan_principal: float = 0,
+    education_loan_interest: float = 0,
+    nps_contribution: float = 0,
+    language: str = "en",
+) -> dict:
+    existing = existing_80c_investments or {}
+
+    # HRA Calculation
+    hra_metro_pct   = 0.50 if city_type == "metro" else 0.40
+    hra_condition1  = hra_received_annual
+    hra_condition2  = basic_salary_annual * hra_metro_pct
+    hra_condition3  = max(0, rent_paid_annual - basic_salary_annual * 0.10)
+    hra_exempt      = min(hra_condition1, hra_condition2, hra_condition3)
+    hra_taxable     = hra_received_annual - hra_exempt
+
+    # 80C Planning
+    limit_80c       = 150000
+    invested_80c    = sum(existing.values())
+    remaining_80c   = max(0, limit_80c - invested_80c - home_loan_principal)
+    total_80c       = min(limit_80c, invested_80c + home_loan_principal)
+
+    # Suggest top-up instruments
+    suggestions = []
+    if remaining_80c > 0:
+        for code, inst in _80C_INSTRUMENTS.items():
+            if code not in existing and code != "Home_loan":
+                suggestions.append({
+                    "instrument":  inst["name"],
+                    "suggested_amount": min(remaining_80c, inst["limit"]),
+                    "lock_in":     inst["lock_in"],
+                    "return":      inst["return"],
+                    "risk":        inst["risk"],
+                })
+                if len(suggestions) >= 3:
+                    break
+
+    # NPS extra deduction 80CCD(1B)
+    nps_extra = min(nps_contribution, 50000)
+
+    # 80D
+    d80_self    = min(health_insurance_self, 25000)
+    d80_parents = min(health_insurance_parents, 50000)
+
+    # 24B
+    d24b = min(home_loan_interest, 200000)
+
+    # Education loan
+    d80e = education_loan_interest
+
+    total_deductions = total_80c + nps_extra + d80_self + d80_parents + d24b + d80e
+
+    return {
+        "employee_name":        employee_name,
+        "basic_annual":         basic_salary_annual,
+        "city_type":            city_type,
+        "hra_calculation": {
+            "hra_received":    hra_received_annual,
+            "condition_1_hra": hra_condition1,
+            "condition_2_pct": hra_condition2,
+            "condition_3_rent_minus_10pct": hra_condition3,
+            "hra_exempt":      hra_exempt,
+            "hra_taxable":     hra_taxable,
+            "basis":           f"{'50%' if city_type=='metro' else '40%'} of basic for {city_type} city",
+        },
+        "80c_summary": {
+            "existing_investments": existing,
+            "home_loan_principal":  home_loan_principal,
+            "total_80c_claimed":    total_80c,
+            "limit":                limit_80c,
+            "remaining_gap":        remaining_80c,
+        },
+        "top_up_suggestions":   suggestions,
+        "nps_80ccd1b":          {"contributed": nps_contribution, "deduction": nps_extra, "max": 50000},
+        "other_deductions": {
+            "80D_self":         d80_self,
+            "80D_parents":      d80_parents,
+            "24B_home_interest":d24b,
+            "80E_edu_loan":     d80e,
+        },
+        "total_deductions":     total_deductions,
+        "all_instruments":      _80C_INSTRUMENTS,
+        "all_other_deductions": _OTHER_DEDUCTIONS,
+        "ca_notes": [
+            "Submit Form 12BB to employer before March 10 to avoid TDS mismatch",
+            "HRA exemption cannot be claimed if living in own property or no rent paid",
+            "Landlord PAN mandatory if annual rent >₹1 lakh",
+            "NPS 80CCD(1B) ₹50,000 is OVER AND ABOVE the ₹1.5L 80C limit — powerful deduction",
+            "ELSS has shortest lock-in (3 years) among 80C options — best for young investors",
+            "Old regime is better if total deductions >₹3.75L (for ₹15L+ salary) — calculate both before filing",
+        ],
+    }
 
 
 def generate_gstr_assistant(

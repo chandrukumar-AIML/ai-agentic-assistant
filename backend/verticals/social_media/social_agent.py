@@ -2046,18 +2046,6 @@ async def social_agent(
             language=language,
         )
 
-    elif action == "whatsapp_content":
-        return await generate_whatsapp_content(
-            content_type=payload.get("content_type", "broadcast"),
-            brand_name=payload.get("brand_name", ""),
-            industry=payload.get("industry", ""),
-            product_name=payload.get("product_name", ""),
-            offer=payload.get("offer", ""),
-            customer_name=payload.get("customer_name", "Customer"),
-            language=language,
-            tone=payload.get("tone", "friendly"),
-        )
-
     elif action == "content_scheduler":
         return await plan_content_scheduler(
             brand_name=payload.get("brand_name", ""),
@@ -2066,6 +2054,19 @@ async def social_agent(
             days=int(payload.get("days", 7)),
             goal=payload.get("goal", "brand awareness"),
             audience=payload.get("audience", "general"),
+            language=language,
+        )
+
+    elif action == "festive_post":
+        return generate_festive_post(
+            brand_name=payload.get("brand_name", ""),
+            festival=payload.get("festival", "diwali"),
+            post_angle=payload.get("post_angle", "appreciation"),
+            industry=payload.get("industry", "general"),
+            offer_text=payload.get("offer_text", ""),
+            tip_text=payload.get("tip_text", ""),
+            prize_text=payload.get("prize_text", ""),
+            custom_festival_name=payload.get("custom_festival_name", ""),
             language=language,
         )
 
@@ -2255,17 +2256,6 @@ async def social_agent(
             episode_url=payload.get("episode_url", ""),
             industry=payload.get("industry", ""),
             target_audience=payload.get("target_audience", ""),
-        )
-
-    elif action == "twitter_thread":
-        return generate_twitter_thread(
-            topic=payload.get("topic", ""),
-            brand_name=payload.get("brand_name", ""),
-            industry=payload.get("industry", ""),
-            audience=payload.get("audience", ""),
-            num_tweets=int(payload.get("num_tweets", 10) or 10),
-            style=payload.get("style", "educational"),
-            include_cta=bool(payload.get("include_cta", True)),
         )
 
     elif action == "linkedin_carousel":
@@ -3277,6 +3267,64 @@ _THREAD_ENGAGEMENT_TIPS = [
     "Best time to post threads: Tuesday–Thursday, 7–9am or 5–7pm IST",
     "Quote-tweet your thread in a summary tweet 3 days later for second wind",
 ]
+
+
+def generate_festive_post(
+    brand_name: str,
+    festival: str = "diwali",
+    post_angle: str = "appreciation",
+    industry: str = "general",
+    offer_text: str = "",
+    tip_text: str = "",
+    prize_text: str = "",
+    custom_festival_name: str = "",
+    language: str = "en",
+) -> dict:
+    fest = _FESTIVE_CALENDAR.get(festival, _FESTIVE_CALENDAR["custom"])
+    fest_name = custom_festival_name if festival == "custom" else fest["name"]
+    emoji = fest["emoji"]
+    vibe  = fest["vibe"]
+
+    scripts = _FESTIVE_SCRIPTS.get(festival, _FESTIVE_SCRIPTS["generic"])
+    template = scripts.get(post_angle, _FESTIVE_SCRIPTS["generic"].get(post_angle, _FESTIVE_SCRIPTS["generic"]["appreciation"]))
+
+    post_text = template.format(
+        brand=brand_name, festival=fest_name, emoji=emoji, vibe=vibe,
+        industry=industry, offer=offer_text or "Exclusive festival discount",
+        tip=tip_text or f"Plan your {industry} goals for the coming year",
+        prize=prize_text or "exciting goodies", draw_date="after the festival",
+        years="78", topic=fest_name,
+    )
+
+    return {
+        "brand_name":    brand_name,
+        "festival":      fest_name,
+        "emoji":         emoji,
+        "month":         fest["month"],
+        "vibe":          vibe,
+        "post_angle":    post_angle,
+        "post_text":     post_text,
+        "hashtags":      fest["hashtags"],
+        "full_post":     f"{post_text}\n\n{' '.join(fest['hashtags'][:6])}",
+        "platform_tips": {
+            "instagram": "Post 30 min before prime time (7–9pm). Add to Stories with countdown sticker.",
+            "facebook":  "Boost post to 10km radius for ₹200–500/day — festive CPMs are high but conversions too.",
+            "whatsapp":  "Send to broadcast list — festive forwards have highest open rates of the year.",
+            "linkedin":  "Brand story angle works best on LinkedIn — keep it professional yet warm.",
+        },
+        "posting_schedule": {
+            "eve":       f"Appreciation / brand story the day before {fest_name}",
+            "day_of":    f"Offer / contest on {fest_name} morning (7–9am)",
+            "follow_up": "Thank you story 2 days after",
+        },
+        "design_tips": [
+            f"Use {vibe.split(',')[0]} color palette — match the festival mood",
+            "Add your logo at bottom right corner",
+            "Use festive frames/borders from Canva — free templates available",
+            "Keep text minimal — let the visual carry the emotion",
+        ],
+        "all_angles": {k: v for k, v in _FESTIVE_POST_ANGLES.items()},
+    }
 
 
 def generate_twitter_thread(
@@ -4887,7 +4935,7 @@ What's your biggest challenge with {topic_short.lower()}? Drop it below 👇
     }
 
 
-def generate_twitter_thread(
+def _generate_twitter_thread_legacy(
     topic: str,
     brand_name: str,
     industry: str,
