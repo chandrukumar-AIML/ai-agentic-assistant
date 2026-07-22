@@ -1,0 +1,23 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",   # line too long — handled by formatter
+    "F401",   # unused import — some are re-exports
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/verticals/*/_impl.py" = ["F811"]  # dispatcher pattern has many similar names
+
+[tool.pytest.ini_options]
+testpaths = ["qa", "tests"]
+python_files = ["qa_*.py", "test_*.py"]
+python_functions = ["test_*"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true

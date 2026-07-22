@@ -2,12 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, main, develop]
   pull_request:
-    branches: [main]
+    branches: [master, main]
 
 jobs:
-  test:
+  backend-test:
+    name: Backend — Tests + QA
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,19 +18,51 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+
       - name: Install dependencies
         run: |
           pip install -r backend/requirements.txt
           pip install pytest pytest-asyncio httpx
 
-      - name: Run tests
+      - name: Run unit tests
         env:
           APP_ENV: test
-          JWT_SECRET: test-secret-32-chars-minimum-ok
+          JWT_SECRET: ci-test-secret-32-chars-minimum-ok
           OPENAI_API_KEY: sk-test
+          DEMO_MODE: "true"
         run: pytest backend/tests/ -v --tb=short
 
+      - name: Start backend for QA
+        env:
+          JWT_SECRET: ci-test-secret-32-chars-minimum-ok
+          APP_ENV: development
+          DEMO_MODE: "true"
+        run: |
+          uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
+          sleep 6
+          curl -f http://localhost:8000/api/health
+
+      - name: Run CS Agent QA (37 actions)
+        env:
+          JWT_SECRET: ci-test-secret-32-chars-minimum-ok
+          APP_ENV: development
+          DEMO_MODE: "true"
+        run: python qa/qa_cs_full.py
+
+      - name: Run CA Agent QA (40 actions)
+        env:
+          JWT_SECRET: ci-test-secret-32-chars-minimum-ok
+          APP_ENV: development
+          DEMO_MODE: "true"
+        run: python qa/qa_ca_full.py
+
   lint:
+    name: Lint (ruff)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,3 +71,16 @@ jobs:
           python-version: "3.11"
       - run: pip install ruff
       - run: ruff check backend/ --select E,W,F --ignore E501
+
+  frontend:
+    name: Frontend — Type Check + Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: cd frontend && npm ci
+      - run: cd frontend && npm run build
