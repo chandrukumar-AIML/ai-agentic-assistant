@@ -953,6 +953,18 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "partnership_deed":
+        return generate_partnership_deed(
+            firm_name=payload.get("firm_name", ""),
+            business_nature=payload.get("business_nature", ""),
+            registered_address=payload.get("registered_address", ""),
+            commencement_date=payload.get("commencement_date", ""),
+            duration=payload.get("duration", "at_will"),
+            partners=payload.get("partners", []),
+            profit_loss_ratio=payload.get("profit_loss_ratio", ""),
+            bank_name=payload.get("bank_name", ""),
+            language=language,
+        )
     elif action == "advance_tax":
         return generate_advance_tax(
             taxpayer_name=payload.get("taxpayer_name", ""),
@@ -2806,6 +2818,133 @@ def _calc_tax_on_slabs(income: float, slabs: list) -> float:
         if remaining <= 0:
             break
     return tax
+
+
+# ── R24: Partnership Deed Generator ──────────────────────────────────────────
+
+_DEED_CLAUSES = {
+    "nature_of_business": "The partners shall carry on the business of {business_nature} under the firm name '{firm_name}'.",
+    "commencement":       "The partnership shall commence on {commencement_date} and shall continue {duration_clause}.",
+    "capital":            "Each partner shall contribute capital as agreed and specified in Schedule A. Additional capital may be introduced by unanimous consent.",
+    "profit_loss":        "The net profits and losses of the firm shall be shared among the partners in the following ratio: {profit_loss_ratio}.",
+    "interest_on_capital":"Interest on capital shall be allowed at the rate of {interest_rate}% per annum as per Section 40(b) of the Income Tax Act, 1961.",
+    "partner_salary":     "Working partners shall be entitled to salary/remuneration as agreed and within limits prescribed under Section 40(b) of the Income Tax Act.",
+    "drawings":           "Each partner may draw from the firm account such amounts as agreed, subject to the firm's working capital requirements.",
+    "bank_operations":    "The firm's bank account at {bank_name} shall be operated jointly by any two partners / by {managing_partner}.",
+    "books_of_accounts":  "Proper books of accounts shall be maintained at the principal place of business and shall be open for inspection by all partners.",
+    "audit":              "The accounts of the firm shall be audited annually by a Chartered Accountant appointed by mutual consent.",
+    "admission":          "No new partner shall be admitted into the firm without the written consent of all existing partners.",
+    "retirement":         "Any partner wishing to retire shall give [3 months] written notice to the other partners.",
+    "death_dissolution":  "In the event of death or insolvency of a partner, the remaining partners shall have the option to purchase the deceased/insolvent partner's share at fair value.",
+    "arbitration":        "Any dispute arising between the partners shall be referred to arbitration under the Arbitration and Conciliation Act, 1996.",
+    "governing_law":      "This deed shall be governed by the Indian Partnership Act, 1932 and the laws in force in the State of {state}.",
+}
+
+_DURATION_CLAUSES = {
+    "at_will":   "until dissolved by mutual consent or as per the provisions of this deed",
+    "fixed":     "for a fixed term of {term} years from the date of commencement",
+    "project":   "until the completion of the project for which it was formed",
+}
+
+_STAMP_DUTY_BY_STATE = {
+    "Maharashtra": "₹500 stamp paper",
+    "Karnataka":   "₹200 stamp paper",
+    "Tamil Nadu":  "₹100 stamp paper",
+    "Delhi":       "₹1,000 stamp paper",
+    "Gujarat":     "₹300 stamp paper",
+    "Telangana":   "₹200 stamp paper",
+    "default":     "stamp paper as per state stamp duty act",
+}
+
+
+def generate_partnership_deed(
+    firm_name: str,
+    business_nature: str,
+    registered_address: str,
+    commencement_date: str,
+    duration: str = "at_will",
+    partners: list = None,
+    profit_loss_ratio: str = "",
+    bank_name: str = "",
+    language: str = "en",
+) -> dict:
+    partners = partners or []
+    state = registered_address.split(",")[-1].strip() if registered_address else "Maharashtra"
+    stamp = _STAMP_DUTY_BY_STATE.get(state, _STAMP_DUTY_BY_STATE["default"])
+    managing_partner = partners[0].get("name", "Partner 1") if partners else "designated partner"
+
+    duration_clause = _DURATION_CLAUSES.get(duration, _DURATION_CLAUSES["at_will"])
+    interest_rate = 12  # Section 40(b) limit
+
+    # Build partner schedule
+    partner_schedule = []
+    for i, p in enumerate(partners):
+        partner_schedule.append({
+            "sl_no": i + 1,
+            "name": p.get("name", f"Partner {i+1}"),
+            "father_name": p.get("father_name", ""),
+            "address": p.get("address", ""),
+            "pan": p.get("pan", ""),
+            "capital_contribution": p.get("capital", "As agreed"),
+            "profit_share": p.get("profit_share", f"{100 // max(len(partners), 1)}%"),
+            "designation": p.get("designation", "Partner"),
+        })
+
+    # Auto profit ratio if not given
+    if not profit_loss_ratio and partners:
+        shares = [p.get("profit_share", f"{100//len(partners)}%") for p in partners]
+        profit_loss_ratio = " : ".join(s.replace("%","") for s in shares)
+
+    # Build clauses
+    filled_clauses = {}
+    for key, template in _DEED_CLAUSES.items():
+        filled = template.format(
+            firm_name=firm_name, business_nature=business_nature,
+            commencement_date=commencement_date, duration_clause=duration_clause,
+            profit_loss_ratio=profit_loss_ratio, interest_rate=interest_rate,
+            bank_name=bank_name or "as decided by partners",
+            managing_partner=managing_partner, state=state,
+        )
+        filled_clauses[key] = filled
+
+    # Registration checklist
+    registration_checklist = [
+        f"Execute deed on {stamp}",
+        "All partners sign in presence of witnesses",
+        "Get deed notarised",
+        "Apply for firm registration at Registrar of Firms (optional but recommended)",
+        "Apply for PAN for the firm (Form 49A)",
+        "Open current account in firm's name",
+        "Apply for GST registration if turnover exceeds threshold",
+        "Obtain relevant trade/shop licences",
+        "File partnership deed with Income Tax Dept if firm wants to claim 40(b) deductions",
+    ]
+
+    return {
+        "firm_name": firm_name,
+        "business_nature": business_nature,
+        "registered_address": registered_address,
+        "commencement_date": commencement_date,
+        "duration": duration,
+        "partner_count": len(partners),
+        "partner_schedule": partner_schedule,
+        "profit_loss_ratio": profit_loss_ratio,
+        "clauses": filled_clauses,
+        "stamp_duty": stamp,
+        "registration_checklist": registration_checklist,
+        "key_sections": [
+            "Indian Partnership Act, 1932 — Sec 4 (Definition), Sec 58 (Registration)",
+            "Income Tax Act, 1961 — Sec 40(b) (Partner salary/interest limits)",
+            "GST Act — Firm treated as separate taxable person",
+        ],
+        "ca_notes": [
+            "Register the firm even though optional — avoids disputes and enables legal action against debtors",
+            "Specify exact remuneration figures in deed to claim 40(b) deduction",
+            "Interest on capital cannot exceed 12% per annum as per Sec 40(b)",
+            "Deed must be signed before commencement date for it to be effective from day 1",
+            "All partners must have PAN; firm must apply for separate PAN",
+        ],
+    }
 
 
 def generate_advance_tax(

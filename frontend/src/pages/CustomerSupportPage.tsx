@@ -68,6 +68,7 @@ const TABS = [
   { id: 'analytics',     label: 'Support Analytics' },
   { id: 'returns_policy', label: 'Returns Policy' },
   { id: 'chatbot',        label: 'Chatbot Builder' },
+  { id: 'agent_training', label: 'Agent Training' },
 ]
 
 const WA_TYPES = [
@@ -1326,6 +1327,7 @@ export default function CustomerSupportPage() {
         {tab === 'winback_campaign'  && <WinBackTab lang={lang} />}
         {tab === 'returns_policy'    && <ReturnsPolicyTab lang={lang} />}
         {tab === 'chatbot'           && <ChatbotBuilderTab lang={lang} />}
+        {tab === 'agent_training'    && <AgentTrainingTab lang={lang} />}
         {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
         {tab === 'cx360'          && <Customer360Tab lang={lang} />}
         {tab === 'analytics'      && <SupportAnalyticsTab lang={lang} />}
@@ -4095,6 +4097,145 @@ export function SupportAnalyticsTab({ lang }: { lang: string }) {
 const CB_INDUSTRIES = ['ecommerce','services','education','health','real_estate','restaurant','finance','retail']
 const CB_PLATFORMS  = [{value:'whatsapp',label:'WhatsApp Business'},{value:'website',label:'Website Chat'},{value:'instagram',label:'Instagram DM'}]
 const CB_TONES      = ['friendly','professional','formal']
+
+// ── R24: Agent Training Manual ────────────────────────────────────────────────
+export function AgentTrainingTab({ lang }: { lang: string }) {
+  const [atCompany,   setAtCompany]   = useState('')
+  const [atIndustry,  setAtIndustry]  = useState('ecommerce')
+  const [atTone,      setAtTone]      = useState('friendly')
+  const [atChannels,  setAtChannels]  = useState<string[]>(['chat','email'])
+  const [atRes,       setAtRes]       = useState<any>(null)
+  const [atLoading,   setAtLoading]   = useState(false)
+  const [atErr,       setAtErr]       = useState('')
+
+  const toggleChannel = (ch: string) =>
+    setAtChannels(c => c.includes(ch) ? c.filter(x => x !== ch) : [...c, ch])
+
+  const generate = async () => {
+    if (!atCompany.trim()) { setAtErr('Enter company name'); return }
+    setAtLoading(true); setAtErr(''); setAtRes(null)
+    try {
+      const r = await csAction('agent_training', {
+        company_name: atCompany, industry: atIndustry, tone: atTone, support_channels: atChannels,
+      }, lang)
+      setAtRes(r)
+    } catch (e: any) { setAtErr(e.message || 'Error') }
+    finally { setAtLoading(false) }
+  }
+
+  const channels = ['chat','email','phone','whatsapp','social']
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">🎓 Agent Training Manual Generator</h2>
+      <p className="tool-desc">Create a complete onboarding & training manual for your customer support team.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Company Name</label>
+          <input value={atCompany} onChange={e=>setAtCompany(e.target.value)} placeholder="Your Company Name" /></div>
+        <div className="form-group"><label>Industry</label>
+          <select value={atIndustry} onChange={e=>setAtIndustry(e.target.value)}>
+            {['ecommerce','saas','banking','general'].map(x =>
+              <option key={x} value={x}>{x.charAt(0).toUpperCase()+x.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Agent Tone</label>
+          <select value={atTone} onChange={e=>setAtTone(e.target.value)}>
+            {['friendly','professional','formal','neutral'].map(x =>
+              <option key={x} value={x}>{x.charAt(0).toUpperCase()+x.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group full">
+          <label>Support Channels</label>
+          <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',marginTop:'0.25rem'}}>
+            {channels.map(ch => (
+              <label key={ch} style={{display:'flex',alignItems:'center',gap:'0.3rem',cursor:'pointer'}}>
+                <input type="checkbox" checked={atChannels.includes(ch)} onChange={()=>toggleChannel(ch)} />
+                {ch.charAt(0).toUpperCase()+ch.slice(1)}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {atErr && <div className="error-box">{atErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={atLoading}>
+        {atLoading ? 'Generating…' : 'Generate Training Manual'}
+      </button>
+
+      {atRes && (
+        <div className="result-box">
+          <h3>{atRes.company_name} — Agent Training Manual</h3>
+          <p><strong>Industry:</strong> {atRes.industry} | <strong>Tone:</strong> {atRes.tone} | <strong>Channels:</strong> {(atRes.support_channels||[]).join(', ')}</p>
+
+          <div className="ca-section">
+            <h4>Onboarding Timeline</h4>
+            {(atRes.onboarding_timeline||[]).map((t: any, i: number) => (
+              <div key={i} style={{display:'flex',gap:'1rem',marginBottom:'0.4rem'}}>
+                <span style={{minWidth:'90px',fontWeight:600,color:'var(--accent)'}}>{t.day}</span>
+                <span>{t.activity}</span>
+              </div>
+            ))}
+          </div>
+
+          {Object.entries(atRes.modules||{}).map(([mod, content]: any) => (
+            <div key={mod} className="ca-section">
+              <h4>{mod}</h4>
+              {content.description && <p>{content.description}</p>}
+              {content.checklist && <ul>{content.checklist.map((c: string, i: number) => <li key={i}>☐ {c}</li>)}</ul>}
+              {content.scripts && (
+                <div style={{background:'var(--bg-secondary)',padding:'0.75rem',borderRadius:'8px',marginTop:'0.5rem'}}>
+                  <p><strong>Greeting:</strong> {content.scripts.greeting}</p>
+                  <p><strong>Apology:</strong> {content.scripts.apology}</p>
+                  <p><strong>Closing:</strong> {content.scripts.closing}</p>
+                </div>
+              )}
+              {content.matrix && (
+                <div style={{overflowX:'auto'}}>
+                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.85rem',marginTop:'0.5rem'}}>
+                    <thead><tr style={{background:'var(--bg-secondary)'}}>
+                      {['Level','Who','Handles','Escalate When'].map(h => <th key={h} style={{padding:'0.4rem',textAlign:'left'}}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {content.matrix.map((m: any, i: number) => (
+                        <tr key={i} style={{borderTop:'1px solid var(--border-color)'}}>
+                          <td style={{padding:'0.4rem',fontWeight:600}}>{m.level}</td>
+                          <td style={{padding:'0.4rem'}}>{m.who}</td>
+                          <td style={{padding:'0.4rem'}}>{m.handles}</td>
+                          <td style={{padding:'0.4rem'}}>{m.escalate_when}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {content.scenarios && content.scenarios.map((s: any, i: number) => (
+                <div key={i} style={{background:'var(--bg-secondary)',padding:'0.6rem',borderRadius:'6px',marginTop:'0.4rem'}}>
+                  <strong>{s.title}</strong>
+                  <p style={{fontSize:'0.85rem'}}>Customer: "{s.customer}"</p>
+                  <p style={{fontSize:'0.85rem'}}>✅ {s.ideal_response}</p>
+                </div>
+              ))}
+              {content.assessment && <ul>{content.assessment.map((a: string, i: number) => <li key={i}>{a}</li>)}</ul>}
+              {content.certification_validity && <p><strong>Validity:</strong> {content.certification_validity}</p>}
+            </div>
+          ))}
+
+          <div className="form-grid" style={{marginTop:'1rem'}}>
+            <div className="ca-section">
+              <h4>✅ Do's</h4>
+              <ul>{(atRes.dos||[]).map((d: string, i: number) => <li key={i}>{d}</li>)}</ul>
+            </div>
+            <div className="ca-section">
+              <h4>❌ Don'ts</h4>
+              <ul>{(atRes.donts||[]).map((d: string, i: number) => <li key={i}>{d}</li>)}</ul>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function ChatbotBuilderTab({ lang }: { lang: string }) {
   const [cbBiz,    setCbBiz]    = useState('')

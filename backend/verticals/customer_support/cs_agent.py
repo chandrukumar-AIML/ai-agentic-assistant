@@ -560,6 +560,15 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "agent_training":
+            return generate_agent_training_manual(
+                company_name=payload.get("company_name", ""),
+                industry=payload.get("industry", "general"),
+                support_channels=payload.get("support_channels", ["chat", "email"]),
+                tone=payload.get("tone", "friendly"),
+                language=language,
+            )
+
         elif action == "chatbot_script":
             return generate_chatbot_script(
                 business_name=payload.get("business_name", ""),
@@ -2904,6 +2913,195 @@ _CHATBOT_INDUSTRY_FAQS = {
 }
 
 _CHATBOT_ESCALATION_TRIGGERS = ["human", "agent", "help", "manager", "complaint", "urgent", "problem", "issue", "not working", "refund stuck"]
+
+
+# ── R24: Agent Training Manual Generator ─────────────────────────────────────
+
+_ATM_MODULES = [
+    "Company & Product Overview",
+    "Communication Standards",
+    "Handling Common Queries",
+    "Escalation Protocol",
+    "Tools & Systems",
+    "Performance Metrics",
+    "Role Play Scenarios",
+    "Assessment & Certification",
+]
+
+_ATM_TONE_GUIDE = {
+    "formal": {
+        "greeting": "Good [morning/afternoon], thank you for contacting [Company]. My name is [Agent Name]. How may I assist you today?",
+        "apology":  "I sincerely apologise for the inconvenience caused. Allow me to resolve this at the earliest.",
+        "closing":  "Thank you for contacting us. Is there anything else I may assist you with today?",
+    },
+    "friendly": {
+        "greeting": "Hi! Welcome to [Company] support. I'm [Agent Name]. What can I help you with today? 😊",
+        "apology":  "Oh, I'm really sorry about that! Let me sort this out for you right away.",
+        "closing":  "Great talking to you! Feel free to reach out anytime. Have a wonderful day! 🌟",
+    },
+    "neutral": {
+        "greeting": "Hello, thank you for reaching out to [Company]. How can I help you?",
+        "apology":  "I apologise for the trouble. Let me look into this for you.",
+        "closing":  "Thank you for contacting support. Have a good day.",
+    },
+}
+
+_ATM_SCENARIOS = {
+    "ecommerce": [
+        {"title": "Order not received", "customer": "I ordered 5 days ago but haven't received my package.", "ideal_response": "Apologise → Check order status → Confirm address → Initiate trace with courier → Give ETA or initiate replacement."},
+        {"title": "Wrong item delivered", "customer": "I received the wrong product!", "ideal_response": "Apologise → Take photo evidence → Arrange reverse pickup → Dispatch correct item → Follow up."},
+        {"title": "Refund not credited", "customer": "My refund hasn't come after 10 days.", "ideal_response": "Apologise → Check refund status → Verify bank details → Escalate to finance if TAT breached."},
+    ],
+    "saas": [
+        {"title": "Login issue", "customer": "I can't log into my account.", "ideal_response": "Verify identity → Try password reset → Check account status → Escalate to tech if issue persists."},
+        {"title": "Feature not working", "customer": "The export feature stopped working.", "ideal_response": "Reproduce the issue → Check known bugs → Provide workaround → Log ticket with ETA."},
+        {"title": "Billing dispute", "customer": "I was charged twice this month.", "ideal_response": "Verify payment records → Confirm duplicate charge → Initiate refund → Send confirmation email."},
+    ],
+    "banking": [
+        {"title": "Transaction failed but amount debited", "customer": "Money deducted but transaction shows failed.", "ideal_response": "Calm the customer → Check transaction logs → If confirmed debit without credit, raise reversal ticket → Give 3–5 working day timeline."},
+        {"title": "Card blocked", "customer": "My debit card is not working.", "ideal_response": "Verify identity → Check card status → Unblock if low risk → Advise on re-PIN → Offer temp limit increase if needed."},
+    ],
+    "general": [
+        {"title": "Angry customer", "customer": "This is absolutely pathetic service!", "ideal_response": "Stay calm → Acknowledge frustration → Do NOT argue → Offer solution → Escalate if needed."},
+        {"title": "Request out of scope", "customer": "Can you do XYZ for me?", "ideal_response": "Politely explain scope → Suggest right channel → Do not leave customer without next step."},
+    ],
+}
+
+_ATM_KPIs = {
+    "FCR":    {"name": "First Contact Resolution", "target": ">80%", "description": "Issues resolved in the first interaction without follow-up"},
+    "AHT":    {"name": "Average Handle Time",       "target": "<4 min (chat), <6 min (call)", "description": "Time from contact start to resolution"},
+    "CSAT":   {"name": "Customer Satisfaction",     "target": ">4.2/5", "description": "Post-interaction survey score"},
+    "QA":     {"name": "Quality Assurance Score",   "target": ">90%", "description": "Internal call/chat audit score"},
+    "ABN":    {"name": "Abandonment Rate",          "target": "<5%", "description": "% of customers who leave before being served"},
+    "TAT":    {"name": "Turnaround Time",           "target": "As per SLA", "description": "Time to resolve complex/escalated issues"},
+}
+
+_ATM_DO_DONTS = {
+    "do": [
+        "Always greet and introduce yourself",
+        "Use the customer's name at least once",
+        "Listen fully before responding",
+        "Verify identity before accessing account details",
+        "Set realistic expectations on timelines",
+        "Confirm resolution before closing the chat",
+        "Document all interactions in CRM",
+        "Follow escalation matrix without hesitation",
+    ],
+    "dont": [
+        "Don't promise what you cannot deliver",
+        "Don't argue or become defensive",
+        "Don't keep the customer on hold without updates",
+        "Don't share sensitive data without proper verification",
+        "Don't close a ticket without customer confirmation",
+        "Don't use jargon the customer won't understand",
+        "Don't let negative customer energy affect your tone",
+        "Don't skip the greeting or closing scripts",
+    ],
+}
+
+_ATM_ESCALATION_MATRIX = [
+    {"level": "L1", "who": "Front-line Agent",     "handles": "Standard queries, FAQs, basic troubleshooting", "escalate_when": "Cannot resolve in 2 attempts or customer requests supervisor"},
+    {"level": "L2", "who": "Senior Agent / TL",    "handles": "Complex issues, billing disputes, repeat contacts", "escalate_when": "Legal/compliance risk or unresolved after 24h"},
+    {"level": "L3", "who": "Manager / Specialist", "handles": "Escalated complaints, fraud, SLA breach cases", "escalate_when": "Threat of legal action or media"},
+    {"level": "L4", "who": "Leadership",           "handles": "PR risk, regulatory issues, executive escalations", "escalate_when": "Viral complaints or regulatory notice"},
+]
+
+
+def generate_agent_training_manual(
+    company_name: str,
+    industry: str,
+    support_channels: list = None,
+    tone: str = "friendly",
+    language: str = "en",
+) -> dict:
+    support_channels = support_channels or ["chat", "email"]
+    scenarios = _ATM_SCENARIOS.get(industry, _ATM_SCENARIOS["general"])
+    tone_guide = _ATM_TONE_GUIDE.get(tone, _ATM_TONE_GUIDE["neutral"])
+
+    module_content = {}
+    for mod in _ATM_MODULES:
+        if mod == "Company & Product Overview":
+            module_content[mod] = {
+                "description": "Agents must know the company, its products, pricing, and policies before taking any live interactions.",
+                "checklist": [
+                    f"Read {company_name} company overview document",
+                    "Complete product walkthrough / demo",
+                    "Study pricing tiers and key plans",
+                    "Memorise top 10 FAQs for the product",
+                    "Understand refund and return policy",
+                ],
+            }
+        elif mod == "Communication Standards":
+            module_content[mod] = {
+                "description": "All agents must maintain consistent, professional, and brand-aligned communication.",
+                "tone": tone,
+                "scripts": tone_guide,
+                "channels": support_channels,
+            }
+        elif mod == "Handling Common Queries":
+            module_content[mod] = {
+                "description": "Use standard resolution flows for the most frequent query types.",
+                "resolution_steps": ["Greet → Verify → Understand → Solve → Confirm → Close"],
+                "industry_scenarios": scenarios[:2],
+            }
+        elif mod == "Escalation Protocol":
+            module_content[mod] = {
+                "description": "Follow the escalation matrix strictly. Never promise what cannot be delivered.",
+                "matrix": _ATM_ESCALATION_MATRIX,
+                "triggers": ["Legal threat", "Fraud", "Regulatory", "Media risk", "3 unresolved contacts"],
+            }
+        elif mod == "Tools & Systems":
+            module_content[mod] = {
+                "description": "Agents must be proficient in all tools before going live.",
+                "tools": ["CRM / Helpdesk (e.g. Freshdesk, Zoho Desk)", "Live chat platform", "Knowledge base", "Ticketing system", "Internal escalation tracker"],
+                "tip": "Always update ticket status in real time — never in bulk at end of shift.",
+            }
+        elif mod == "Performance Metrics":
+            module_content[mod] = {
+                "description": "Agents are measured on these KPIs weekly.",
+                "kpis": _ATM_KPIs,
+            }
+        elif mod == "Role Play Scenarios":
+            module_content[mod] = {
+                "description": "Practice the following scenarios before going live. TL will evaluate and sign off.",
+                "scenarios": scenarios,
+            }
+        elif mod == "Assessment & Certification":
+            module_content[mod] = {
+                "description": "Agents must pass assessment before handling live customers.",
+                "assessment": [
+                    "Written test: 20 MCQs on policy + product (pass mark: 70%)",
+                    "Role play: 2 scenarios evaluated by TL",
+                    "Shadow: 2 hours of listening to senior agent",
+                    "Supervised: First 5 live chats reviewed by TL",
+                ],
+                "certification_validity": "6 months — refresher required after that",
+            }
+
+    return {
+        "company_name": company_name,
+        "industry": industry,
+        "support_channels": support_channels,
+        "tone": tone,
+        "modules": module_content,
+        "dos": _ATM_DO_DONTS["do"],
+        "donts": _ATM_DO_DONTS["dont"],
+        "kpis": _ATM_KPIs,
+        "escalation_matrix": _ATM_ESCALATION_MATRIX,
+        "onboarding_timeline": [
+            {"day": "Day 1–2",   "activity": "Company & product overview, policy study"},
+            {"day": "Day 3",     "activity": "Tool training and system access setup"},
+            {"day": "Day 4",     "activity": "Role play and scenario practice"},
+            {"day": "Day 5",     "activity": "Written assessment + TL role play evaluation"},
+            {"day": "Day 6–7",   "activity": "Shadow listening (2h) + supervised live chats"},
+            {"day": "Day 8+",    "activity": "Independent handling with weekly QA review"},
+        ],
+        "ca_notes": [
+            "Keep signed copy of training completion for compliance and audit trail",
+            "Update manual every quarter or on major policy change",
+            "Maintain training register with agent name, date, and TL signature",
+        ],
+    }
 
 
 def generate_chatbot_script(

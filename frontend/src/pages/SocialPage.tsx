@@ -833,6 +833,7 @@ export default function SocialPage() {
           { id: 'cal',          label: 'Content Calendar',         icon: '📅' },
           { id: 'bulk',         label: 'Bulk Post Generator',      icon: '⚡' },
           { id: 'bio_opt',      label: 'Bio Optimizer',            icon: '✍️' },
+          { id: 'comment_reply', label: 'Comment Replies',          icon: '💬' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1436,6 +1437,7 @@ export default function SocialPage() {
       {/* ── PRODUCT LAUNCH KIT ── */}
       {tab === 'launch_kit' && <LaunchKitTab />}
       {tab === 'bio_opt'    && <BioOptimizerTab />}
+      {tab === 'comment_reply' && <CommentReplyTab />}
 
       {/* ── ANALYTICS ── */}
       {tab === 'analytics' && (
@@ -3974,6 +3976,80 @@ export default function SocialPage() {
 const BO_TONES    = ['professional','creative','energetic','warm']
 const BO_PLATFORMS = ['instagram','linkedin','twitter','youtube']
 const BO_INDUSTRIES = ['technology','finance','marketing','education','health','ecommerce','consulting','creative']
+
+// ── R24: Comment Reply Generator ──────────────────────────────────────────────
+export function CommentReplyTab() {
+  const [crComments, setCrComments] = useState('')
+  const [crTone,     setCrTone]     = useState('friendly')
+  const [crBrand,    setCrBrand]    = useState('')
+  const [crRes,      setCrRes]      = useState<any>(null)
+  const [crLoading,  setCrLoading]  = useState(false)
+  const [crErr,      setCrErr]      = useState('')
+
+  const generate = async () => {
+    if (!crComments.trim()) { setCrErr('Paste at least one comment'); return }
+    setCrLoading(true); setCrErr(''); setCrRes(null)
+    try {
+      const comments = crComments.split('\n').map(c => c.trim()).filter(Boolean)
+      const r = await socialAction('comment_replies', { comments, tone: crTone, brand_voice: crBrand })
+      setCrRes(r)
+    } catch (e: any) { setCrErr(e.message || 'Error') }
+    finally { setCrLoading(false) }
+  }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">💬 Comment Reply Generator</h2>
+      <p className="tool-desc">Generate on-brand replies to customer comments across platforms.</p>
+
+      <div className="form-grid">
+        <div className="form-group full">
+          <label>Comments (one per line)</label>
+          <textarea rows={6} value={crComments} onChange={e => setCrComments(e.target.value)}
+            placeholder={"Great product! Love it!\nWhy is shipping so slow???\nHow do I contact support?"} />
+        </div>
+        <div className="form-group">
+          <label>Reply Tone</label>
+          <select value={crTone} onChange={e => setCrTone(e.target.value)}>
+            {['friendly','professional','empathetic','witty','formal'].map(t =>
+              <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Brand Voice (optional)</label>
+          <input value={crBrand} onChange={e => setCrBrand(e.target.value)} placeholder="e.g. warm, helpful, fun" />
+        </div>
+      </div>
+
+      {crErr && <div className="error-box">{crErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={crLoading}>
+        {crLoading ? 'Generating…' : 'Generate Replies'}
+      </button>
+
+      {crRes && (
+        <div className="result-box">
+          <h3>Replies ({crRes.replies?.length || 0} comments)</h3>
+          {(crRes.replies || []).map((r: any, i: number) => (
+            <div key={i} className="ca-section" style={{marginBottom:'1rem'}}>
+              <p><strong>Comment:</strong> {r.original_comment}</p>
+              <p><strong>Type:</strong> {r.comment_type} | <strong>Sentiment:</strong> {r.sentiment}</p>
+              <div style={{background:'var(--bg-secondary)',padding:'0.75rem',borderRadius:'8px',marginTop:'0.5rem'}}>
+                <p><strong>Reply:</strong> {r.reply}</p>
+              </div>
+              {r.tip && <p style={{fontSize:'0.8rem',color:'var(--text-muted)',marginTop:'0.4rem'}}>💡 {r.tip}</p>}
+            </div>
+          ))}
+          {crRes.general_tips && (
+            <div className="ca-section">
+              <h4>General Tips</h4>
+              <ul>{crRes.general_tips.map((t: string, i: number) => <li key={i}>{t}</li>)}</ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function BioOptimizerTab() {
   const [boName,     setBoName]     = useState('')

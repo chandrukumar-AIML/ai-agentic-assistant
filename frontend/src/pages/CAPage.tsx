@@ -829,6 +829,7 @@ export default function CAPage() {
           { id: 'form16',          label: 'Form 16 Generator',          icon: '📄' },
           { id: 'balance_sheet',   label: 'Balance Sheet',              icon: '⚖️' },
           { id: 'advance_tax',     label: 'Advance Tax',                icon: '📅' },
+          { id: 'partnership_deed', label: 'Partnership Deed',           icon: '🤝' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3591,6 +3592,7 @@ export default function CAPage() {
       )}
       {tab === 'balance_sheet' && <BalanceSheetTab />}
       {tab === 'advance_tax'   && <AdvanceTaxTab />}
+      {tab === 'partnership_deed' && <PartnershipDeedTab />}
     </PageShell>
   )
 }
@@ -3598,6 +3600,144 @@ export default function CAPage() {
 // ── R23: Advance Tax Calculator ──────────────────────────────────────────────
 const AT_YEARS = ['2025-26','2026-27','2024-25']
 const AT_TYPES = [{value:'individual',label:'Individual'},{value:'huf',label:'HUF'},{value:'firm',label:'Firm/LLP'},{value:'company',label:'Company'}]
+
+// ── R24: Partnership Deed Generator ──────────────────────────────────────────
+function PartnershipDeedTab() {
+  const [pdFirm,    setPdFirm]    = useState('')
+  const [pdNature,  setPdNature]  = useState('')
+  const [pdAddress, setPdAddress] = useState('')
+  const [pdDate,    setPdDate]    = useState('')
+  const [pdDuration,setPdDuration]= useState('at_will')
+  const [pdPLRatio, setPdPLRatio] = useState('')
+  const [pdBank,    setPdBank]    = useState('')
+  const [pdPartners,setPdPartners]= useState([{ name:'', father_name:'', pan:'', capital:'', profit_share:'' }])
+  const [pdRes,     setPdRes]     = useState<any>(null)
+  const [pdLoading, setPdLoading] = useState(false)
+  const [pdErr,     setPdErr]     = useState('')
+
+  const addPartner = () => setPdPartners(p => [...p, { name:'', father_name:'', pan:'', capital:'', profit_share:'' }])
+  const updatePartner = (i: number, field: string, val: string) =>
+    setPdPartners(p => p.map((x, j) => j === i ? { ...x, [field]: val } : x))
+
+  const generate = async () => {
+    if (!pdFirm.trim()) { setPdErr('Enter firm name'); return }
+    setPdLoading(true); setPdErr(''); setPdRes(null)
+    try {
+      const r = await caAction('partnership_deed', {
+        firm_name: pdFirm, business_nature: pdNature, registered_address: pdAddress,
+        commencement_date: pdDate, duration: pdDuration, partners: pdPartners,
+        profit_loss_ratio: pdPLRatio, bank_name: pdBank,
+      })
+      setPdRes(r)
+    } catch (e: any) { setPdErr(e.message || 'Error') }
+    finally { setPdLoading(false) }
+  }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">🤝 Partnership Deed Generator</h2>
+      <p className="tool-desc">Draft a legally compliant Partnership Deed under the Indian Partnership Act, 1932 with Sec 40(b) compliance.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Firm Name</label>
+          <input value={pdFirm} onChange={e=>setPdFirm(e.target.value)} placeholder="M/s ABC Trading Co." /></div>
+        <div className="form-group"><label>Nature of Business</label>
+          <input value={pdNature} onChange={e=>setPdNature(e.target.value)} placeholder="Wholesale textile trading" /></div>
+        <div className="form-group full"><label>Registered Address</label>
+          <input value={pdAddress} onChange={e=>setPdAddress(e.target.value)} placeholder="123 Market St, Chennai, Tamil Nadu" /></div>
+        <div className="form-group"><label>Commencement Date</label>
+          <input type="date" value={pdDate} onChange={e=>setPdDate(e.target.value)} /></div>
+        <div className="form-group"><label>Duration</label>
+          <select value={pdDuration} onChange={e=>setPdDuration(e.target.value)}>
+            <option value="at_will">At Will</option>
+            <option value="fixed">Fixed Term</option>
+            <option value="project">Project-based</option>
+          </select>
+        </div>
+        <div className="form-group"><label>Profit/Loss Ratio (e.g. 60:40)</label>
+          <input value={pdPLRatio} onChange={e=>setPdPLRatio(e.target.value)} placeholder="60:40" /></div>
+        <div className="form-group"><label>Bank Name</label>
+          <input value={pdBank} onChange={e=>setPdBank(e.target.value)} placeholder="SBI / HDFC Bank" /></div>
+      </div>
+
+      <div className="ca-section">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.75rem'}}>
+          <h4>Partners</h4>
+          <button className="btn-secondary" onClick={addPartner}>+ Add Partner</button>
+        </div>
+        {pdPartners.map((p, i) => (
+          <div key={i} className="form-grid" style={{background:'var(--bg-secondary)',padding:'0.75rem',borderRadius:'8px',marginBottom:'0.5rem'}}>
+            <div className="form-group"><label>Name</label>
+              <input value={p.name} onChange={e=>updatePartner(i,'name',e.target.value)} placeholder="Partner name" /></div>
+            <div className="form-group"><label>Father's Name</label>
+              <input value={p.father_name} onChange={e=>updatePartner(i,'father_name',e.target.value)} placeholder="S/o ..." /></div>
+            <div className="form-group"><label>PAN</label>
+              <input value={p.pan} onChange={e=>updatePartner(i,'pan',e.target.value)} placeholder="ABCDE1234F" /></div>
+            <div className="form-group"><label>Capital Contribution</label>
+              <input value={p.capital} onChange={e=>updatePartner(i,'capital',e.target.value)} placeholder="₹5,00,000" /></div>
+            <div className="form-group"><label>Profit Share %</label>
+              <input value={p.profit_share} onChange={e=>updatePartner(i,'profit_share',e.target.value)} placeholder="50%" /></div>
+          </div>
+        ))}
+      </div>
+
+      {pdErr && <div className="error-box">{pdErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={pdLoading}>
+        {pdLoading ? 'Generating…' : 'Generate Partnership Deed'}
+      </button>
+
+      {pdRes && (
+        <div className="result-box">
+          <h3>{pdRes.firm_name} — Partnership Deed</h3>
+          <p><strong>Partners:</strong> {pdRes.partner_count} | <strong>P&L Ratio:</strong> {pdRes.profit_loss_ratio} | <strong>Stamp Duty:</strong> {pdRes.stamp_duty}</p>
+
+          <div className="ca-section">
+            <h4>Key Clauses</h4>
+            {Object.entries(pdRes.clauses || {}).map(([k, v]: any) => (
+              <div key={k} style={{marginBottom:'0.5rem'}}>
+                <strong style={{textTransform:'capitalize'}}>{k.replace(/_/g,' ')}: </strong>{v}
+              </div>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>Partner Schedule</h4>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.85rem'}}>
+                <thead><tr style={{background:'var(--bg-secondary)'}}>
+                  {['#','Name','Father','PAN','Capital','Share','Role'].map(h => <th key={h} style={{padding:'0.4rem',textAlign:'left'}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {(pdRes.partner_schedule||[]).map((p: any) => (
+                    <tr key={p.sl_no} style={{borderTop:'1px solid var(--border-color)'}}>
+                      <td style={{padding:'0.4rem'}}>{p.sl_no}</td>
+                      <td style={{padding:'0.4rem'}}>{p.name}</td>
+                      <td style={{padding:'0.4rem'}}>{p.father_name}</td>
+                      <td style={{padding:'0.4rem'}}>{p.pan}</td>
+                      <td style={{padding:'0.4rem'}}>{p.capital_contribution}</td>
+                      <td style={{padding:'0.4rem'}}>{p.profit_share}</td>
+                      <td style={{padding:'0.4rem'}}>{p.designation}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>Registration Checklist</h4>
+            <ul>{(pdRes.registration_checklist||[]).map((c: string, i: number) => <li key={i}>{c}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>CA Notes</h4>
+            <ul>{(pdRes.ca_notes||[]).map((n: string, i: number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function AdvanceTaxTab() {
   const [atName,  setAtName]  = useState('')
