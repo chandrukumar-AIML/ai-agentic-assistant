@@ -432,6 +432,44 @@ export default function CAPage() {
     finally { setSsLoading(false) }
   }
 
+  // ── R20: Multi-Client Compliance Dashboard ──
+  const CA_CLIENTS_KEY = 'ca_clients_v1'
+  const loadClients = () => { try { return JSON.parse(localStorage.getItem(CA_CLIENTS_KEY) || '[]') } catch { return [] } }
+  const [mcdClients,   setMcdClients]   = useState<any[]>(loadClients)
+  const [mcdSelected,  setMcdSelected]  = useState<number | null>(null)
+  const [mcdRes,       setMcdRes]       = useState<any>(null)
+  const [mcdLoading,   setMcdLoading]   = useState(false)
+  const [mcdErr,       setMcdErr]       = useState('')
+  const [mcdShowAdd,   setMcdShowAdd]   = useState(false)
+  const [mcdName,      setMcdName]      = useState('')
+  const [mcdPan,       setMcdPan]       = useState('')
+  const [mcdGstin,     setMcdGstin]     = useState('')
+  const [mcdBizType,   setMcdBizType]   = useState('proprietorship')
+  const [mcdFiling,    setMcdFiling]    = useState('monthly')
+  const [mcdState,     setMcdState]     = useState('Karnataka')
+  const [mcdTurnover,  setMcdTurnover]  = useState('50')
+  const [mcdEmployees, setMcdEmployees] = useState(false)
+  const [mcdAudit,     setMcdAudit]     = useState(false)
+  const saveClients = (list: any[]) => { setMcdClients(list); localStorage.setItem(CA_CLIENTS_KEY, JSON.stringify(list)) }
+  const addClient = () => {
+    if (!mcdName.trim()) return
+    const newClient = { name: mcdName, pan: mcdPan, gstin: mcdGstin, biz_type: mcdBizType, filing: mcdFiling, state: mcdState, turnover: parseFloat(mcdTurnover) || 0, employees: mcdEmployees, audit: mcdAudit }
+    saveClients([...mcdClients, newClient])
+    setMcdName(''); setMcdPan(''); setMcdGstin(''); setMcdShowAdd(false)
+  }
+  const removeClient = (i: number) => { const c = [...mcdClients]; c.splice(i, 1); saveClients(c) }
+  const runClientCheck = async (client: any, idx: number) => {
+    setMcdSelected(idx); setMcdLoading(true); setMcdErr(''); setMcdRes(null)
+    try {
+      setMcdRes(await caAction('client_compliance_status', {
+        client_name: client.name, pan: client.pan, gstin: client.gstin,
+        business_type: client.biz_type, filing_type: client.filing, state: client.state,
+        turnover_lakh: client.turnover, has_employees: client.employees, is_audit_case: client.audit,
+      }))
+    } catch (e: any) { setMcdErr(e.message) }
+    finally { setMcdLoading(false) }
+  }
+
   const toggleIcSource = (s: string) => setIcSources(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
   const toggleIcDed = (d: string) => setIcDeductions(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])
   const runItrChecklist = async () => {
@@ -744,6 +782,7 @@ export default function CAPage() {
           { id: 'depreciation',     label: 'Depreciation Calculator',    icon: '📉' },
           { id: 'itr_checklist',   label: 'ITR Filing Checklist',       icon: '📋' },
           { id: 'salary_slip',     label: 'Salary Slip Generator',      icon: '🧾' },
+          { id: 'client_dash',     label: 'Client Dashboard',           icon: '👥' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3173,6 +3212,167 @@ export default function CAPage() {
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill employee details and click Generate Salary Slip →</div>}
           </Card>
         </TwoCol>
+      )}
+
+      {/* ── R20: Multi-Client Compliance Dashboard ── */}
+      {tab === 'client_dash' && (
+        <div style={{ display: 'flex', gap: 20 }}>
+          {/* Left: client list */}
+          <div style={{ flex: '0 0 300px' }}>
+            <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 16, marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>👥 Clients ({mcdClients.length})</div>
+                <button onClick={() => setMcdShowAdd(s => !s)}
+                  style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: '#059669', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  + Add
+                </button>
+              </div>
+              {mcdShowAdd && (
+                <div style={{ background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8, fontWeight: 700 }}>New Client</div>
+                  {[['Client Name *', mcdName, setMcdName, 'e.g. Ramesh Traders'], ['PAN', mcdPan, setMcdPan, 'e.g. ABCDE1234F'], ['GSTIN', mcdGstin, setMcdGstin, 'e.g. 29ABCDE1234F1Z5']].map(([lbl, val, set, ph]: any) => (
+                    <div key={lbl as string} style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 3 }}>{lbl}</div>
+                      <input value={val} onChange={(e: any) => set(e.target.value)} placeholder={ph}
+                        style={{ width: '100%', background: '#0f1117', border: '1px solid #2d3748', borderRadius: 5, padding: '5px 8px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box' as any }} />
+                    </div>
+                  ))}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 3 }}>Business Type</div>
+                    <select value={mcdBizType} onChange={e => setMcdBizType(e.target.value)}
+                      style={{ width: '100%', background: '#0f1117', border: '1px solid #2d3748', borderRadius: 5, padding: '5px 8px', color: '#e2e8f0', fontSize: 12 }}>
+                      <option value="proprietorship">Proprietorship</option>
+                      <option value="partnership">Partnership</option>
+                      <option value="pvt_ltd">Pvt Ltd</option>
+                      <option value="llp">LLP</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 3 }}>GST Filing</div>
+                      <select value={mcdFiling} onChange={e => setMcdFiling(e.target.value)}
+                        style={{ width: '100%', background: '#0f1117', border: '1px solid #2d3748', borderRadius: 5, padding: '5px 8px', color: '#e2e8f0', fontSize: 12 }}>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 3 }}>State</div>
+                      <select value={mcdState} onChange={e => setMcdState(e.target.value)}
+                        style={{ width: '100%', background: '#0f1117', border: '1px solid #2d3748', borderRadius: 5, padding: '5px 8px', color: '#e2e8f0', fontSize: 12 }}>
+                        {['Karnataka','Maharashtra','Tamil Nadu','Telangana','Delhi','Gujarat','West Bengal','Andhra Pradesh'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+                    <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 11, color: '#9ca3af', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={mcdEmployees} onChange={e => setMcdEmployees(e.target.checked)} /> Has employees
+                    </label>
+                    <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 11, color: '#9ca3af', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={mcdAudit} onChange={e => setMcdAudit(e.target.checked)} /> Audit case
+                    </label>
+                  </div>
+                  <button onClick={addClient}
+                    style={{ width: '100%', padding: '7px', borderRadius: 6, border: 'none', background: '#059669', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                    Save Client
+                  </button>
+                </div>
+              )}
+              {mcdClients.length === 0 ? (
+                <div style={{ color: '#4b5563', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No clients yet. Click + Add to start.</div>
+              ) : mcdClients.map((c: any, i: number) => (
+                <div key={i} onClick={() => runClientCheck(c, i)}
+                  style={{ padding: '10px 12px', borderRadius: 8, marginBottom: 6, cursor: 'pointer', border: `1px solid ${mcdSelected === i ? '#059669' : '#1e2535'}`,
+                    background: mcdSelected === i ? 'rgba(5,150,105,0.08)' : '#0f1117' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 600 }}>{c.name}</div>
+                    <button onClick={e => { e.stopPropagation(); removeClient(i) }}
+                      style={{ fontSize: 11, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{c.biz_type} · {c.filing} GST · {c.state}</div>
+                  {c.gstin && <div style={{ fontSize: 10, color: '#4b5563', marginTop: 2 }}>{c.gstin}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: compliance detail */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {mcdLoading && <div style={{ color: '#9ca3af', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Checking compliance status…</div>}
+            {mcdErr && <div style={{ color: '#ef4444', fontSize: 13 }}>{mcdErr}</div>}
+            {mcdRes && !mcdLoading ? (() => {
+              const r = mcdRes
+              const healthColors: Record<string, string> = { green: '#059669', yellow: '#d97706', red: '#dc2626' }
+              const hc = healthColors[r.health_color] || '#6b7280'
+              return (
+                <div>
+                  {/* Health header */}
+                  <div style={{ background: '#0f1117', border: `2px solid ${hc}`, borderRadius: 12, padding: 20, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: '#e2e8f0' }}>{r.client_name}</div>
+                      <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>{r.gstin || 'No GSTIN'} · PAN: {r.pan} · {r.state}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 32, fontWeight: 900, color: hc }}>{r.health_score}</div>
+                      <div style={{ fontSize: 12, color: hc, fontWeight: 700 }}>{r.health_label}</div>
+                    </div>
+                  </div>
+
+                  {/* Risk flags */}
+                  {r.risk_flags?.length > 0 && (
+                    <div style={{ background: '#1f1211', border: '1px solid #7f1d1d', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, color: '#fca5a5', fontWeight: 700, marginBottom: 6 }}>⚠️ RISK FLAGS</div>
+                      {r.risk_flags.map((f: string, i: number) => <div key={i} style={{ fontSize: 12, color: '#fca5a5', marginBottom: 4 }}>→ {f}</div>)}
+                    </div>
+                  )}
+
+                  {/* Immediate actions */}
+                  {r.immediate_actions?.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>🔴 IMMEDIATE ACTIONS</div>
+                      {r.immediate_actions.map((a: any, i: number) => (
+                        <div key={i} style={{ background: '#0f1117', border: '1px solid #dc2626', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 600 }}>{a.filing}</div>
+                            <span style={{ fontSize: 11, color: '#dc2626', fontWeight: 700 }}>{a.status.toUpperCase()}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>Due: {a.due} · Penalty: {a.penalty}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* All filings */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>📋 ALL FILINGS</div>
+                    {r.filings?.map((f: any, i: number) => {
+                      const sc: Record<string, string> = { pending: '#dc2626', overdue: '#dc2626', due_soon: '#d97706', upcoming: '#059669' }
+                      return (
+                        <div key={i} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 10, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>{f.filing}</div>
+                            <div style={{ fontSize: 11, color: '#4b5563' }}>Due: {f.due}</div>
+                          </div>
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, fontWeight: 700, background: (sc[f.status] || '#6b7280') + '22', color: sc[f.status] || '#6b7280' }}>
+                            {f.status}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Reminder */}
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 12 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 6 }}>💬 WHATSAPP REMINDER</div>
+                    <div style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic', lineHeight: 1.6 }}>{r.whatsapp_reminder}</div>
+                  </div>
+                </div>
+              )
+            })() : !mcdLoading && mcdSelected === null ? (
+              <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 80 }}>Add a client and click their name to check compliance status →</div>
+            ) : null}
+          </div>
+        </div>
       )}
     </PageShell>
   )

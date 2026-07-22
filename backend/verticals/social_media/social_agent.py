@@ -2069,6 +2069,31 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "brand_voice_engine":
+        return generate_brand_voice_engine(
+            company_name=payload.get("company_name", ""),
+            industry=payload.get("industry", "technology"),
+            primary_tone=payload.get("primary_tone", "professional"),
+            target_audience=payload.get("target_audience", ""),
+            brand_keywords=payload.get("brand_keywords", []),
+            avoid_words=payload.get("avoid_words", []),
+            competitors=payload.get("competitors", []),
+            usp=payload.get("usp", ""),
+            language=payload.get("language", "English"),
+        )
+
+    elif action == "content_calendar":
+        return generate_content_calendar(
+            company_name=payload.get("company_name", ""),
+            industry=payload.get("industry", "technology"),
+            tone=payload.get("tone", "professional"),
+            target_audience=payload.get("target_audience", ""),
+            platforms=payload.get("platforms", ["instagram", "linkedin"]),
+            week_label=payload.get("week_label", "This Week"),
+            brand_keywords=payload.get("brand_keywords", []),
+            usp=payload.get("usp", ""),
+        )
+
     elif action == "linkedin_company_post":
         return generate_linkedin_company_post(
             company_name=payload.get("company_name", ""),
@@ -2804,6 +2829,230 @@ _COMPANY_CTA_MAP = {
     "culture":            ["Follow {company} to see more behind-the-scenes.", "What does your company culture look like? Share below 👇", "Tag a teammate who embodies this value.", "Join us → [careers page link]"],
     "case_study":         ["Read the full case study → [link]", "Could this help your business? DM us.", "See how we can help → [link in bio]", "Share if you know someone facing the same challenge 👇"],
 }
+
+
+# ── Round 20: Brand Voice Engine ─────────────────────────────────────────────
+
+_BRAND_TONE_GUIDES = {
+    "professional":   {"voice": "Authoritative, clear, data-backed", "avoid": "slang, exclamation marks, casual phrases", "cta_style": "direct and action-oriented"},
+    "casual":         {"voice": "Friendly, conversational, approachable", "avoid": "jargon, corporate speak, passive voice", "cta_style": "inviting and low-pressure"},
+    "inspirational":  {"voice": "Uplifting, story-driven, emotionally resonant", "avoid": "negativity, dry statistics without context", "cta_style": "community-driven and aspirational"},
+    "educational":    {"voice": "Informative, structured, expert", "avoid": "assumptions, unsupported claims", "cta_style": "curiosity-driven and helpful"},
+    "witty":          {"voice": "Clever, playful, punchy", "avoid": "overexplaining, being too serious, boring openers", "cta_style": "unexpected and memorable"},
+    "empathetic":     {"voice": "Warm, understanding, human", "avoid": "clinical language, generic advice", "cta_style": "supportive and relatable"},
+}
+
+_CONTENT_PILLARS_BY_INDUSTRY = {
+    "technology":    ["Product Innovations", "Industry Insights", "Behind the Build", "Customer Success", "Thought Leadership", "Team Culture"],
+    "finance":       ["Market Insights", "Financial Tips", "Regulatory Updates", "Client Success Stories", "Investment Trends", "Team Expertise"],
+    "healthcare":    ["Health Education", "Patient Stories", "Medical Innovations", "Team Spotlights", "Wellness Tips", "Research & Evidence"],
+    "education":     ["Learning Tips", "Student Success", "Curriculum Updates", "Faculty Expertise", "Career Guidance", "Industry Partnerships"],
+    "ecommerce":     ["Product Showcase", "Customer Stories", "Deals & Offers", "Behind the Scenes", "Style Inspiration", "Sustainability"],
+    "food":          ["Recipe & Inspiration", "Chef's Specials", "Farm to Table", "Customer Reviews", "Festival Specials", "Team Stories"],
+    "real_estate":   ["Property Listings", "Market Trends", "Client Testimonials", "Investment Tips", "Neighbourhood Guides", "Team Milestones"],
+    "consulting":    ["Case Studies", "Industry Reports", "Framework Explainers", "Team Thought Leadership", "Client Results", "Webinar Recaps"],
+    "manufacturing": ["Product Quality", "Innovation Process", "CSR Initiatives", "Industry Standards", "Team Skills", "Supply Chain Insights"],
+}
+
+_POSTING_SCHEDULE = {
+    "instagram": {"best_days": ["Tuesday", "Wednesday", "Friday"], "best_times": ["8–9 AM", "12–1 PM", "7–9 PM"], "frequency": "1–2 posts/day"},
+    "linkedin":  {"best_days": ["Tuesday", "Wednesday", "Thursday"], "best_times": ["8–10 AM", "12 PM", "5–6 PM"], "frequency": "3–5 posts/week"},
+    "twitter":   {"best_days": ["Tuesday", "Wednesday", "Thursday"], "best_times": ["9 AM", "12–1 PM", "5–6 PM"], "frequency": "3–5 tweets/day"},
+    "facebook":  {"best_days": ["Wednesday", "Thursday", "Friday"], "best_times": ["1–4 PM"], "frequency": "1 post/day"},
+    "whatsapp":  {"best_days": ["Monday", "Wednesday", "Saturday"], "best_times": ["10–11 AM", "7–8 PM"], "frequency": "2–3 broadcasts/week"},
+}
+
+
+def generate_brand_voice_engine(
+    company_name: str,
+    industry: str,
+    primary_tone: str,
+    target_audience: str,
+    brand_keywords: list,
+    avoid_words: list,
+    competitors: list,
+    usp: str,
+    language: str,
+) -> dict:
+    co = company_name or "Your Company"
+    tone_guide = _BRAND_TONE_GUIDES.get(primary_tone, _BRAND_TONE_GUIDES["professional"])
+    pillars = _CONTENT_PILLARS_BY_INDUSTRY.get(industry, _CONTENT_PILLARS_BY_INDUSTRY["technology"])
+
+    # Build brand voice guide
+    voice_guide = {
+        "brand_name": co,
+        "industry": industry,
+        "primary_tone": primary_tone,
+        "voice_description": tone_guide["voice"],
+        "avoid_in_all_content": (avoid_words or []) + [tone_guide["avoid"]],
+        "cta_style": tone_guide["cta_style"],
+    }
+
+    # Content pillars (6 pillars with % split)
+    splits = [25, 20, 15, 15, 15, 10]
+    content_pillars = [
+        {"pillar": p, "content_share": f"{splits[i]}%",
+         "example_post_idea": f"{co} shares insights on {p.lower()} — relevant to {target_audience or 'your audience'}"}
+        for i, p in enumerate(pillars[:6])
+    ]
+
+    # Audience persona
+    audience_persona = {
+        "who": target_audience or f"Decision makers in {industry}",
+        "pain_points": [f"Staying updated with {industry} trends", "Finding reliable, trustworthy brands", "ROI on every purchase decision"],
+        "what_they_want": ["Expertise and authority", "Authentic stories", "Real results and proof"],
+        "platform_behaviour": "Scrolls quickly — hook must land in first 3 words. Saves informative posts. Shares stories they identify with.",
+    }
+
+    # Brand keywords and phrases
+    brand_language = {
+        "power_words": (brand_keywords or []) + ["innovative", "trusted", "proven", "India-first", "results"],
+        "avoid_words": avoid_words or ["cheap", "basic", "just", "simply", "try"],
+        "usp_one_liner": usp or f"The go-to {industry} brand for {target_audience or 'professionals'} in India.",
+        "opening_hooks": [
+            f"Did you know most {industry} brands get this wrong?",
+            f"Here's what we learned after 1000+ {audience_persona['who']} told us their biggest challenge:",
+            f"3 things that separate the best {industry} brands from the rest →",
+            f"We asked {audience_persona['who']} what they actually want. Here's the truth:",
+        ],
+    }
+
+    # Competitor differentiation
+    comp_diff = {}
+    for c in (competitors or []):
+        comp_diff[c] = f"While {c} focuses on generic solutions, {co} delivers India-specific, personalised outcomes for {target_audience or 'your audience'}."
+
+    # Posting schedule per platform
+    schedule = {platform: data for platform, data in _POSTING_SCHEDULE.items()}
+
+    # Content ratio rule
+    content_mix = {
+        "value_content": "60% — Tips, insights, how-tos, industry news",
+        "brand_content":  "30% — Product updates, case studies, testimonials",
+        "promotional":    "10% — Offers, discounts, direct CTAs",
+        "rule": "Follow the 60-30-10 rule. Too much promo = audience tunes out.",
+    }
+
+    return {
+        "action": "brand_voice_engine",
+        "brand_name": co,
+        "industry": industry,
+        "language": language or "English",
+        "voice_guide": voice_guide,
+        "audience_persona": audience_persona,
+        "content_pillars": content_pillars,
+        "brand_language": brand_language,
+        "competitor_differentiation": comp_diff,
+        "posting_schedule": schedule,
+        "content_mix": content_mix,
+        "brand_checklist": [
+            "Every post should pass: Would our ideal customer save or share this?",
+            "First 3 words of every caption must hook — no 'We are excited to...'",
+            "Use brand power words in at least 1 post per day.",
+            "Reply to every comment within 2 hours — algorithm rewards engagement.",
+            "Audit content pillars monthly — drop what gets <2% engagement.",
+        ],
+    }
+
+
+# ── Round 20: 7-Day Content Calendar ─────────────────────────────────────────
+
+_CALENDAR_THEMES = {
+    "Monday":    "Motivation Monday — Start the week with an inspiring insight or bold statement",
+    "Tuesday":   "Tip Tuesday — Educational content, how-to, quick win for your audience",
+    "Wednesday": "Win Wednesday — Customer success story, case study, or milestone",
+    "Thursday":  "Thought Leadership — Industry opinion, trend analysis, or expert take",
+    "Friday":    "Feature Friday — Product highlight, behind the scenes, or team spotlight",
+    "Saturday":  "Story Saturday — Brand story, founder journey, or human interest post",
+    "Sunday":    "Community Sunday — Poll, question, UGC repost, or community shoutout",
+}
+
+_PLATFORM_FORMAT = {
+    "instagram": {"format": "Visual caption + 3-5 hashtags + story idea", "char_limit": 2200, "hook_type": "emoji-led or question"},
+    "linkedin":  {"format": "Long-form insight post + CTA + 3 hashtags", "char_limit": 3000, "hook_type": "bold statement or statistic"},
+    "twitter":   {"format": "Thread opener or single tweet + 1-2 hashtags", "char_limit": 280, "hook_type": "punchy one-liner"},
+    "facebook":  {"format": "Medium post + question to drive comments", "char_limit": 500, "hook_type": "relatable opener"},
+    "whatsapp":  {"format": "Short broadcast message + emoji", "char_limit": 200, "hook_type": "personal greeting"},
+}
+
+
+def generate_content_calendar(
+    company_name: str,
+    industry: str,
+    tone: str,
+    target_audience: str,
+    platforms: list,
+    week_label: str,
+    brand_keywords: list,
+    usp: str,
+) -> dict:
+    co = company_name or "Your Company"
+    plats = platforms if platforms else ["instagram", "linkedin"]
+    pillars = _CONTENT_PILLARS_BY_INDUSTRY.get(industry, _CONTENT_PILLARS_BY_INDUSTRY["technology"])
+    tone_guide = _BRAND_TONE_GUIDES.get(tone, _BRAND_TONE_GUIDES["professional"])
+
+    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    calendar = []
+
+    for i, day in enumerate(days):
+        theme = _CALENDAR_THEMES[day]
+        pillar = pillars[i % len(pillars)]
+        day_posts = []
+
+        for platform in plats:
+            fmt = _PLATFORM_FORMAT.get(platform, _PLATFORM_FORMAT["instagram"])
+            kw = (brand_keywords or ["innovation", "trust", "results"])[i % max(len(brand_keywords or [1]), 1)] if brand_keywords else "expertise"
+
+            if platform == "instagram":
+                caption = f"{'🔥' if i % 2 == 0 else '💡'} {theme.split('—')[0].strip()}\n\nHere's what {target_audience or 'businesses like yours'} need to know about {pillar.lower()} this week:\n\n→ {usp or f'{co} delivers real results'}\n→ Built for {industry} businesses in India\n→ {kw.title()} that actually moves the needle\n\nDouble-tap if you agree 👇\n\n#{co.replace(' ', '')} #{industry.replace(' ', '')} #IndiaStartup #BusinessGrowth"
+                story = f"Poll story: 'Is {pillar.lower()} your top priority this week? Yes / No'"
+                post = {"platform": "instagram", "caption": caption, "story_idea": story, "format": fmt["format"]}
+
+            elif platform == "linkedin":
+                caption = f"Most {industry} leaders get {pillar.lower()} completely wrong.\n\nHere's the real picture:\n\n📊 {target_audience or 'Decision makers'} are demanding more from their partners.\n🎯 The brands winning in 2025 are doing ONE thing differently.\n💡 {usp or f'{co} is built for exactly this.'}\n\nWhat's your take? Drop a comment below 👇\n\n#{industry.replace(' ', '')} #{pillar.replace(' ', '')} #Leadership #India"
+                post = {"platform": "linkedin", "caption": caption, "format": fmt["format"]}
+
+            elif platform == "twitter":
+                caption = f"{pillar.upper()} THREAD 🧵\n\n1/ Most {industry} brands miss this. Here's what {co} does differently:\n\n→ {usp or 'We put India-first in every decision.'}\n\n(Thread continues...)"
+                post = {"platform": "twitter", "caption": caption, "format": fmt["format"]}
+
+            elif platform == "whatsapp":
+                caption = f"Hi! 👋 {theme.split('—')[0].strip()} from {co}!\n\n{usp or f'We help {target_audience or \"businesses\"} grow with smart tools.'}\n\nReply YES to learn more! 🚀"
+                post = {"platform": "whatsapp", "caption": caption, "format": fmt["format"]}
+
+            else:
+                caption = f"{theme}\n\n{usp or f'{co} — Built for {industry} businesses in India.'}"
+                post = {"platform": platform, "caption": caption, "format": fmt["format"]}
+
+            day_posts.append(post)
+
+        calendar.append({
+            "day": day,
+            "theme": theme,
+            "content_pillar": pillar,
+            "posts": day_posts,
+            "posting_tip": _POSTING_SCHEDULE.get(plats[0], {}).get("best_times", ["9 AM"])[0] + " is the sweet spot for this platform",
+        })
+
+    return {
+        "action": "content_calendar",
+        "company_name": co,
+        "week": week_label or "This Week",
+        "platforms": plats,
+        "total_posts": len(calendar) * len(plats),
+        "calendar": calendar,
+        "weekly_summary": {
+            "content_themes": list(_CALENDAR_THEMES.values()),
+            "pillars_covered": pillars[:7],
+            "estimated_reach": f"Consistent posting on {', '.join(plats)} typically reaches {len(plats) * 500}–{len(plats) * 2000} accounts/week organically.",
+        },
+        "pro_tips": [
+            "Batch-create all 7 days of content in one sitting — saves 5+ hours/week.",
+            "Use the same core message across platforms but reformat for each.",
+            "Pin your best performing post of the week every Friday.",
+            "Engage (comment on 5 posts) before and after you publish — algorithm boost.",
+        ],
+    }
 
 
 def generate_linkedin_company_post(

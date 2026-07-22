@@ -63,7 +63,8 @@ const TABS = [
   { id: 'kb_article',    label: 'Knowledge Base Article' },
   { id: 'escalation',   label: 'Escalation Email' },
   { id: 'winback',      label: 'Win-Back Campaign' },
-  { id: 'csat_builder', label: 'CSAT Survey Builder' },
+  { id: 'csat_builder',  label: 'CSAT Survey Builder' },
+  { id: 'cx360',         label: 'Customer 360' },
 ]
 
 const WA_TYPES = [
@@ -1321,6 +1322,7 @@ export default function CustomerSupportPage() {
         {tab === 'escalation'     && <EscalationEmailTab lang={lang} />}
         {tab === 'winback'        && <WinBackTab lang={lang} />}
         {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
+        {tab === 'cx360'          && <Customer360Tab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -3579,6 +3581,244 @@ export function CsatSurveyBuilderTab({ lang }: { lang: string }) {
         })() : (
           <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill survey details and click Build CSAT Survey →</div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Round 20: Customer 360 View ───────────────────────────────────────────────
+
+const CX_CUSTOMERS_KEY = 'cx360_customers_v1'
+
+export function Customer360Tab({ lang }: { lang: string }) {
+  const loadCx = () => { try { return JSON.parse(localStorage.getItem(CX_CUSTOMERS_KEY) || '[]') } catch { return [] } }
+  const [customers,   setCustomers]   = useState<any[]>(loadCx)
+  const [selected,    setSelected]    = useState<number | null>(null)
+  const [res,         setRes]         = useState<any>(null)
+  const [loading,     setLoading]     = useState(false)
+  const [err,         setErr]         = useState('')
+  const [showAdd,     setShowAdd]     = useState(false)
+  const [view,        setView]        = useState<'overview'|'support'|'outreach'>('overview')
+  // new customer fields
+  const [cxName,    setCxName]    = useState('')
+  const [cxEmail,   setCxEmail]   = useState('')
+  const [cxSince,   setCxSince]   = useState('6')
+  const [cxOrders,  setCxOrders]  = useState('5')
+  const [cxRev,     setCxRev]     = useState('15000')
+  const [cxLast,    setCxLast]    = useState('10')
+  const [cxOpen,    setCxOpen]    = useState('0')
+  const [cxTotal,   setCxTotal]   = useState('3')
+  const [cxRes,     setCxRes]     = useState('12')
+  const [cxCsat,    setCxCsat]    = useState('4.2')
+  const [cxPlan,    setCxPlan]    = useState('Standard')
+  const [cxReferred,setCxReferred]= useState(false)
+  const [cxPayment, setCxPayment] = useState('current')
+
+  const saveCustomers = (list: any[]) => { setCustomers(list); localStorage.setItem(CX_CUSTOMERS_KEY, JSON.stringify(list)) }
+  const addCustomer = () => {
+    if (!cxName.trim()) return
+    saveCustomers([...customers, { name: cxName, email: cxEmail, since: parseInt(cxSince), orders: parseInt(cxOrders), rev: parseFloat(cxRev), last: parseInt(cxLast), open: parseInt(cxOpen), total: parseInt(cxTotal), res_hrs: parseFloat(cxRes), csat: parseFloat(cxCsat), plan: cxPlan, referred: cxReferred, payment: cxPayment }])
+    setCxName(''); setCxEmail(''); setShowAdd(false)
+  }
+  const removeCustomer = (i: number) => { const c = [...customers]; c.splice(i, 1); saveCustomers(c) }
+  const runCheck = async (c: any, i: number) => {
+    setSelected(i); setLoading(true); setErr(''); setRes(null); setView('overview')
+    try {
+      setRes(await csAction('customer_360', {
+        customer_name: c.name, customer_email: c.email,
+        customer_since_months: c.since, total_orders: c.orders, total_revenue: c.rev,
+        last_order_days_ago: c.last, open_tickets: c.open, total_tickets: c.total,
+        avg_resolution_hrs: c.res_hrs, avg_csat: c.csat, plan_type: c.plan,
+        has_referred: c.referred, payment_status: c.payment,
+      }))
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+
+  const HEALTH_COLORS: Record<string, string> = { green: '#059669', yellow: '#d97706', red: '#dc2626' }
+  const CHURN_COLORS: Record<string, string> = { low: '#059669', medium: '#d97706', high: '#dc2626' }
+
+  return (
+    <div style={{ display: 'flex', gap: 20 }}>
+      {/* Left: customer list */}
+      <div style={{ flex: '0 0 280px' }}>
+        <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>Customers ({customers.length})</div>
+            <button onClick={() => setShowAdd(s => !s)}
+              style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: '#10b981', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ Add</button>
+          </div>
+
+          {showAdd && (
+            <div style={{ background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 700, marginBottom: 8 }}>Add Customer</div>
+              {[['Name *', cxName, setCxName, 'e.g. Priya Sharma'], ['Email', cxEmail, setCxEmail, 'priya@example.com']].map(([l, v, s, p]: any) => (
+                <div key={l} style={{ marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2 }}>{l}</div>
+                  <input value={v} onChange={(e: any) => s(e.target.value)} placeholder={p}
+                    style={{ width: '100%', background: '#0f1117', border: '1px solid #2d3748', borderRadius: 5, padding: '5px 8px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box' as any }} />
+                </div>
+              ))}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
+                {[['Months as customer', cxSince, setCxSince], ['Total orders', cxOrders, setCxOrders], ['Total revenue ₹', cxRev, setCxRev], ['Days since last order', cxLast, setCxLast], ['Open tickets', cxOpen, setCxOpen], ['Total tickets', cxTotal, setCxTotal], ['Avg resolution hrs', cxRes, setCxRes], ['Avg CSAT (1-5)', cxCsat, setCxCsat]].map(([l, v, s]: any) => (
+                  <div key={l}>
+                    <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2 }}>{l}</div>
+                    <input type="number" value={v} onChange={(e: any) => s(e.target.value)}
+                      style={{ width: '100%', background: '#0f1117', border: '1px solid #2d3748', borderRadius: 5, padding: '5px 6px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box' as any }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginBottom: 6 }}>
+                <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2 }}>Plan</div>
+                <select value={cxPlan} onChange={e => setCxPlan(e.target.value)}
+                  style={{ width: '100%', background: '#0f1117', border: '1px solid #2d3748', borderRadius: 5, padding: '5px 8px', color: '#e2e8f0', fontSize: 12 }}>
+                  {['Free', 'Standard', 'Pro', 'Enterprise'].map(p => <option key={p}>{p}</option>)}
+                </select>
+              </div>
+              <div style={{ marginBottom: 6 }}>
+                <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2 }}>Payment Status</div>
+                <select value={cxPayment} onChange={e => setCxPayment(e.target.value)}
+                  style={{ width: '100%', background: '#0f1117', border: '1px solid #2d3748', borderRadius: 5, padding: '5px 8px', color: '#e2e8f0', fontSize: 12 }}>
+                  {['current', 'at_risk', 'overdue'].map(p => <option key={p}>{p}</option>)}
+                </select>
+              </div>
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, color: '#9ca3af', cursor: 'pointer', marginBottom: 10 }}>
+                <input type="checkbox" checked={cxReferred} onChange={e => setCxReferred(e.target.checked)} /> Has referred others
+              </label>
+              <button onClick={addCustomer}
+                style={{ width: '100%', padding: '7px', borderRadius: 6, border: 'none', background: '#10b981', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                Save Customer
+              </button>
+            </div>
+          )}
+
+          {customers.length === 0 ? (
+            <div style={{ color: '#4b5563', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No customers yet. Click + Add.</div>
+          ) : customers.map((c: any, i: number) => (
+            <div key={i} onClick={() => runCheck(c, i)}
+              style={{ padding: '10px 12px', borderRadius: 8, marginBottom: 6, cursor: 'pointer',
+                border: `1px solid ${selected === i ? '#10b981' : '#1e2535'}`, background: selected === i ? 'rgba(16,185,129,0.08)' : '#0f1117' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 600 }}>{c.name}</div>
+                <button onClick={e => { e.stopPropagation(); removeCustomer(i) }}
+                  style={{ fontSize: 11, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+              </div>
+              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{c.plan} · {c.orders} orders · CSAT {c.csat}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right: 360 view */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {loading && <div style={{ color: '#9ca3af', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Building Customer 360…</div>}
+        {err && <div style={{ color: '#ef4444', fontSize: 13 }}>{err}</div>}
+        {res && !loading ? (() => {
+          const r = res
+          const hc = HEALTH_COLORS[r.health_color] || '#6b7280'
+          const cc = CHURN_COLORS[r.churn_risk] || '#6b7280'
+          const views = [{ id: 'overview', label: 'Overview' }, { id: 'support', label: 'Support & Financials' }, { id: 'outreach', label: 'Outreach Templates' }] as const
+          return (
+            <div>
+              {/* Header */}
+              <div style={{ background: '#0f1117', border: `2px solid ${hc}`, borderRadius: 12, padding: 20, marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: '#e2e8f0' }}>{r.customer_name}</div>
+                  <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>{r.customer_email} · {r.plan_type} · {r.customer_since_months}m tenure</div>
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: hc + '22', color: hc, fontWeight: 700 }}>{r.health_label}</span>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: cc + '22', color: cc, fontWeight: 700 }}>Churn: {r.churn_risk}</span>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: r.sentiment?.color + '22', color: r.sentiment?.color, fontWeight: 700 }}>{r.sentiment?.label}</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 36, fontWeight: 900, color: hc }}>{r.health_score}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>Health Score</div>
+                </div>
+              </div>
+
+              {/* View tabs */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                {views.map(v => (
+                  <button key={v.id} onClick={() => setView(v.id as any)}
+                    style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: view === v.id ? '#10b981' : '#1e2535', color: view === v.id ? '#fff' : '#9ca3af' }}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+
+              {view === 'overview' && (
+                <div>
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>🎯 RECOMMENDED ACTION</div>
+                    <div style={{ fontSize: 13, color: '#e2e8f0' }}>{r.recommended_action}</div>
+                  </div>
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>⚡ NEXT BEST ACTIONS</div>
+                    {r.next_best_actions?.map((a: string, i: number) => (
+                      <div key={i} style={{ fontSize: 12, color: '#e2e8f0', marginBottom: 6, display: 'flex', gap: 6 }}>
+                        <span style={{ color: '#10b981', flexShrink: 0 }}>{i + 1}.</span> {a}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>⚠️ CHURN SIGNALS</div>
+                    {r.churn_signals?.map((s: string, i: number) => (
+                      <div key={i} style={{ fontSize: 12, color: cc, marginBottom: 4 }}>→ {s}</div>
+                    ))}
+                    <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 8, fontStyle: 'italic' }}>Sentiment note: {r.sentiment?.action}</div>
+                  </div>
+                </div>
+              )}
+
+              {view === 'support' && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                    {[
+                      ['Total Orders', r.financials?.total_orders],
+                      ['Total Revenue', `₹${Number(r.financials?.total_revenue || 0).toLocaleString('en-IN')}`],
+                      ['Avg Order Value', `₹${Number(r.financials?.avg_order_value || 0).toLocaleString('en-IN')}`],
+                      ['24m LTV Est.', `₹${Number(r.financials?.ltv_24m_estimate || 0).toLocaleString('en-IN')}`],
+                      ['Total Tickets', r.support_metrics?.total_tickets],
+                      ['Open Tickets', r.support_metrics?.open_tickets],
+                      ['Avg Resolution', `${r.support_metrics?.avg_resolution_hrs}h`],
+                      ['Payment Status', r.financials?.payment_status],
+                    ].map(([label, value]) => (
+                      <div key={label as string} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 12 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>{label}</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', marginTop: 4 }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>LOYALTY SIGNALS</div>
+                    <div style={{ fontSize: 12, color: '#e2e8f0' }}>
+                      {r.loyalty_signals?.has_referred && <div style={{ marginBottom: 4 }}>✅ Has referred others — offer a reward</div>}
+                      {r.loyalty_signals?.repeat_buyer && <div style={{ marginBottom: 4 }}>✅ Repeat buyer (3+ orders)</div>}
+                      <div>📅 Customer for {r.loyalty_signals?.tenure_months} months</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {view === 'outreach' && (
+                <div>
+                  {Object.entries(r.outreach_templates || {}).map(([key, template]) => (
+                    <div key={key} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase' }}>
+                        {key.replace(/_/g, ' ')}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#e2e8f0', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{String(template)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })() : !loading && selected === null ? (
+          <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 80 }}>Add a customer and click their name to see their 360 view →</div>
+        ) : null}
       </div>
     </div>
   )

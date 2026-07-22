@@ -953,6 +953,23 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "client_compliance_status":
+        import datetime
+        today = datetime.date.today()
+        return generate_client_compliance_status(
+            client_name=payload.get("client_name", ""),
+            pan=payload.get("pan", ""),
+            gstin=payload.get("gstin", ""),
+            business_type=payload.get("business_type", "proprietorship"),
+            filing_type=payload.get("filing_type", "monthly"),
+            state=payload.get("state", "Karnataka"),
+            turnover_lakh=payload.get("turnover_lakh", 0),
+            has_employees=payload.get("has_employees", False),
+            is_audit_case=payload.get("is_audit_case", False),
+            current_month=today.month,
+            current_year=today.year,
+        )
+
     elif action == "salary_slip":
         return generate_salary_slip(
             employee_name=payload.get("employee_name", ""),
@@ -2500,6 +2517,159 @@ _DEDUCTION_LABELS = {
     "advance":      "Advance Recovery",
     "lop":          "Loss of Pay",
 }
+
+
+# ── Round 20: Multi-Client Compliance Dashboard ───────────────────────────────
+
+_COMPLIANCE_DEADLINES = {
+    "gst_monthly":   {"return": "GSTR-1", "due_day": 11, "frequency": "monthly",   "penalty": "₹50/day (₹20 for nil return)"},
+    "gst_quarterly": {"return": "GSTR-1 (QRMP)", "due_day": 13, "frequency": "quarterly", "penalty": "₹50/day"},
+    "gstr3b_monthly":{"return": "GSTR-3B", "due_day": 20, "frequency": "monthly",  "penalty": "₹50/day + 18% interest on tax"},
+    "tds_quarterly": {"return": "TDS Return (26Q/24Q)", "due_day": 31, "frequency": "quarterly", "penalty": "₹200/day u/s 234E"},
+    "tds_payment":   {"return": "TDS Challan Payment", "due_day": 7, "frequency": "monthly", "penalty": "1.5%/month interest"},
+    "itr_individual":{"return": "ITR-1/ITR-2", "due_day": 31, "month": "July", "frequency": "annual", "penalty": "₹5,000 (₹1,000 if income < 5L)"},
+    "itr_business":  {"return": "ITR-3/ITR-4", "due_day": 31, "month": "July", "frequency": "annual", "penalty": "₹5,000"},
+    "itr_audit":     {"return": "ITR (Audit Cases)", "due_day": 31, "month": "October", "frequency": "annual", "penalty": "₹5,000"},
+    "pt_monthly":    {"return": "Professional Tax", "due_day": 15, "frequency": "monthly", "penalty": "Varies by state"},
+    "roc_annual":    {"return": "MGT-7 / AOC-4", "due_day": 60, "note": "60 days from AGM", "frequency": "annual", "penalty": "₹100/day"},
+}
+
+_RISK_FLAGS = {
+    "nil_return_pending": "GST nil return not filed — ₹20/day accumulating",
+    "tds_not_deducted":   "TDS not deducted on eligible payments — disallowance risk u/s 40a(ia)",
+    "itr_not_filed":      "ITR not filed — Interest u/s 234A + penalty u/s 271F",
+    "audit_due":          "Audit report not filed — Penalty u/s 271B (₹1.5L or 0.5% of turnover)",
+    "gst_mismatch":       "GSTR-1 vs GSTR-3B mismatch — ITC denial risk for recipients",
+    "overdue_invoice":    "Invoices unpaid >45 days — MSME Act violation risk for payers",
+}
+
+
+def generate_client_compliance_status(
+    client_name: str,
+    pan: str,
+    gstin: str,
+    business_type: str,
+    filing_type: str,
+    state: str,
+    turnover_lakh: float,
+    has_employees: bool,
+    is_audit_case: bool,
+    current_month: int,
+    current_year: int,
+) -> dict:
+    import datetime
+    today = datetime.date.today()
+    month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    # Determine applicable filings
+    filings = []
+
+    # GST
+    if gstin:
+        if filing_type == "monthly":
+            filings.append({
+                "filing": "GSTR-1 (Monthly)",
+                "due": f"11th of every month",
+                "status": "pending" if today.day > 11 else "upcoming",
+                "penalty": _COMPLIANCE_DEADLINES["gst_monthly"]["penalty"],
+                "priority": "high",
+            })
+            filings.append({
+                "filing": "GSTR-3B (Monthly)",
+                "due": "20th of every month",
+                "status": "pending" if today.day > 20 else "upcoming",
+                "penalty": _COMPLIANCE_DEADLINES["gstr3b_monthly"]["penalty"],
+                "priority": "high",
+            })
+        else:
+            filings.append({
+                "filing": "GSTR-1 (QRMP / Quarterly)",
+                "due": "13th of Jan/Apr/Jul/Oct",
+                "status": "upcoming",
+                "penalty": _COMPLIANCE_DEADLINES["gst_quarterly"]["penalty"],
+                "priority": "medium",
+            })
+
+    # TDS
+    if has_employees or turnover_lakh > 10:
+        filings.append({
+            "filing": "TDS Challan Payment",
+            "due": "7th of every month",
+            "status": "pending" if today.day > 7 else "upcoming",
+            "penalty": _COMPLIANCE_DEADLINES["tds_payment"]["penalty"],
+            "priority": "high",
+        })
+        filings.append({
+            "filing": "TDS Return (26Q/24Q)",
+            "due": "31st of Jul/Oct/Jan/Apr",
+            "status": "upcoming",
+            "penalty": _COMPLIANCE_DEADLINES["tds_quarterly"]["penalty"],
+            "priority": "medium",
+        })
+
+    # ITR
+    itr_type = "itr_audit" if is_audit_case else ("itr_business" if business_type in ["pvt_ltd", "partnership", "llp"] else "itr_individual")
+    filings.append({
+        "filing": _COMPLIANCE_DEADLINES[itr_type]["return"],
+        "due": f"31st {_COMPLIANCE_DEADLINES[itr_type].get('month', 'July')} {current_year}",
+        "status": "upcoming" if current_month < 7 else ("due_soon" if current_month == 7 else "overdue"),
+        "penalty": _COMPLIANCE_DEADLINES[itr_type]["penalty"],
+        "priority": "critical",
+    })
+
+    # PT
+    if state in ["Karnataka", "Maharashtra", "West Bengal", "Andhra Pradesh", "Telangana"]:
+        filings.append({
+            "filing": "Professional Tax (Employer)",
+            "due": "15th of every month",
+            "status": "pending" if today.day > 15 else "upcoming",
+            "penalty": "State-specific penalty",
+            "priority": "medium",
+        })
+
+    # ROC
+    if business_type in ["pvt_ltd", "llp"]:
+        filings.append({
+            "filing": "ROC Annual Return (MGT-7 / AOC-4)",
+            "due": f"Within 60 days of AGM (usually by Sep 30)",
+            "status": "upcoming",
+            "penalty": _COMPLIANCE_DEADLINES["roc_annual"]["penalty"],
+            "priority": "medium",
+        })
+
+    # Risk flags
+    risk_flags = []
+    pending_count = sum(1 for f in filings if f["status"] in ["pending", "overdue"])
+    if pending_count > 2:
+        risk_flags.append(_RISK_FLAGS["nil_return_pending"])
+    if is_audit_case and current_month >= 9:
+        risk_flags.append(_RISK_FLAGS["audit_due"])
+
+    # Health score (100 − penalty points)
+    health = max(40, 100 - pending_count * 15)
+    health_label = "Healthy" if health >= 80 else ("At Risk" if health >= 60 else "Critical")
+    health_color = "green" if health >= 80 else ("yellow" if health >= 60 else "red")
+
+    # Action items
+    actions = [f for f in filings if f["status"] in ["pending", "overdue", "due_soon"]]
+
+    return {
+        "action": "client_compliance_status",
+        "client_name": client_name or "Client",
+        "pan": pan or "—",
+        "gstin": gstin or "Not registered",
+        "business_type": business_type,
+        "state": state,
+        "health_score": health,
+        "health_label": health_label,
+        "health_color": health_color,
+        "filings": filings,
+        "immediate_actions": actions,
+        "risk_flags": risk_flags,
+        "next_due": filings[0]["filing"] if filings else "None",
+        "reminder_message": f"Dear {client_name}, your {actions[0]['filing'] if actions else 'compliance'} is due soon. Please share the required documents at the earliest to avoid penalties. — Your CA",
+        "whatsapp_reminder": f"Hi {client_name}! 👋 Friendly reminder: *{actions[0]['filing'] if actions else 'Filing'}* is due. Please share docs ASAP to avoid penalty. Call us: [number]",
+    }
 
 
 def generate_salary_slip(

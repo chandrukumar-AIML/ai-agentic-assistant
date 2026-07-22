@@ -376,6 +376,73 @@ export default function SocialPage() {
   const [ydErr, setYdErr]           = useState('')
   const [ydView, setYdView]         = useState<'desc'|'tags'|'checklist'>('desc')
 
+  // ── R20: Brand Voice Engine ──
+  const BRAND_KEY = 'ai_brand_voice'
+  const loadBrand = () => { try { return JSON.parse(localStorage.getItem(BRAND_KEY) || '{}') } catch { return {} } }
+  const [bveCompany,   setBveCompany]   = useState(() => loadBrand().company || '')
+  const [bveIndustry,  setBveIndustry]  = useState(() => loadBrand().industry || 'technology')
+  const [bveTone,      setBveTone]      = useState(() => loadBrand().tone || 'professional')
+  const [bveAudience,  setBveAudience]  = useState(() => loadBrand().audience || '')
+  const [bveKeywords,  setBveKeywords]  = useState(() => loadBrand().keywords || '')
+  const [bveAvoid,     setBveAvoid]     = useState(() => loadBrand().avoid || '')
+  const [bveCompetitors, setBveCompetitors] = useState(() => loadBrand().competitors || '')
+  const [bveUsp,       setBveUsp]       = useState(() => loadBrand().usp || '')
+  const [bveRes,       setBveRes]       = useState<any>(null)
+  const [bveLoading,   setBveLoading]   = useState(false)
+  const [bveErr,       setBveErr]       = useState('')
+  const [bveView,      setBveView]      = useState<'voice'|'pillars'|'schedule'>('voice')
+  const [bveSaved,     setBveSaved]     = useState(false)
+  const saveBrand = () => {
+    localStorage.setItem(BRAND_KEY, JSON.stringify({
+      company: bveCompany, industry: bveIndustry, tone: bveTone,
+      audience: bveAudience, keywords: bveKeywords, avoid: bveAvoid,
+      competitors: bveCompetitors, usp: bveUsp,
+    }))
+    setBveSaved(true)
+    setTimeout(() => setBveSaved(false), 2000)
+  }
+  const runBrandVoice = async () => {
+    saveBrand()
+    setBveLoading(true); setBveErr(''); setBveRes(null)
+    try {
+      setBveRes(await socialAction('brand_voice_engine', {
+        company_name: bveCompany, industry: bveIndustry, primary_tone: bveTone,
+        target_audience: bveAudience,
+        brand_keywords: bveKeywords.split(',').map((k: string) => k.trim()).filter(Boolean),
+        avoid_words: bveAvoid.split(',').map((k: string) => k.trim()).filter(Boolean),
+        competitors: bveCompetitors.split(',').map((k: string) => k.trim()).filter(Boolean),
+        usp: bveUsp,
+      }))
+    } catch (e: any) { setBveErr(e.message) }
+    finally { setBveLoading(false) }
+  }
+
+  // ── R20: Content Calendar ──
+  const [ccWeek,      setCcWeek]      = useState('This Week')
+  const [ccPlatforms, setCcPlatforms] = useState<string[]>(['instagram', 'linkedin'])
+  const [ccRes,       setCcRes]       = useState<any>(null)
+  const [ccLoading,   setCcLoading]   = useState(false)
+  const [ccErr,       setCcErr]       = useState('')
+  const [ccDay,       setCcDay]       = useState(0)
+  const toggleCcPlatform = (p: string) => setCcPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  const runCalendar = async () => {
+    const brand = loadBrand()
+    setCcLoading(true); setCcErr(''); setCcRes(null)
+    try {
+      setCcRes(await socialAction('content_calendar', {
+        company_name: brand.company || bveCompany,
+        industry: brand.industry || bveIndustry,
+        tone: brand.tone || bveTone,
+        target_audience: brand.audience || bveAudience,
+        platforms: ccPlatforms,
+        week_label: ccWeek,
+        brand_keywords: (brand.keywords || bveKeywords).split(',').map((k: string) => k.trim()).filter(Boolean),
+        usp: brand.usp || bveUsp,
+      }))
+    } catch (e: any) { setCcErr(e.message) }
+    finally { setCcLoading(false) }
+  }
+
   // ── R19: LinkedIn Company Post ──
   const [lcpCompany,   setLcpCompany]   = useState('')
   const [lcpIndustry,  setLcpIndustry]  = useState('technology')
@@ -736,9 +803,11 @@ export default function SocialPage() {
           { id: 'podcast',    label: 'Podcast Content Kit',   icon: '🎙️' },
           { id: 'article',    label: 'LinkedIn Article',       icon: '📝' },
           { id: 'review',     label: 'Review & Testimonial Kit', icon: '⭐' },
-          { id: 'reel',       label: 'Instagram Reel Script',   icon: '🎬' },
-          { id: 'youtube',    label: 'YouTube Description',      icon: '▶️' },
-          { id: 'lcp',        label: 'LinkedIn Company Post',    icon: '🏢' },
+          { id: 'reel',         label: 'Instagram Reel Script',   icon: '🎬' },
+          { id: 'youtube',      label: 'YouTube Description',      icon: '▶️' },
+          { id: 'lcp',          label: 'LinkedIn Company Post',    icon: '🏢' },
+          { id: 'brand_voice',  label: 'Brand Voice Engine',       icon: '🎨' },
+          { id: 'cal',          label: 'Content Calendar',         icon: '📅' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3636,6 +3705,201 @@ export default function SocialPage() {
                 </div>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill company details and click Generate LinkedIn Company Post →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── R20: Brand Voice Engine ── */}
+      {tab === 'brand_voice' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Brand Voice Engine" sub="Define your brand DNA once — use it across all 19 tools" />
+            {bveSaved && <div style={{ background: '#d1fae5', color: '#065f46', padding: '8px 12px', borderRadius: 6, fontSize: 12, marginBottom: 10 }}>✅ Brand profile saved to this device!</div>}
+            <Input label="Company Name" value={bveCompany} onChange={setBveCompany} placeholder="e.g. Acme Technologies" />
+            <Select label="Industry" value={bveIndustry} onChange={setBveIndustry} options={[
+              { value: 'technology', label: 'Technology / SaaS' }, { value: 'finance', label: 'Finance / Fintech' },
+              { value: 'healthcare', label: 'Healthcare' }, { value: 'education', label: 'Education' },
+              { value: 'ecommerce', label: 'E-Commerce / Retail' }, { value: 'food', label: 'Food & Beverage' },
+              { value: 'real_estate', label: 'Real Estate' }, { value: 'consulting', label: 'Consulting' },
+            ]} />
+            <Select label="Brand Tone" value={bveTone} onChange={setBveTone} options={[
+              { value: 'professional', label: 'Professional & Authoritative' }, { value: 'casual', label: 'Casual & Friendly' },
+              { value: 'inspirational', label: 'Inspirational & Story-driven' }, { value: 'educational', label: 'Educational & Expert' },
+              { value: 'witty', label: 'Witty & Playful' }, { value: 'empathetic', label: 'Empathetic & Warm' },
+            ]} />
+            <Input label="Target Audience" value={bveAudience} onChange={setBveAudience} placeholder="e.g. CFOs, startup founders, SME owners" />
+            <Input label="Your USP (1 sentence)" value={bveUsp} onChange={setBveUsp} placeholder="e.g. India's only AI-powered GST + support suite" />
+            <Input label="Brand Keywords (comma separated)" value={bveKeywords} onChange={setBveKeywords} placeholder="e.g. innovative, trusted, India-first, results" />
+            <Input label="Words to Avoid (comma separated)" value={bveAvoid} onChange={setBveAvoid} placeholder="e.g. cheap, basic, just, simply" />
+            <Input label="Competitors (comma separated)" value={bveCompetitors} onChange={setBveCompetitors} placeholder="e.g. Zoho, Freshdesk, Buffer" />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn onClick={saveBrand}>💾 Save Brand Profile</Btn>
+              <Btn onClick={runBrandVoice} loading={bveLoading}>🎨 Generate Voice Guide →</Btn>
+            </div>
+            {bveErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{bveErr}</div>}
+          </Card>
+          <Card>
+            {bveRes ? (() => {
+              const r = bveRes
+              const views = [
+                { id: 'voice',    label: 'Voice Guide' },
+                { id: 'pillars',  label: 'Content Pillars' },
+                { id: 'schedule', label: 'Posting Schedule' },
+              ] as const
+              return (
+                <div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {views.map(v => (
+                      <button key={v.id} onClick={() => setBveView(v.id as any)}
+                        style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                          background: bveView === v.id ? '#7c3aed' : '#f3f4f6', color: bveView === v.id ? '#fff' : '#374151' }}>
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {bveView === 'voice' && (
+                    <div>
+                      <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 10, padding: 16, marginBottom: 12 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: '#5b21b6', marginBottom: 6 }}>{r.brand_name} — Brand Voice</div>
+                        <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>🎙 Voice: <b>{r.voice_guide?.voice_description}</b></div>
+                        <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>🚫 Avoid: {r.voice_guide?.avoid_in_all_content?.join(', ')}</div>
+                        <div style={{ fontSize: 13, color: '#374151' }}>📣 CTA style: {r.voice_guide?.cta_style}</div>
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 6 }}>AUDIENCE PERSONA</div>
+                        <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>👥 {r.audience_persona?.who}</div>
+                        <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>💢 Pain points: {r.audience_persona?.pain_points?.join(' · ')}</div>
+                        <div style={{ fontSize: 12, color: '#374151' }}>💡 {r.audience_persona?.platform_behaviour}</div>
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 6 }}>OPENING HOOKS</div>
+                        {r.brand_language?.opening_hooks?.map((h: string, i: number) => (
+                          <div key={i} style={{ background: '#f9fafb', borderRadius: 6, padding: '8px 10px', marginBottom: 6, fontSize: 12, color: '#374151', borderLeft: '3px solid #7c3aed' }}>{h}</div>
+                        ))}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 6 }}>BRAND CHECKLIST</div>
+                        {r.brand_checklist?.map((c: string, i: number) => (
+                          <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 4, display: 'flex', gap: 6 }}>
+                            <span style={{ color: '#7c3aed' }}>☐</span> {c}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {bveView === 'pillars' && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>6 CONTENT PILLARS — 60/30/10 RULE</div>
+                      {r.content_pillars?.map((p: any, i: number) => (
+                        <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <div style={{ fontSize: 13, color: '#111827', fontWeight: 700 }}>{p.pillar}</div>
+                            <span style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700 }}>{p.content_share}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: '#6b7280' }}>💡 {p.example_post_idea}</div>
+                        </div>
+                      ))}
+                      <div style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 8, padding: 12, marginTop: 8 }}>
+                        <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700 }}>Content Mix Rule</div>
+                        {r.content_mix && Object.entries(r.content_mix).filter(([k]) => k !== 'rule').map(([k, v]) => (
+                          <div key={k} style={{ fontSize: 12, color: '#374151', marginTop: 4 }}>{String(v)}</div>
+                        ))}
+                        <div style={{ fontSize: 12, color: '#92400e', marginTop: 6, fontStyle: 'italic' }}>📌 {r.content_mix?.rule}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {bveView === 'schedule' && (
+                    <div>
+                      {Object.entries(r.posting_schedule || {}).map(([platform, data]: [string, any]) => (
+                        <div key={platform} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', marginBottom: 4, textTransform: 'capitalize' }}>{platform}</div>
+                          <div style={{ fontSize: 12, color: '#374151' }}>📅 Best days: {data.best_days?.join(', ')}</div>
+                          <div style={{ fontSize: 12, color: '#374151' }}>⏰ Best times: {data.best_times?.join(', ')}</div>
+                          <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 600 }}>📊 Frequency: {data.frequency}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Save your brand profile and click Generate Voice Guide →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── R20: Content Calendar ── */}
+      {tab === 'cal' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="7-Day Content Calendar" sub="Generate a full week of posts across platforms in one click" />
+            {(() => {
+              const brand = loadBrand()
+              if (brand.company) return (
+                <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: '#5b21b6' }}>
+                  ✅ Using saved brand: <b>{brand.company}</b> · {brand.industry} · {brand.tone} tone
+                </div>
+              )
+              return <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: '#92400e' }}>⚠️ No brand saved yet — go to Brand Voice Engine tab first for best results.</div>
+            })()}
+            <Input label="Week Label" value={ccWeek} onChange={setCcWeek} placeholder="e.g. Week of 22 July 2025" />
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>Platforms to generate for</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {['instagram', 'linkedin', 'twitter', 'facebook', 'whatsapp'].map(p => (
+                  <button key={p} onClick={() => toggleCcPlatform(p)}
+                    style={{ padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: ccPlatforms.includes(p) ? '#7c3aed' : '#f3f4f6',
+                      color: ccPlatforms.includes(p) ? '#fff' : '#374151' }}>
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <Btn onClick={runCalendar} loading={ccLoading}>📅 Generate Full Week →</Btn>
+            {ccErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{ccErr}</div>}
+          </Card>
+          <Card>
+            {ccRes ? (() => {
+              const r = ccRes
+              const days = r.calendar || []
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{r.week} · {r.total_posts} posts</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>Platforms: {r.platforms?.join(', ')}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto' }}>
+                    {days.map((d: any, i: number) => (
+                      <button key={i} onClick={() => setCcDay(i)}
+                        style={{ flex: '0 0 80px', padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                          background: ccDay === i ? '#7c3aed' : '#f3f4f6', color: ccDay === i ? '#fff' : '#374151', textAlign: 'center' }}>
+                        {d.day.slice(0, 3)}<br />
+                        <span style={{ fontSize: 9, fontWeight: 400 }}>{d.content_pillar?.split(' ').slice(0, 2).join(' ')}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {days[ccDay] && (
+                    <div>
+                      <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#5b21b6' }}>{days[ccDay].day} — {days[ccDay].content_pillar}</div>
+                        <div style={{ fontSize: 12, color: '#7c3aed', marginTop: 4 }}>{days[ccDay].theme}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>⏰ Best time: {days[ccDay].posting_tip}</div>
+                      </div>
+                      {days[ccDay].posts?.map((post: any, i: number) => (
+                        <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase' }}>{post.platform}</div>
+                          <div style={{ fontSize: 12, color: '#374151', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{post.caption}</div>
+                          {post.story_idea && <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 6 }}>📸 Story: {post.story_idea}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Select platforms and click Generate Full Week →</div>}
           </Card>
         </TwoCol>
       )}

@@ -560,6 +560,23 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "customer_360":
+            return generate_customer_360(
+                customer_name=payload.get("customer_name", ""),
+                customer_email=payload.get("customer_email", ""),
+                customer_since_months=payload.get("customer_since_months", 1),
+                total_orders=payload.get("total_orders", 1),
+                total_revenue=payload.get("total_revenue", 0),
+                last_order_days_ago=payload.get("last_order_days_ago", 0),
+                open_tickets=payload.get("open_tickets", 0),
+                total_tickets=payload.get("total_tickets", 0),
+                avg_resolution_hrs=payload.get("avg_resolution_hrs", 24),
+                avg_csat=payload.get("avg_csat", 4.0),
+                plan_type=payload.get("plan_type", "Standard"),
+                has_referred=payload.get("has_referred", False),
+                payment_status=payload.get("payment_status", "current"),
+            )
+
         elif action == "csat_survey":
             return _csat_survey_builder(
                 business_name=payload.get("business_name", ""),
@@ -2747,6 +2764,160 @@ _DISTRIBUTION_CHANNELS = [
     {"channel": "SMS", "timing": "Within 2h of support close", "open_rate": "60-80%", "tip": "Under 160 chars; include opt-out option"},
     {"channel": "QR Code (Physical)", "timing": "At POS / delivery", "open_rate": "5-15%", "tip": "Add incentive (10% off next purchase) to boost response"},
 ]
+
+
+# ── Round 20: Customer 360 View ──────────────────────────────────────────────
+
+_CHURN_SIGNALS = {
+    "high":   ["No activity in 60+ days", "Multiple unresolved tickets", "Negative CSAT scores", "Downgrade request", "Billing disputes"],
+    "medium": ["Reduced usage frequency", "Support tickets increasing", "No response to outreach", "Feature requests unanswered"],
+    "low":    ["Active and engaged", "Positive CSAT", "Regular usage", "Referrals made", "Upsell opportunity"],
+}
+
+_HEALTH_SEGMENTS = {
+    "champion":  {"min": 85, "label": "Champion", "color": "green",  "action": "Ask for referral/testimonial. Offer loyalty reward."},
+    "healthy":   {"min": 70, "label": "Healthy",   "color": "green",  "action": "Keep engaging. Share new features. Upsell opportunity."},
+    "at_risk":   {"min": 50, "label": "At Risk",   "color": "yellow", "action": "Reach out immediately. Assign senior CS rep. Find root cause."},
+    "critical":  {"min": 0,  "label": "Critical",  "color": "red",    "action": "Escalate to CSM. Offer retention deal. CEO-level outreach if high-value."},
+}
+
+_SENTIMENT_MAP = {
+    5: ("Very Positive", "#22c55e", "Customer is delighted. Prime time to upsell or ask for referral."),
+    4: ("Positive",      "#86efac", "Good experience. Reinforce with value-add content."),
+    3: ("Neutral",       "#fbbf24", "Satisfied but not excited. Find the gap and fill it."),
+    2: ("Negative",      "#f97316", "Something went wrong. Proactively reach out with solution."),
+    1: ("Very Negative", "#ef4444", "High churn risk. Immediate personal outreach required."),
+}
+
+
+def generate_customer_360(
+    customer_name: str,
+    customer_email: str,
+    customer_since_months: int,
+    total_orders: int,
+    total_revenue: float,
+    last_order_days_ago: int,
+    open_tickets: int,
+    total_tickets: int,
+    avg_resolution_hrs: float,
+    avg_csat: float,
+    plan_type: str,
+    has_referred: bool,
+    payment_status: str,
+) -> dict:
+    name = customer_name or "Customer"
+
+    # Health score calculation
+    score = 100
+    # Recency
+    if last_order_days_ago > 90:   score -= 30
+    elif last_order_days_ago > 30: score -= 15
+    elif last_order_days_ago > 14: score -= 5
+    # Support load
+    if open_tickets > 3:  score -= 20
+    elif open_tickets > 1: score -= 10
+    # CSAT
+    if avg_csat < 3:   score -= 25
+    elif avg_csat < 4: score -= 10
+    # Resolution time
+    if avg_resolution_hrs > 48: score -= 10
+    elif avg_resolution_hrs > 24: score -= 5
+    # Payment
+    if payment_status == "overdue": score -= 20
+    elif payment_status == "at_risk": score -= 10
+    # Positive signals
+    if has_referred: score += 10
+    if total_orders > 10: score += 5
+    score = max(0, min(100, score))
+
+    # Segment
+    segment = "critical"
+    for seg, data in _HEALTH_SEGMENTS.items():
+        if score >= data["min"]:
+            segment = seg
+            break
+
+    seg_data = _HEALTH_SEGMENTS[segment]
+
+    # Churn risk
+    churn_risk = "high" if score < 50 else ("medium" if score < 70 else "low")
+    churn_signals = _CHURN_SIGNALS[churn_risk]
+
+    # Sentiment
+    csat_int = max(1, min(5, round(avg_csat)))
+    sentiment_label, sentiment_color, sentiment_action = _SENTIMENT_MAP[csat_int]
+
+    # LTV estimate (simple)
+    avg_order_value = total_revenue / max(total_orders, 1)
+    monthly_orders = total_orders / max(customer_since_months, 1)
+    ltv_estimate = avg_order_value * monthly_orders * 24  # 24-month projection
+
+    # Next best actions
+    actions = []
+    if open_tickets > 0:
+        actions.append(f"Resolve {open_tickets} open ticket(s) within 4 hours — customer is waiting")
+    if churn_risk == "high":
+        actions.append("Send personal outreach email from CS manager within 24 hours")
+        actions.append("Offer 1-month extension or discount as retention gesture")
+    if churn_risk == "medium":
+        actions.append("Schedule a 15-min check-in call this week")
+        actions.append("Share 3 tips to get more value from the product")
+    if has_referred:
+        actions.append("Send a thank-you gift or loyalty reward — they've referred you")
+    if avg_csat >= 4.5 and churn_risk == "low":
+        actions.append("Ask for a Google/G2 review — high CSAT, right time")
+        actions.append("Introduce upsell: premium plan or add-on feature")
+    if payment_status == "overdue":
+        actions.append("Follow up on overdue payment — escalate to finance if no response in 48h")
+
+    # Timeline summary (last 5 interactions simulated)
+    timeline = [
+        {"event": f"Customer joined", "days_ago": customer_since_months * 30, "type": "onboarding"},
+        {"event": f"Last order placed", "days_ago": last_order_days_ago, "type": "purchase"},
+        {"event": f"{total_tickets} support ticket(s) raised (total)", "days_ago": 0, "type": "support"},
+    ]
+    if open_tickets > 0:
+        timeline.append({"event": f"{open_tickets} ticket(s) still open", "days_ago": 0, "type": "alert"})
+
+    return {
+        "action": "customer_360",
+        "customer_name": name,
+        "customer_email": customer_email or "—",
+        "plan_type": plan_type or "Standard",
+        "customer_since_months": customer_since_months,
+        "health_score": score,
+        "health_label": seg_data["label"],
+        "health_color": seg_data["color"],
+        "recommended_action": seg_data["action"],
+        "churn_risk": churn_risk,
+        "churn_signals": churn_signals,
+        "sentiment": {"label": sentiment_label, "color": sentiment_color, "action": sentiment_action, "avg_csat": avg_csat},
+        "financials": {
+            "total_orders": total_orders,
+            "total_revenue": total_revenue,
+            "avg_order_value": round(avg_order_value, 2),
+            "ltv_24m_estimate": round(ltv_estimate, 2),
+            "payment_status": payment_status,
+        },
+        "support_metrics": {
+            "total_tickets": total_tickets,
+            "open_tickets": open_tickets,
+            "avg_resolution_hrs": avg_resolution_hrs,
+            "support_load": "High" if open_tickets > 2 else ("Normal" if open_tickets > 0 else "Clear"),
+        },
+        "loyalty_signals": {
+            "has_referred": has_referred,
+            "tenure_months": customer_since_months,
+            "repeat_buyer": total_orders > 3,
+        },
+        "next_best_actions": actions[:5],
+        "timeline": sorted(timeline, key=lambda x: x["days_ago"], reverse=True),
+        "outreach_templates": {
+            "at_risk_email": f"Subject: We noticed you've been quiet, {name} — can we help?\n\nHi {name},\n\nWe noticed it's been a while and wanted to reach out personally. Is there anything we can do better? Your feedback means everything to us.\n\nI'd love to schedule a quick 10-min call — reply with your availability.\n\nWarm regards,\n[Your Name]\nCustomer Success",
+            "champion_ask": f"Hi {name}! 🎉 You've been one of our most valued customers. Would you be open to sharing a quick review? It takes 2 minutes and means the world to us. [Link] — Thank you!",
+            "win_back_wa": f"Hi {name} 👋 We miss you! It's been a while. Here's something special just for you — reply YES to claim your exclusive offer. 🎁",
+        },
+    }
 
 
 def _csat_survey_builder(
