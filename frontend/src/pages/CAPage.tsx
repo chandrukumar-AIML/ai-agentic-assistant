@@ -828,6 +828,7 @@ export default function CAPage() {
           { id: 'client_dash',     label: 'Client Dashboard',           icon: '👥' },
           { id: 'form16',          label: 'Form 16 Generator',          icon: '📄' },
           { id: 'balance_sheet',   label: 'Balance Sheet',              icon: '⚖️' },
+          { id: 'advance_tax',     label: 'Advance Tax',                icon: '📅' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3589,7 +3590,184 @@ export default function CAPage() {
         </TwoCol>
       )}
       {tab === 'balance_sheet' && <BalanceSheetTab />}
+      {tab === 'advance_tax'   && <AdvanceTaxTab />}
     </PageShell>
+  )
+}
+
+// ── R23: Advance Tax Calculator ──────────────────────────────────────────────
+const AT_YEARS = ['2025-26','2026-27','2024-25']
+const AT_TYPES = [{value:'individual',label:'Individual'},{value:'huf',label:'HUF'},{value:'firm',label:'Firm/LLP'},{value:'company',label:'Company'}]
+
+function AdvanceTaxTab() {
+  const [atName,  setAtName]  = useState('')
+  const [atType,  setAtType]  = useState('individual')
+  const [atFY,    setAtFY]    = useState('2025-26')
+  const [atReg,   setAtReg]   = useState('new')
+  const [atSal,   setAtSal]   = useState('0')
+  const [atBiz,   setAtBiz]   = useState('0')
+  const [atSTCG,  setAtSTCG]  = useState('0')
+  const [atLTCG,  setAtLTCG]  = useState('0')
+  const [atOther, setAtOther] = useState('0')
+  const [atTDS,   setAtTDS]   = useState('0')
+  const [at80C,   setAt80C]   = useState('0')
+  const [atRes,   setAtRes]   = useState<any>(null)
+  const [atLoading,setAtLoading] = useState(false)
+  const [atErr,   setAtErr]   = useState('')
+
+  const run = async () => {
+    setAtLoading(true); setAtErr(''); setAtRes(null)
+    try {
+      setAtRes(await caAction('advance_tax', {
+        taxpayer_name: atName, taxpayer_type: atType, financial_year: atFY, regime: atReg,
+        salary_income: atSal, business_income: atBiz,
+        capital_gains_stcg: atSTCG, capital_gains_ltcg: atLTCG, other_income: atOther,
+        tds_deducted: atTDS, deductions_80c: at80C,
+      }))
+    } catch (e: any) { setAtErr(e.message) }
+    finally { setAtLoading(false) }
+  }
+
+  const fmt = (n: number) => '₹' + (n || 0).toLocaleString('en-IN')
+  const QC = ['#f59e0b','#3b82f6','#8b5cf6','#10b981']
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16 }}>
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>Advance Tax Calculator</div>
+        <div>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Taxpayer Name</label>
+          <input value={atName} onChange={e => setAtName(e.target.value)} placeholder="e.g. Rajesh Kumar"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div>
+            <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>FY</label>
+            <select value={atFY} onChange={e => setAtFY(e.target.value)}
+              style={{ width: '100%', padding: '8px 8px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}>
+              {AT_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Type</label>
+            <select value={atType} onChange={e => setAtType(e.target.value)}
+              style={{ width: '100%', padding: '8px 8px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}>
+              {AT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['new','old'].map(r => (
+            <button key={r} onClick={() => setAtReg(r)}
+              style={{ flex: 1, padding: '7px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                background: atReg === r ? '#059669' : '#f3f4f6', color: atReg === r ? '#fff' : '#374151' }}>
+              {r === 'new' ? 'New Regime' : 'Old Regime'}
+            </button>
+          ))}
+        </div>
+        <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>INCOME (₹ per year)</div>
+          {[['Salary Income', atSal, setAtSal],['Business/Profession', atBiz, setAtBiz],['STCG (Sec 111A)', atSTCG, setAtSTCG],['LTCG (Sec 112A)', atLTCG, setAtLTCG],['Other Income', atOther, setAtOther]].map(([label, val, setter]: any) => (
+            <div key={label as string} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: '#374151' }}>{label}</span>
+              <input type="number" value={val} onChange={e => setter(e.target.value)} min="0"
+                style={{ width: 120, padding: '4px 8px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 12, textAlign: 'right' as const }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>DEDUCTIONS & TDS (₹)</div>
+          {[['TDS Already Deducted', atTDS, setAtTDS],['80C Deductions (Old Regime)', at80C, setAt80C]].map(([label, val, setter]: any) => (
+            <div key={label as string} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 11, color: '#374151' }}>{label}</span>
+              <input type="number" value={val} onChange={e => setter(e.target.value)} min="0"
+                style={{ width: 120, padding: '4px 8px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 12, textAlign: 'right' as const }} />
+            </div>
+          ))}
+        </div>
+        <button onClick={run} disabled={atLoading}
+          style={{ padding: '12px', borderRadius: 10, border: 'none', background: '#059669', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          {atLoading ? 'Calculating…' : '📅 Calculate Advance Tax'}
+        </button>
+        {atErr && <div style={{ color: '#ef4444', fontSize: 12 }}>{atErr}</div>}
+      </div>
+
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 }}>
+        {atRes ? (() => {
+          const r = atRes
+          const tc = r.tax_computation
+          const applicable = r.advance_tax_applicable
+          return (
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: '#111827', marginBottom: 4 }}>{r.taxpayer} — Advance Tax FY {r.financial_year}</div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>AY {r.assessment_year} · {r.regime === 'new' ? 'New' : 'Old'} Regime</div>
+
+              {/* Tax summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 20 }}>
+                {[
+                  { label: 'Total Tax Liability', val: fmt(tc.total_tax_liability), color: '#dc2626' },
+                  { label: 'TDS Deducted', val: fmt(tc.tds_already_deducted), color: '#059669' },
+                  { label: 'Net Advance Tax', val: fmt(tc.net_advance_tax_payable), color: applicable ? '#d97706' : '#6b7280' },
+                ].map(item => (
+                  <div key={item.label} style={{ background: '#f9fafb', borderRadius: 10, padding: 12, textAlign: 'center' as const }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: item.color }}>{item.val}</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{item.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {!applicable ? (
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 14, marginBottom: 16, fontSize: 13, color: '#065f46' }}>
+                  ✅ {r.advance_tax_not_applicable_reason}
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>📅 Installment Schedule</div>
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 16 }}>
+                    {(r.installments || []).map((inst: any, i: number) => (
+                      <div key={i} style={{ background: '#f9fafb', borderRadius: 10, padding: 14, borderLeft: `4px solid ${QC[i]}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>{inst.quarter} — Due {inst.due_date}</div>
+                          <div style={{ fontWeight: 800, fontSize: 15, color: QC[i] }}>{fmt(inst.installment_amount)}</div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6b7280' }}>
+                          <span>Cumulative {inst.cumulative_percent}% = {fmt(inst.cumulative_due)}</span>
+                          <span style={{ color: '#dc2626' }}>If missed: +{fmt(inst.section_234C_interest_if_missed)} interest</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tax breakdown */}
+              <div style={{ background: '#f9fafb', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8 }}>Tax Computation</div>
+                {[
+                  ['Normal Income Tax', tc.normal_income_tax],
+                  ['STCG Tax @15%', tc.stcg_tax_15pct],
+                  ['LTCG Tax @10%', tc.ltcg_tax_10pct],
+                  ['87A Rebate', -tc.rebate_87a],
+                  ['Surcharge', tc.surcharge],
+                  ['Cess @4%', tc.cess_4pct],
+                ].filter(([, v]) => (v as number) !== 0).map(([label, val]: any) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', borderBottom: '1px solid #e5e7eb' }}>
+                    <span>{label}</span><span style={{ fontVariantNumeric: 'tabular-nums', color: val < 0 ? '#059669' : '#111827' }}>{val < 0 ? '−' : ''}{fmt(Math.abs(val))}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tips */}
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 10 }}>
+                {(r.tips || []).map((t: string, i: number) => (
+                  <div key={i} style={{ fontSize: 11, color: '#92400e', marginBottom: 3 }}>💡 {t}</div>
+                ))}
+              </div>
+            </div>
+          )
+        })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter income details and click Calculate →</div>}
+      </div>
+    </div>
   )
 }
 

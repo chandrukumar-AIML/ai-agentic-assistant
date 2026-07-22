@@ -67,6 +67,7 @@ const TABS = [
   { id: 'cx360',         label: 'Customer 360' },
   { id: 'analytics',     label: 'Support Analytics' },
   { id: 'returns_policy', label: 'Returns Policy' },
+  { id: 'chatbot',        label: 'Chatbot Builder' },
 ]
 
 const WA_TYPES = [
@@ -1324,6 +1325,7 @@ export default function CustomerSupportPage() {
         {tab === 'escalation_email'  && <EscalationEmailTab lang={lang} />}
         {tab === 'winback_campaign'  && <WinBackTab lang={lang} />}
         {tab === 'returns_policy'    && <ReturnsPolicyTab lang={lang} />}
+        {tab === 'chatbot'           && <ChatbotBuilderTab lang={lang} />}
         {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
         {tab === 'cx360'          && <Customer360Tab lang={lang} />}
         {tab === 'analytics'      && <SupportAnalyticsTab lang={lang} />}
@@ -4084,6 +4086,204 @@ export function SupportAnalyticsTab({ lang }: { lang: string }) {
         })() : (
           <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter this week's support numbers and click Generate Analytics Report →</div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── R23: Chatbot Script Builder ───────────────────────────────────────────────
+const CB_INDUSTRIES = ['ecommerce','services','education','health','real_estate','restaurant','finance','retail']
+const CB_PLATFORMS  = [{value:'whatsapp',label:'WhatsApp Business'},{value:'website',label:'Website Chat'},{value:'instagram',label:'Instagram DM'}]
+const CB_TONES      = ['friendly','professional','formal']
+
+export function ChatbotBuilderTab({ lang }: { lang: string }) {
+  const [cbBiz,    setCbBiz]    = useState('')
+  const [cbBot,    setCbBot]    = useState('')
+  const [cbInd,    setCbInd]    = useState('ecommerce')
+  const [cbPlat,   setCbPlat]   = useState('whatsapp')
+  const [cbTone,   setCbTone]   = useState('friendly')
+  const [cbEsc,    setCbEsc]    = useState('')
+  const [cbFAQs,   setCbFAQs]   = useState([
+    { question: '', answer: '' },
+    { question: '', answer: '' },
+    { question: '', answer: '' },
+  ])
+  const [cbRes,    setCbRes]    = useState<any>(null)
+  const [cbLoading,setCbLoading]= useState(false)
+  const [cbErr,    setCbErr]    = useState('')
+  const [cbView,   setCbView]   = useState<'tree'|'script'|'tips'>('script')
+
+  const updateFAQ = (i: number, field: 'question'|'answer', val: string) => {
+    setCbFAQs(prev => prev.map((faq, idx) => idx === i ? {...faq, [field]: val} : faq))
+  }
+  const addFAQ = () => setCbFAQs(prev => [...prev, { question: '', answer: '' }])
+
+  const run = async () => {
+    if (!cbBiz) { setCbErr('Business name required'); return }
+    setCbLoading(true); setCbErr(''); setCbRes(null)
+    try {
+      setCbRes(await csAction('chatbot_script', {
+        business_name: cbBiz, bot_name: cbBot, industry: cbInd,
+        platform: cbPlat, tone: cbTone, escalation_trigger: cbEsc,
+        top_faqs: cbFAQs.filter(f => f.question.trim()),
+      }, lang))
+    } catch (e: any) { setCbErr(e.message) }
+    finally { setCbLoading(false) }
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 16 }}>
+      {/* Config */}
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>Chatbot Script Builder</div>
+        <div>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Business Name</label>
+          <input value={cbBiz} onChange={e => setCbBiz(e.target.value)} placeholder="e.g. FreshCart India"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Bot Name (optional)</label>
+          <input value={cbBot} onChange={e => setCbBot(e.target.value)} placeholder="e.g. CartBot, Priya, Ravi"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div>
+            <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Industry</label>
+            <select value={cbInd} onChange={e => setCbInd(e.target.value)}
+              style={{ width: '100%', padding: '8px 6px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 11 }}>
+              {CB_INDUSTRIES.map(i => <option key={i} value={i}>{i.charAt(0).toUpperCase()+i.slice(1)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Tone</label>
+            <select value={cbTone} onChange={e => setCbTone(e.target.value)}
+              style={{ width: '100%', padding: '8px 6px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 11 }}>
+              {CB_TONES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Platform</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {CB_PLATFORMS.map(p => (
+              <label key={p.value} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
+                <input type="radio" name="cbplat" value={p.value} checked={cbPlat === p.value} onChange={() => setCbPlat(p.value)} />
+                {p.label}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Escalation Contact (optional)</label>
+          <input value={cbEsc} onChange={e => setCbEsc(e.target.value)} placeholder="e.g. +91-9XXXXXXXXX or type AGENT"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12, boxSizing: 'border-box' as const }} />
+        </div>
+        {/* FAQs */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>Top FAQs (optional — we fill defaults if empty)</div>
+          {cbFAQs.map((faq, i) => (
+            <div key={i} style={{ marginBottom: 8, background: '#f9fafb', borderRadius: 8, padding: 8 }}>
+              <input value={faq.question} onChange={e => updateFAQ(i, 'question', e.target.value)}
+                placeholder={`Q${i+1}: e.g. How do I track my order?`}
+                style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 11, marginBottom: 4, boxSizing: 'border-box' as const }} />
+              <textarea value={faq.answer} onChange={e => updateFAQ(i, 'answer', e.target.value)}
+                placeholder="Answer..."
+                rows={2} style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 11, resize: 'vertical' as const, boxSizing: 'border-box' as const }} />
+            </div>
+          ))}
+          <button onClick={addFAQ} style={{ fontSize: 11, color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer' }}>+ Add FAQ</button>
+        </div>
+        <button onClick={run} disabled={cbLoading}
+          style={{ padding: '12px', borderRadius: 10, border: 'none', background: '#6366f1', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          {cbLoading ? 'Building…' : '🤖 Build Chatbot Script'}
+        </button>
+        {cbErr && <div style={{ color: '#ef4444', fontSize: 12 }}>{cbErr}</div>}
+      </div>
+
+      {/* Result */}
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 }}>
+        {cbRes ? (() => {
+          const r = cbRes
+          const views = [{ id: 'script', label: '📜 WA Script' }, { id: 'tree', label: '🌳 Decision Tree' }, { id: 'tips', label: '⚙️ Setup Tips' }] as const
+          return (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: '#111827' }}>🤖 {r.bot_name}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>{r.platform} · {r.tone} tone · {r.faq_count} FAQs</div>
+                </div>
+                <div style={{ background: '#ede9fe', color: '#5b21b6', padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                  {r.platforms_supported?.length} platforms ready
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                {views.map(v => (
+                  <button key={v.id} onClick={() => setCbView(v.id as any)}
+                    style={{ flex: 1, padding: '7px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: cbView === v.id ? '#6366f1' : '#f3f4f6', color: cbView === v.id ? '#fff' : '#374151' }}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+
+              {cbView === 'script' && (
+                <div>
+                  <div style={{ background: '#f5f3ff', border: '1px solid #c4b5fd', borderRadius: 10, padding: 14, fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap' as const, color: '#374151', lineHeight: 1.7, maxHeight: 500, overflowY: 'auto' as const }}>
+                    {r.wa_ready_script}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 8 }}>📋 Copy this script and upload to your WhatsApp Business API provider.</div>
+                </div>
+              )}
+
+              {cbView === 'tree' && (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                  {(r.decision_tree || []).map((node: any, i: number) => (
+                    <div key={i} style={{ background: node.is_terminal ? '#fef2f2' : '#f9fafb', border: `1px solid ${node.is_terminal ? '#fecaca' : '#e5e7eb'}`, borderRadius: 10, padding: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <div style={{ fontWeight: 700, fontSize: 12, color: '#6366f1' }}>NODE: {node.id.toUpperCase()}</div>
+                        {node.is_terminal && <span style={{ fontSize: 10, color: '#dc2626', fontWeight: 700 }}>TERMINAL</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Triggers: {(node.trigger || []).join(', ')}</div>
+                      <div style={{ fontSize: 12, color: '#374151', background: '#fff', padding: '8px 10px', borderRadius: 6, whiteSpace: 'pre-wrap' as const }}>{node.message}</div>
+                      {node.quick_replies && (
+                        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                          {node.quick_replies.map((qr: string) => (
+                            <span key={qr} style={{ background: '#ede9fe', color: '#5b21b6', padding: '3px 10px', borderRadius: 20, fontSize: 10 }}>{qr}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {cbView === 'tips' && (
+                <div>
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10, marginBottom: 16 }}>
+                    {(r.setup_tips || []).map((tip: string, i: number) => (
+                      <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, fontSize: 12, color: '#374151' }}>
+                        <span style={{ color: '#6366f1', fontWeight: 700 }}>{i+1}.</span> {tip}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8 }}>✅ Escalation Triggers</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                    {(r.escalation_triggers || []).map((t: string) => (
+                      <span key={t} style={{ background: '#fee2e2', color: '#991b1b', padding: '3px 10px', borderRadius: 20, fontSize: 11 }}>{t}</span>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 12, fontWeight: 700, fontSize: 12, marginBottom: 8 }}>📱 Platforms Supported</div>
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 4 }}>
+                    {(r.platforms_supported || []).map((p: string) => (
+                      <div key={p} style={{ fontSize: 12, color: '#374151' }}>• {p}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Configure your bot and click Build →</div>}
       </div>
     </div>
   )

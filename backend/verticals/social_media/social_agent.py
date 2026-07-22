@@ -2069,6 +2069,19 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "bio_optimizer":
+        return generate_bio_optimizer(
+            name=payload.get("name", ""),
+            current_bio=payload.get("current_bio", ""),
+            profession=payload.get("profession", ""),
+            industry=payload.get("industry", "technology"),
+            target_audience=payload.get("target_audience", ""),
+            cta_goal=payload.get("cta_goal", ""),
+            tone=payload.get("tone", "professional"),
+            achievements=payload.get("achievements", ""),
+            platforms=payload.get("platforms", ["instagram", "linkedin", "twitter"]),
+            language=language,
+        )
     elif action == "product_launch_kit":
         return generate_product_launch_kit(
             product_name=payload.get("product_name", ""),
@@ -2972,6 +2985,113 @@ _LAUNCH_EMAIL_TEMPLATES = {
     "launch_day_blast":      "Subject: It's here! [Product] is live | Body: CTA + benefit summary",
     "follow_up":             "Subject: Did you miss [Product]? | Body: Last chance + social proof",
 }
+
+
+# ── R23: Bio Optimizer ────────────────────────────────────────────────────────
+
+_BIO_LIMITS = {
+    "instagram": {"chars": 150, "lines": 5, "cta": "Link in bio"},
+    "linkedin":  {"chars": 220, "lines": 3, "cta": "Connect / DM"},
+    "twitter":   {"chars": 160, "lines": 2, "cta": "Follow for tips"},
+    "youtube":   {"chars": 1000,"lines": 8, "cta": "Subscribe"},
+}
+
+_BIO_KEYWORDS_BY_INDUSTRY = {
+    "technology":    ["Tech | AI | SaaS", "Building", "Founder", "Engineer", "Product"],
+    "finance":       ["CA | CFA | Finance", "Wealth", "Investing", "Tax", "Money"],
+    "marketing":     ["Growth | Marketing", "Brand", "Digital", "Content", "ROI"],
+    "education":     ["Educator | Mentor", "Learning", "Coaching", "Skills", "Career"],
+    "health":        ["Health | Wellness", "Coach", "Nutrition", "Fitness", "Mindset"],
+    "ecommerce":     ["Founder | D2C", "Building", "Products", "Brand", "Entrepreneur"],
+    "consulting":    ["Consultant | Advisor", "Strategy", "Growth", "Expert", "10+ years"],
+    "creative":      ["Creator | Designer", "Visual", "Storyteller", "Brand", "Studio"],
+}
+
+_BIO_EMOJI_SETS = {
+    "professional": ["💼", "📊", "🎯", "✅", "🔹"],
+    "creative":     ["🎨", "✨", "🌟", "💡", "🎬"],
+    "energetic":    ["🚀", "⚡", "🔥", "💪", "🌍"],
+    "warm":         ["🙏", "❤️", "🌱", "🤝", "💛"],
+}
+
+
+def generate_bio_optimizer(
+    name: str,
+    current_bio: str,
+    profession: str,
+    industry: str,
+    target_audience: str,
+    cta_goal: str,
+    tone: str = "professional",
+    achievements: str = "",
+    platforms: list = None,
+    language: str = "en",
+) -> dict:
+    platforms = platforms or ["instagram", "linkedin", "twitter"]
+    kws = _BIO_KEYWORDS_BY_INDUSTRY.get(industry.lower(), _BIO_KEYWORDS_BY_INDUSTRY["technology"])
+    emojis = _BIO_EMOJI_SETS.get(tone, _BIO_EMOJI_SETS["professional"])
+
+    bios = {}
+    for platform in platforms:
+        cfg = _BIO_LIMITS.get(platform, _BIO_LIMITS["instagram"])
+        bio = _craft_bio(
+            name=name, profession=profession, industry=industry,
+            audience=target_audience, cta=cta_goal, achievements=achievements,
+            emojis=emojis, kws=kws, platform=platform, char_limit=cfg["chars"],
+        )
+        bios[platform] = {
+            "bio": bio,
+            "char_count": len(bio),
+            "char_limit": cfg["chars"],
+            "fits": len(bio) <= cfg["chars"],
+            "tips": _bio_tips(platform, cta_goal),
+        }
+
+    # Keyword suggestions
+    keyword_suggestions = kws[:5] + [profession, industry.capitalize(), target_audience.split()[0] if target_audience else ""]
+
+    return {
+        "name": name,
+        "original_bio": current_bio,
+        "bios": bios,
+        "keyword_suggestions": [k for k in keyword_suggestions if k],
+        "cta_options": [
+            cta_goal,
+            f"DM '{kws[0].split('|')[0].strip()}' to get started",
+            f"Free consultation → Link below",
+            f"Download my free guide 👇",
+        ],
+        "tone": tone,
+        "headline_options": [
+            f"{profession} | Helping {target_audience}",
+            f"{kws[0]} | {profession}",
+            f"I help {target_audience} {cta_goal.lower()[:40]}",
+        ],
+    }
+
+
+def _craft_bio(name, profession, industry, audience, cta, achievements, emojis, kws, platform, char_limit):
+    ach = f" | {achievements[:40]}" if achievements else ""
+    lines = {
+        "instagram": f"{emojis[0]} {profession}{ach}\n{emojis[1]} Helping {audience}\n{emojis[2]} {kws[0]}\n{emojis[3]} {cta}\n👇 {_BIO_LIMITS['instagram']['cta']}",
+        "linkedin":  f"{profession} | {kws[0]}{ach} | Helping {audience} | {cta}",
+        "twitter":   f"{profession} {emojis[0]} | {kws[0]} | {cta}",
+        "youtube":   f"Welcome! I'm {name} — {profession}.\n\nI help {audience}.\n\n{kws[0]}{ach}\n\n{cta}\n\n📧 Contact: {cta}\n🔔 Subscribe for weekly tips!",
+    }
+    bio = lines.get(platform, lines["instagram"])
+    if len(bio) > char_limit:
+        bio = bio[:char_limit - 3] + "..."
+    return bio
+
+
+def _bio_tips(platform: str, cta: str) -> list:
+    tips = {
+        "instagram": ["Add 1 keyword in your Name field (not just bio) — it's searchable", "Use line breaks for scannability", "Change CTA link to match your current campaign", f"End with action: '{cta[:30]}'"],
+        "linkedin":  ["First 220 chars appear in search results — front-load keywords", "Use | to separate phrases for easy scanning", "Mention who you help specifically", "No hashtags needed in LinkedIn bio"],
+        "twitter":   ["160 chars max — every word must earn its place", "Include 1–2 searchable keywords", "Pinned tweet can extend your bio story", "Update bio when you launch something new"],
+        "youtube":   ["First 100 chars show in search results", "Include keywords you want to rank for", "Add posting schedule so viewers know when to return", "Include email for business inquiries"],
+    }
+    return tips.get(platform, tips["instagram"])
 
 
 def generate_product_launch_kit(

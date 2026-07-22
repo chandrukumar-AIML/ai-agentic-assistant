@@ -560,6 +560,17 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "chatbot_script":
+            return generate_chatbot_script(
+                business_name=payload.get("business_name", ""),
+                industry=payload.get("industry", "ecommerce"),
+                bot_name=payload.get("bot_name", ""),
+                top_faqs=payload.get("top_faqs", []),
+                escalation_trigger=payload.get("escalation_trigger", ""),
+                tone=payload.get("tone", "friendly"),
+                platform=payload.get("platform", "whatsapp"),
+                language=language,
+            )
         elif action == "returns_policy":
             return generate_returns_policy(
                 business_name=payload.get("business_name", ""),
@@ -2868,6 +2879,129 @@ _WHATSAPP_TEMPLATES = {
     "refund_initiated": "Good news, {name}! ✅ Your refund of ₹{amount} for Order #{order_id} has been initiated. It will reflect in your {payment_method} within {days} business days.",
     "return_rejected": "Hi {name}, we're unable to process a return for Order #{order_id} because {reason}. Please WhatsApp us if you have any questions — we're happy to help! 🙏",
 }
+
+
+# ── R23: Chatbot Script Builder ───────────────────────────────────────────────
+
+_CHATBOT_GREETINGS = {
+    "whatsapp": "Hi! 👋 I'm {bot_name}, your {business} assistant. How can I help you today?\n\nReply with a number:\n1️⃣ Track my order\n2️⃣ Returns & Refunds\n3️⃣ Product info\n4️⃣ Talk to a human",
+    "website":  "Hello! 👋 Welcome to {business}. I'm {bot_name}. What can I help you with?\n• Order status\n• Returns\n• Product questions\n• Speak to support",
+    "instagram":"Hey! 🌟 Thanks for reaching out to {business}. I'm {bot_name} — quick replies below!\n\n1. Track order\n2. Returns\n3. Products\n4. Human agent",
+}
+
+_CHATBOT_FALLBACKS = {
+    "friendly":     "Hmm, I didn't quite get that 😅 Let me connect you with a team member who can help! Type HELP to speak with a human.",
+    "professional": "I'm sorry, I didn't understand that request. Please choose from the menu options or type AGENT to speak with our support team.",
+    "formal":       "We apologise for the inconvenience. Your query has been escalated to our customer care team who will respond within 4 business hours.",
+}
+
+_CHATBOT_INDUSTRY_FAQS = {
+    "ecommerce":   [("Track my order", "Please share your Order ID and I'll check the status right away! 📦"), ("Return a product", "Returns are accepted within 7 days. Share your Order ID to start a return request."), ("Payment failed", "If your payment failed but amount was deducted, it will be refunded within 5–7 business days automatically.")],
+    "services":    [("Book an appointment", "Sure! Please share your preferred date and time and I'll check availability."), ("Service charges", "Our pricing depends on your requirement. Can you share more details?"), ("Cancel booking", "To cancel, please share your booking ID. Note: cancellations must be done 24 hours before the appointment.")],
+    "education":   [("Course fees", "Course fees vary by program. Which course are you interested in?"), ("Batch timings", "We have morning, afternoon, and evening batches. Which works best for you?"), ("Certificate", "Certificates are issued within 7 days of course completion.")],
+    "health":      [("Book appointment", "Happy to help! Please share your preferred doctor, date, and time."), ("Report status", "Share your Patient ID or phone number to get your report status."), ("Insurance", "We accept most major insurance providers. Share your insurer name to confirm coverage.")],
+    "real_estate": [("Site visit", "We'd love to show you around! Share your preferred date and our team will confirm."), ("Price", "Pricing starts at ₹X. Would you like a detailed brochure?"), ("EMI options", "We have tie-ups with 12+ banks. EMIs start from ₹X/month for a 20-year loan.")],
+}
+
+_CHATBOT_ESCALATION_TRIGGERS = ["human", "agent", "help", "manager", "complaint", "urgent", "problem", "issue", "not working", "refund stuck"]
+
+
+def generate_chatbot_script(
+    business_name: str,
+    industry: str,
+    bot_name: str = "",
+    top_faqs: list = None,
+    escalation_trigger: str = "",
+    tone: str = "friendly",
+    platform: str = "whatsapp",
+    language: str = "en",
+) -> dict:
+    bot_name = bot_name or f"{business_name.split()[0]}Bot"
+    industry_key = industry.lower().replace(" ", "_")
+    default_faqs = _CHATBOT_INDUSTRY_FAQS.get(industry_key, _CHATBOT_INDUSTRY_FAQS["ecommerce"])
+
+    # Merge custom FAQs with defaults
+    faq_list = []
+    if top_faqs:
+        for faq in top_faqs[:5]:
+            if isinstance(faq, dict):
+                faq_list.append((faq.get("question", ""), faq.get("answer", "")))
+            elif isinstance(faq, str):
+                faq_list.append((faq, "Our team will get back to you on this shortly."))
+    if len(faq_list) < 3:
+        faq_list.extend(default_faqs[:3 - len(faq_list)])
+
+    greeting = _CHATBOT_GREETINGS.get(platform, _CHATBOT_GREETINGS["whatsapp"]).format(
+        bot_name=bot_name, business=business_name
+    )
+    fallback = _CHATBOT_FALLBACKS.get(tone, _CHATBOT_FALLBACKS["friendly"])
+    escalation_msg = (
+        f"Connecting you with our team now 🤝 Please hold — a support agent will respond within 2 hours.\n\n"
+        f"Business hours: Mon–Sat, 10 AM – 7 PM IST\nFor urgent issues: {escalation_trigger or 'Type AGENT anytime'}"
+    )
+
+    # Build decision tree nodes
+    nodes = [
+        {
+            "id": "start",
+            "trigger": ["Hi", "Hello", "Hey", "Start", "1", "help"],
+            "message": greeting,
+            "next_nodes": ["faq_" + str(i) for i in range(len(faq_list))] + ["escalate"],
+        }
+    ]
+
+    for i, (question, answer) in enumerate(faq_list):
+        nodes.append({
+            "id": f"faq_{i}",
+            "trigger": [str(i + 1), question[:30]],
+            "message": answer,
+            "next_nodes": ["start", "escalate"],
+            "quick_replies": ["Main Menu 🏠", "Talk to Human 🙋"],
+        })
+
+    nodes.append({
+        "id": "escalate",
+        "trigger": _CHATBOT_ESCALATION_TRIGGERS + ([escalation_trigger] if escalation_trigger else []),
+        "message": escalation_msg,
+        "next_nodes": [],
+        "is_terminal": True,
+    })
+
+    nodes.append({
+        "id": "fallback",
+        "trigger": ["*"],
+        "message": fallback,
+        "next_nodes": ["start", "escalate"],
+        "quick_replies": ["Main Menu 🏠", "Talk to Human 🙋"],
+    })
+
+    # WhatsApp-ready script format
+    wa_script = f"=== {bot_name} — WhatsApp Bot Script ===\n\n"
+    wa_script += f"GREETING:\n{greeting}\n\n"
+    for i, (q, a) in enumerate(faq_list):
+        wa_script += f"IF user says '{i+1}' or '{q[:25]}':\n→ {a}\n→ Quick replies: [Main Menu] [Talk to Human]\n\n"
+    wa_script += f"IF user says AGENT/HUMAN/HELP:\n→ {escalation_msg}\n\n"
+    wa_script += f"FALLBACK (anything else):\n→ {fallback}\n"
+
+    return {
+        "business": business_name,
+        "bot_name": bot_name,
+        "platform": platform,
+        "tone": tone,
+        "faq_count": len(faq_list),
+        "decision_tree": nodes,
+        "wa_ready_script": wa_script,
+        "faqs_covered": [{"question": q, "answer": a} for q, a in faq_list],
+        "escalation_triggers": _CHATBOT_ESCALATION_TRIGGERS,
+        "setup_tips": [
+            f"Upload this script to your WhatsApp Business API provider (Interakt, Wati, AiSensy)",
+            "Set business hours so customers know when humans are available",
+            "Test every flow before going live — use a separate test number",
+            "Add your most common complaint keywords to escalation triggers",
+            f"Review bot conversations weekly and add new FAQs to reduce escalations",
+        ],
+        "platforms_supported": ["WhatsApp Business API", "Instagram DM", "Website chat widget", "Telegram Bot"],
+    }
 
 
 def generate_returns_policy(

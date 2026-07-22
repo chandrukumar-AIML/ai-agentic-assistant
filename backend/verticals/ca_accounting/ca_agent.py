@@ -953,6 +953,22 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "advance_tax":
+        return generate_advance_tax(
+            taxpayer_name=payload.get("taxpayer_name", ""),
+            taxpayer_type=payload.get("taxpayer_type", "individual"),
+            financial_year=payload.get("financial_year", "2025-26"),
+            estimated_income=float(payload.get("estimated_income", 0)),
+            tds_deducted=float(payload.get("tds_deducted", 0)),
+            regime=payload.get("regime", "new"),
+            business_income=float(payload.get("business_income", 0)),
+            salary_income=float(payload.get("salary_income", 0)),
+            capital_gains_stcg=float(payload.get("capital_gains_stcg", 0)),
+            capital_gains_ltcg=float(payload.get("capital_gains_ltcg", 0)),
+            other_income=float(payload.get("other_income", 0)),
+            deductions_80c=float(payload.get("deductions_80c", 0)),
+            language=language,
+        )
     elif action == "balance_sheet":
         return generate_balance_sheet(
             company_name=payload.get("company_name", ""),
@@ -2757,6 +2773,158 @@ def generate_balance_sheet(
         },
         "auditor_notes": notes,
         "schedule_vi_ready": True,
+    }
+
+
+# ── R23: Advance Tax Calculator ──────────────────────────────────────────────
+
+_ADV_TAX_INSTALLMENTS = [
+    {"quarter": "Q1", "due_date": "15 June",      "cumulative_pct": 15, "section": "207"},
+    {"quarter": "Q2", "due_date": "15 September", "cumulative_pct": 45, "section": "207"},
+    {"quarter": "Q3", "due_date": "15 December",  "cumulative_pct": 75, "section": "207"},
+    {"quarter": "Q4", "due_date": "15 March",     "cumulative_pct": 100,"section": "207"},
+]
+
+_ADV_TAX_OLD_SLABS_IND = [
+    (250000, 0.0), (250000, 0.05), (500000, 0.20), (float('inf'), 0.30)
+]
+
+_ADV_TAX_NEW_SLABS = [
+    (300000, 0.0), (300000, 0.05), (300000, 0.10), (300000, 0.15), (300000, 0.20), (float('inf'), 0.30)
+]
+
+_INTEREST_RATE_PER_MONTH = 0.01  # 1% per month u/s 234B & 234C
+
+
+def _calc_tax_on_slabs(income: float, slabs: list) -> float:
+    tax = 0.0
+    remaining = income
+    for limit, rate in slabs:
+        taxable = min(remaining, limit)
+        tax += taxable * rate
+        remaining -= taxable
+        if remaining <= 0:
+            break
+    return tax
+
+
+def generate_advance_tax(
+    taxpayer_name: str,
+    taxpayer_type: str,
+    financial_year: str,
+    estimated_income: float,
+    tds_deducted: float = 0,
+    regime: str = "new",
+    business_income: float = 0,
+    salary_income: float = 0,
+    capital_gains_stcg: float = 0,
+    capital_gains_ltcg: float = 0,
+    other_income: float = 0,
+    deductions_80c: float = 0,
+    language: str = "en",
+) -> dict:
+    # Compute total if not given
+    total_income = estimated_income or (business_income + salary_income + capital_gains_stcg + capital_gains_ltcg + other_income)
+
+    # Tax on STCG at 15% (Section 111A), LTCG >1L at 10% (Section 112A)
+    stcg_tax = capital_gains_stcg * 0.15
+    ltcg_exempt = 100000
+    ltcg_tax = max(0, capital_gains_ltcg - ltcg_exempt) * 0.10
+
+    normal_income = total_income - capital_gains_stcg - capital_gains_ltcg
+
+    if regime == "new":
+        slabs = _ADV_TAX_NEW_SLABS
+        std_deduction = 75000 if salary_income > 0 else 0
+        taxable_normal = max(0, normal_income - std_deduction)
+    else:
+        slabs = _ADV_TAX_OLD_SLABS_IND
+        taxable_normal = max(0, normal_income - min(deductions_80c, 150000) - (75000 if salary_income > 0 else 50000))
+
+    normal_tax = _calc_tax_on_slabs(taxable_normal, slabs)
+
+    # 87A Rebate (new regime: income ≤ 7L full rebate; old regime: income ≤ 5L rebate up to 12500)
+    rebate = 0
+    if regime == "new" and taxable_normal <= 700000:
+        rebate = normal_tax
+    elif regime == "old" and taxable_normal <= 500000:
+        rebate = min(normal_tax, 12500)
+    normal_tax = max(0, normal_tax - rebate)
+
+    gross_tax = normal_tax + stcg_tax + ltcg_tax
+
+    # Surcharge
+    surcharge = 0
+    if total_income > 50_00_000:
+        surcharge = gross_tax * (0.15 if total_income <= 1_00_00_000 else 0.25)
+    tax_before_cess = gross_tax + surcharge
+
+    # Health & Education Cess 4%
+    cess = tax_before_cess * 0.04
+    total_tax = round(tax_before_cess + cess, 0)
+
+    # Net advance tax after TDS
+    net_advance_tax = max(0, total_tax - tds_deducted)
+
+    # Threshold: advance tax only if liability > ₹10,000
+    advance_tax_applicable = net_advance_tax > 10000
+
+    # Installments
+    installments = []
+    paid_so_far = 0
+    for inst in _ADV_TAX_INSTALLMENTS:
+        cumulative_due = round(net_advance_tax * inst["cumulative_pct"] / 100, 0)
+        installment_amount = max(0, cumulative_due - paid_so_far)
+        paid_so_far = cumulative_due
+        shortfall_interest = round(installment_amount * _INTEREST_RATE_PER_MONTH * 3, 0) if installment_amount > 0 else 0
+        installments.append({
+            "quarter": inst["quarter"],
+            "due_date": inst["due_date"] + f" {financial_year.split('-')[0] if inst['quarter'] in ['Q1','Q2','Q3'] else '20' + financial_year.split('-')[1]}",
+            "cumulative_percent": inst["cumulative_pct"],
+            "cumulative_due": cumulative_due,
+            "installment_amount": installment_amount,
+            "section_234C_interest_if_missed": shortfall_interest,
+        })
+
+    fy_parts = financial_year.split("-")
+    ay = f"20{fy_parts[1]}-{str(int('20'+fy_parts[1])+1)[2:]}" if len(fy_parts) == 2 else ""
+
+    return {
+        "taxpayer": taxpayer_name,
+        "taxpayer_type": taxpayer_type,
+        "financial_year": financial_year,
+        "assessment_year": ay,
+        "regime": regime,
+        "income_summary": {
+            "salary_income": salary_income,
+            "business_income": business_income,
+            "capital_gains_stcg": capital_gains_stcg,
+            "capital_gains_ltcg": capital_gains_ltcg,
+            "other_income": other_income,
+            "total_income": total_income,
+        },
+        "tax_computation": {
+            "normal_income_tax": round(normal_tax, 0),
+            "stcg_tax_15pct": round(stcg_tax, 0),
+            "ltcg_tax_10pct": round(ltcg_tax, 0),
+            "surcharge": round(surcharge, 0),
+            "cess_4pct": round(cess, 0),
+            "total_tax_liability": total_tax,
+            "tds_already_deducted": tds_deducted,
+            "net_advance_tax_payable": net_advance_tax,
+            "rebate_87a": round(rebate, 0),
+        },
+        "advance_tax_applicable": advance_tax_applicable,
+        "advance_tax_not_applicable_reason": None if advance_tax_applicable else "Tax liability ≤ ₹10,000 — advance tax not required (Section 208)",
+        "installments": installments,
+        "payment_mode": "Challan ITNS 280 — online at tin.tin.nsdl.com or via net banking",
+        "key_sections": ["Section 207 — Liability to pay advance tax", "Section 208 — ₹10,000 threshold", "Section 234B — Interest for non-payment", "Section 234C — Interest for deferred payment"],
+        "tips": [
+            f"Estimate income conservatively — you can revise upward in later quarters",
+            "Include all freelance / side income — advance tax applies to ALL income",
+            "TDS on salary is already being deducted — only shortfall needs advance payment",
+            f"Missing {'Q1' if net_advance_tax > 0 else ''} installment attracts 1% per month interest u/s 234C",
+        ],
     }
 
 

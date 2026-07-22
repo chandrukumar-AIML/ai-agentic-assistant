@@ -832,6 +832,7 @@ export default function SocialPage() {
           { id: 'brand_voice',  label: 'Brand Voice Engine',       icon: '🎨' },
           { id: 'cal',          label: 'Content Calendar',         icon: '📅' },
           { id: 'bulk',         label: 'Bulk Post Generator',      icon: '⚡' },
+          { id: 'bio_opt',      label: 'Bio Optimizer',            icon: '✍️' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1434,6 +1435,7 @@ export default function SocialPage() {
 
       {/* ── PRODUCT LAUNCH KIT ── */}
       {tab === 'launch_kit' && <LaunchKitTab />}
+      {tab === 'bio_opt'    && <BioOptimizerTab />}
 
       {/* ── ANALYTICS ── */}
       {tab === 'analytics' && (
@@ -3965,6 +3967,165 @@ export default function SocialPage() {
       )}
 
     </PageShell>
+  )
+}
+
+// ── R23: Bio Optimizer ────────────────────────────────────────────────────────
+const BO_TONES    = ['professional','creative','energetic','warm']
+const BO_PLATFORMS = ['instagram','linkedin','twitter','youtube']
+const BO_INDUSTRIES = ['technology','finance','marketing','education','health','ecommerce','consulting','creative']
+
+export function BioOptimizerTab() {
+  const [boName,     setBoName]     = useState('')
+  const [boCurrent,  setBoCurrent]  = useState('')
+  const [boProf,     setBoProf]     = useState('')
+  const [boInd,      setBoInd]      = useState('technology')
+  const [boAud,      setBoAud]      = useState('')
+  const [boCta,      setBoCta]      = useState('')
+  const [boTone,     setBoTone]     = useState('professional')
+  const [boAch,      setBoAch]      = useState('')
+  const [boPlatforms,setBoPlatforms]= useState<string[]>(['instagram','linkedin','twitter'])
+  const [boRes,      setBoRes]      = useState<any>(null)
+  const [boLoading,  setBoLoading]  = useState(false)
+  const [boErr,      setBoErr]      = useState('')
+  const [boPlat,     setBoPlat]     = useState('instagram')
+
+  const togglePlat = (p: string) => setBoPlatforms(prev =>
+    prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
+  )
+
+  const run = async () => {
+    if (!boProf || !boAud) { setBoErr('Profession and target audience required'); return }
+    setBoLoading(true); setBoErr(''); setBoRes(null)
+    try {
+      const res = await socialAction('bio_optimizer', {
+        name: boName, current_bio: boCurrent, profession: boProf,
+        industry: boInd, target_audience: boAud, cta_goal: boCta,
+        tone: boTone, achievements: boAch, platforms: boPlatforms,
+      })
+      setBoRes(res)
+      setBoPlat(boPlatforms[0] || 'instagram')
+    } catch (e: any) { setBoErr(e.message) }
+    finally { setBoLoading(false) }
+  }
+
+  const PLAT_COLOR: Record<string, string> = {
+    instagram: '#e1306c', linkedin: '#0077b5', twitter: '#1da1f2', youtube: '#ff0000',
+  }
+
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="Bio Optimizer" sub="Rewrite your profile bio for Instagram, LinkedIn, Twitter & YouTube" />
+        <Input label="Your Name" value={boName} onChange={setBoName} placeholder="e.g. Priya Sharma" />
+        <Input label="Current Bio (paste it)" value={boCurrent} onChange={setBoCurrent} rows={3} placeholder="Paste your existing bio here (optional)..." />
+        <Input label="Profession / Role" value={boProf} onChange={setBoProf} placeholder="e.g. CA & Tax Consultant | Founder at TaxEasy" />
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Industry</label>
+          <select value={boInd} onChange={e => setBoInd(e.target.value)}
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13 }}>
+            {BO_INDUSTRIES.map(i => <option key={i} value={i}>{i.charAt(0).toUpperCase()+i.slice(1)}</option>)}
+          </select>
+        </div>
+        <Input label="Target Audience" value={boAud} onChange={setBoAud} placeholder="e.g. Small business owners and startups in India" />
+        <Input label="CTA / What you want them to do" value={boCta} onChange={setBoCta} placeholder="e.g. Book a free tax consultation" />
+        <Input label="Key Achievement (optional)" value={boAch} onChange={setBoAch} placeholder="e.g. 500+ clients, 10 years exp, Forbes 30U30" />
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>Tone</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {BO_TONES.map(t => (
+              <button key={t} onClick={() => setBoTone(t)}
+                style={{ padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12,
+                  background: boTone === t ? '#6366f1' : '#f3f4f6', color: boTone === t ? '#fff' : '#374151' }}>
+                {t.charAt(0).toUpperCase()+t.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>Platforms</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {BO_PLATFORMS.map(p => (
+              <button key={p} onClick={() => togglePlat(p)}
+                style={{ padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                  background: boPlatforms.includes(p) ? PLAT_COLOR[p] : '#f3f4f6',
+                  color: boPlatforms.includes(p) ? '#fff' : '#374151' }}>
+                {p.charAt(0).toUpperCase()+p.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Btn onClick={run} loading={boLoading}>✍️ Optimize My Bio</Btn>
+        {boErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{boErr}</div>}
+      </Card>
+
+      <Card>
+        {boRes ? (() => {
+          const r = boRes
+          const bio = r.bios?.[boPlat]
+          return (
+            <div>
+              {/* Platform switcher */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                {Object.keys(r.bios || {}).map(p => (
+                  <button key={p} onClick={() => setBoPlat(p)}
+                    style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                      background: boPlat === p ? (PLAT_COLOR[p] || '#6366f1') : '#f3f4f6',
+                      color: boPlat === p ? '#fff' : '#374151' }}>
+                    {p.charAt(0).toUpperCase()+p.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {bio && (
+                <div>
+                  {/* Char count bar */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>Your new {boPlat} bio</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: bio.fits ? '#059669' : '#dc2626' }}>
+                      {bio.char_count}/{bio.char_limit} chars {bio.fits ? '✅' : '⚠️ Too long'}
+                    </div>
+                  </div>
+                  <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 14, fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', marginBottom: 12, color: '#111827' }}>
+                    {bio.bio}
+                  </div>
+                  {/* Progress bar */}
+                  <div style={{ background: '#e5e7eb', borderRadius: 4, height: 6, marginBottom: 12 }}>
+                    <div style={{ height: 6, borderRadius: 4, width: `${Math.min(100, (bio.char_count/bio.char_limit)*100)}%`,
+                      background: bio.fits ? '#10b981' : '#ef4444', transition: 'width 0.3s' }} />
+                  </div>
+                  {/* Tips */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>💡 Platform tips</div>
+                    {(bio.tips || []).map((t: string, i: number) => (
+                      <div key={i} style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>• {t}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Headline options */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>🎯 Headline options (Name field)</div>
+                {(r.headline_options || []).map((h: string, i: number) => (
+                  <div key={i} style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 10px', marginBottom: 4, fontSize: 12, color: '#1d4ed8' }}>{h}</div>
+                ))}
+              </div>
+
+              {/* Keywords */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>🔑 Searchable keywords to include</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(r.keyword_suggestions || []).map((k: string, i: number) => (
+                    <span key={i} style={{ background: '#f3f4f6', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#374151' }}>{k}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )
+        })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill in your profile details and click Optimize →</div>}
+      </Card>
+    </TwoCol>
   )
 }
 
