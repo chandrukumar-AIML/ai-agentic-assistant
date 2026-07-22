@@ -560,6 +560,17 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "csat_survey":
+            return _csat_survey_builder(
+                business_name=payload.get("business_name", ""),
+                product_name=payload.get("product_name", ""),
+                survey_goal=payload.get("survey_goal", "overall"),
+                customer_segment=payload.get("customer_segment", "all"),
+                industry=payload.get("industry", "saas"),
+                max_questions=payload.get("max_questions", 8),
+                include_nps=payload.get("include_nps", True),
+            )
+
         elif action == "winback_campaign":
             return _winback_campaign_generator(
                 business_name=payload.get("business_name", ""),
@@ -2667,6 +2678,174 @@ _WHATSAPP_WINBACK = {
     "day14": "Hi {customer}! 🎁 We have a special returning-customer offer just for you: {offer}. Valid for 7 days only. Want me to activate it for you right now? — {rep}",
     "day21": "Last chance, {customer}! Your exclusive {offer} expires tomorrow. Don't miss this — reply YES and I'll set it up in 2 minutes. — {rep}, {business} 🙏",
 }
+
+
+# ── Round 19: CSAT Survey Builder ────────────────────────────────────────────
+
+_SURVEY_GOALS = {
+    "overall":        {"label": "Overall Satisfaction",    "focus": "general experience"},
+    "post_support":   {"label": "Post-Support Feedback",   "focus": "support interaction quality"},
+    "onboarding":     {"label": "Onboarding Experience",   "focus": "first-30-days experience"},
+    "product":        {"label": "Product Satisfaction",    "focus": "product usability and value"},
+    "renewal":        {"label": "Renewal / Loyalty",       "focus": "likelihood to renew and recommend"},
+    "post_purchase":  {"label": "Post-Purchase Feedback",  "focus": "purchase and delivery experience"},
+}
+
+_QUESTION_BANKS = {
+    "overall": [
+        {"id": "csat_main",  "type": "rating_5",   "question": "How satisfied are you with {product} overall?",                    "why": "Core CSAT metric"},
+        {"id": "nps",        "type": "rating_10",  "question": "How likely are you to recommend {product} to a friend or colleague?", "why": "Net Promoter Score"},
+        {"id": "value",      "type": "rating_5",   "question": "How would you rate the value for money of {product}?",              "why": "Value perception"},
+        {"id": "ease",       "type": "rating_5",   "question": "How easy is {product} to use?",                                     "why": "Usability"},
+        {"id": "support_q",  "type": "rating_5",   "question": "How satisfied are you with our customer support?",                  "why": "Support quality"},
+        {"id": "improve",    "type": "open_text",  "question": "What is the one thing we could improve to make {product} better for you?", "why": "Qualitative insight"},
+        {"id": "love",       "type": "open_text",  "question": "What do you love most about {product}?",                           "why": "Understand strengths"},
+        {"id": "missing",    "type": "mcq",        "question": "Which feature do you wish {product} had?", "options": ["Better reporting", "Mobile app", "API integrations", "Faster performance", "Other"], "why": "Roadmap input"},
+    ],
+    "post_support": [
+        {"id": "resolved",   "type": "binary",     "question": "Was your issue resolved?",                                          "why": "Resolution rate"},
+        {"id": "csat_main",  "type": "rating_5",   "question": "How satisfied are you with the support you received today?",        "why": "Core support CSAT"},
+        {"id": "speed",      "type": "rating_5",   "question": "How would you rate the speed of our response?",                     "why": "Response time perception"},
+        {"id": "knowledge",  "type": "rating_5",   "question": "How knowledgeable was the support agent?",                         "why": "Agent quality"},
+        {"id": "effort",     "type": "rating_5",   "question": "How easy was it to get your issue resolved? (1 = very difficult, 5 = very easy)", "why": "Customer Effort Score"},
+        {"id": "improve",    "type": "open_text",  "question": "Is there anything we could have done better?",                     "why": "Improvement input"},
+        {"id": "channel",    "type": "mcq",        "question": "How did you contact us?", "options": ["Email", "Chat", "Phone", "WhatsApp", "In-app"], "why": "Channel analysis"},
+        {"id": "nps",        "type": "rating_10",  "question": "Based on this experience, how likely are you to recommend us?",     "why": "NPS"},
+    ],
+    "onboarding": [
+        {"id": "csat_main",  "type": "rating_5",   "question": "How would you rate your onboarding experience with {product}?",     "why": "Onboarding CSAT"},
+        {"id": "clarity",    "type": "rating_5",   "question": "How clear was the setup and getting-started process?",              "why": "Clarity of onboarding"},
+        {"id": "time",       "type": "mcq",        "question": "How long did it take to get started?", "options": ["< 1 hour", "1–4 hours", "1–3 days", "More than 3 days"], "why": "Time to value"},
+        {"id": "first_value","type": "binary",     "question": "Have you achieved your first goal using {product}?",                "why": "First value milestone"},
+        {"id": "resources",  "type": "rating_5",   "question": "How helpful were our documentation and tutorials?",                 "why": "Self-serve resource quality"},
+        {"id": "missing",    "type": "open_text",  "question": "What was missing from the onboarding that would have helped you?",  "why": "Gap analysis"},
+        {"id": "nps",        "type": "rating_10",  "question": "How likely are you to recommend {product} to others after your first month?", "why": "Early NPS"},
+    ],
+    "product": [
+        {"id": "csat_main",  "type": "rating_5",   "question": "How satisfied are you with {product}?",                            "why": "Core CSAT"},
+        {"id": "reliability","type": "rating_5",   "question": "How reliable is {product}? (uptime, bugs, performance)",           "why": "Reliability perception"},
+        {"id": "features",   "type": "rating_5",   "question": "Does {product} have all the features you need?",                   "why": "Feature completeness"},
+        {"id": "top_feature","type": "open_text",  "question": "Which feature do you use most, and why?",                         "why": "Usage insights"},
+        {"id": "missing",    "type": "open_text",  "question": "What feature would make {product} 10× more useful for you?",       "why": "Roadmap ideas"},
+        {"id": "compare",    "type": "mcq",        "question": "Compared to alternatives, {product} is:", "options": ["Much better", "Somewhat better", "About the same", "Somewhat worse", "Much worse"], "why": "Competitive positioning"},
+        {"id": "nps",        "type": "rating_10",  "question": "How likely are you to recommend {product}?",                       "why": "NPS"},
+    ],
+}
+
+_SCALE_DESCRIPTIONS = {
+    "rating_5":  {"scale": "1–5", "low": "1 = Very Dissatisfied", "high": "5 = Very Satisfied", "benchmark": "CSAT score = % respondents scoring 4 or 5"},
+    "rating_10": {"scale": "0–10", "low": "0 = Not at all likely", "high": "10 = Extremely likely", "benchmark": "NPS = % Promoters (9-10) − % Detractors (0-6)"},
+    "binary":    {"scale": "Yes / No", "low": "No", "high": "Yes", "benchmark": "Resolution rate = % Yes responses"},
+    "open_text": {"scale": "Free text", "low": "—", "high": "—", "benchmark": "Analyse with word cloud / theme tagging"},
+    "mcq":       {"scale": "Multiple choice", "low": "—", "high": "—", "benchmark": "Track distribution % per option"},
+}
+
+_DISTRIBUTION_CHANNELS = [
+    {"channel": "Email", "timing": "Within 24h of interaction", "open_rate": "20-30%", "tip": "Send from rep's email, not noreply@"},
+    {"channel": "In-App Prompt", "timing": "After key action (e.g., ticket closed)", "open_rate": "40-60%", "tip": "Keep it to 1-2 questions max for in-app"},
+    {"channel": "WhatsApp", "timing": "Within 1h of support close", "open_rate": "70-85%", "tip": "Use WABA approved template for first message"},
+    {"channel": "SMS", "timing": "Within 2h of support close", "open_rate": "60-80%", "tip": "Under 160 chars; include opt-out option"},
+    {"channel": "QR Code (Physical)", "timing": "At POS / delivery", "open_rate": "5-15%", "tip": "Add incentive (10% off next purchase) to boost response"},
+]
+
+
+def _csat_survey_builder(
+    business_name: str,
+    product_name: str,
+    survey_goal: str,
+    customer_segment: str,
+    industry: str,
+    max_questions: int,
+    include_nps: bool,
+) -> dict:
+    biz     = business_name or "Our Company"
+    product = product_name or "our product"
+    goal    = _SURVEY_GOALS.get(survey_goal, _SURVEY_GOALS["overall"])
+    bank    = _QUESTION_BANKS.get(survey_goal, _QUESTION_BANKS["overall"])
+    mq      = int(max_questions) if max_questions else 8
+
+    # Build question list
+    questions = []
+    for q in bank[:mq]:
+        qtext = q["question"].replace("{product}", product).replace("{company}", biz)
+        scale = _SCALE_DESCRIPTIONS.get(q["type"], {})
+        entry = {
+            "id": q["id"],
+            "order": len(questions) + 1,
+            "question": qtext,
+            "type": q["type"],
+            "scale": scale.get("scale", ""),
+            "scale_low": scale.get("low", ""),
+            "scale_high": scale.get("high", ""),
+            "why_this_question": q["why"],
+            "benchmark": scale.get("benchmark", ""),
+        }
+        if "options" in q:
+            entry["options"] = q["options"]
+        questions.append(entry)
+
+    # NPS question if not already included and flag is set
+    nps_included = any(q["id"] == "nps" for q in questions)
+    if include_nps and not nps_included and len(questions) < mq:
+        nps_q = next((q for q in bank if q["id"] == "nps"), None)
+        if nps_q:
+            scale = _SCALE_DESCRIPTIONS["rating_10"]
+            questions.append({
+                "id": "nps", "order": len(questions) + 1,
+                "question": nps_q["question"].replace("{product}", product),
+                "type": "rating_10", "scale": scale["scale"],
+                "scale_low": scale["low"], "scale_high": scale["high"],
+                "why_this_question": "Net Promoter Score",
+                "benchmark": scale["benchmark"],
+            })
+
+    # Intro & outro
+    intro = f"Hi! We'd love your feedback on your experience with {product}. This takes less than 2 minutes and helps us improve for you. Thank you 🙏 — Team {biz}"
+    outro = f"Thank you for your feedback! Your responses help us make {product} better every day. If you have any urgent issues, please contact us at [support email]. — Team {biz}"
+
+    # Scoring guide
+    scoring_guide = {
+        "csat_formula": "CSAT (%) = (Number of satisfied responses [4+5]) / (Total responses) × 100",
+        "csat_benchmark": "Industry average: 75–85%. World-class: 90%+",
+        "nps_formula":    "NPS = % Promoters (9-10) − % Detractors (0-6)",
+        "nps_benchmark":  "Good: >20. Excellent: >50. World-class: >70",
+        "ces_formula":    "CES (Customer Effort Score) = Average score on 'ease' question",
+        "ces_benchmark":  "Low effort (4-5) is the goal — correlates strongly with loyalty",
+        "response_rate":  "Aim for >20% response rate. <10% = biased data risk.",
+    }
+
+    # Analysis tips
+    analysis_tips = [
+        "Segment responses by customer tier (Enterprise vs Standard) to spot gaps.",
+        "Track CSAT trend monthly — a 5-point drop month-on-month needs immediate attention.",
+        "Open-text responses: use word frequency analysis to find top themes.",
+        "Follow up personally with all detractors (NPS 0-6) within 48 hours.",
+        "Share weekly CSAT score with the whole CS team — transparency drives improvement.",
+        "A/B test survey timing (immediate vs 24h after) to see which gets better quality responses.",
+    ]
+
+    return {
+        "action": "csat_survey",
+        "business_name": biz,
+        "product_name": product,
+        "survey_goal": goal["label"],
+        "survey_focus": goal["focus"],
+        "total_questions": len(questions),
+        "estimated_time": f"{max(1, len(questions) // 3)} minute{'s' if len(questions) > 3 else ''}",
+        "intro_message": intro,
+        "questions": questions,
+        "outro_message": outro,
+        "distribution_channels": _DISTRIBUTION_CHANNELS,
+        "scoring_guide": scoring_guide,
+        "analysis_tips": analysis_tips,
+        "pro_tips": [
+            "Keep surveys under 5 questions for >40% completion rate.",
+            "Always ask the open-text question last — don't lead with it.",
+            "Personalise the greeting with customer's name for +15% open rate.",
+            "Never send a survey more than once per customer per quarter.",
+            "Close the loop: tell customers what changed because of their feedback.",
+        ],
+    }
 
 
 def _winback_campaign_generator(

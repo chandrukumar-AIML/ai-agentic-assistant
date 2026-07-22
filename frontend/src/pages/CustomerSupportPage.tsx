@@ -63,6 +63,7 @@ const TABS = [
   { id: 'kb_article',    label: 'Knowledge Base Article' },
   { id: 'escalation',   label: 'Escalation Email' },
   { id: 'winback',      label: 'Win-Back Campaign' },
+  { id: 'csat_builder', label: 'CSAT Survey Builder' },
 ]
 
 const WA_TYPES = [
@@ -1319,6 +1320,7 @@ export default function CustomerSupportPage() {
         {tab === 'kb_article'     && <KbArticleTab lang={lang} />}
         {tab === 'escalation'     && <EscalationEmailTab lang={lang} />}
         {tab === 'winback'        && <WinBackTab lang={lang} />}
+        {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -3374,6 +3376,208 @@ export function WinBackTab({ lang }: { lang: string }) {
           </div>
         ) : (
           <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill customer details and click Generate Win-Back Campaign →</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Round 19: CSAT Survey Builder ────────────────────────────────────────────
+
+const SURVEY_GOALS = [
+  { value: 'overall',       label: 'Overall Satisfaction' },
+  { value: 'post_support',  label: 'Post-Support Feedback' },
+  { value: 'onboarding',   label: 'Onboarding Experience' },
+  { value: 'product',       label: 'Product Satisfaction' },
+  { value: 'renewal',       label: 'Renewal / Loyalty' },
+  { value: 'post_purchase', label: 'Post-Purchase Feedback' },
+]
+const CS_INDUSTRIES = [
+  { value: 'saas',        label: 'SaaS / Software' },
+  { value: 'ecommerce',   label: 'E-Commerce' },
+  { value: 'banking',     label: 'Banking / Finance' },
+  { value: 'healthcare',  label: 'Healthcare' },
+  { value: 'education',   label: 'Education' },
+  { value: 'retail',      label: 'Retail' },
+  { value: 'telecom',     label: 'Telecom' },
+]
+
+export function CsatSurveyBuilderTab({ lang }: { lang: string }) {
+  const [bizName,    setBizName]    = useState('')
+  const [prodName,   setProdName]   = useState('')
+  const [goal,       setGoal]       = useState('overall')
+  const [industry,   setIndustry]   = useState('saas')
+  const [maxQ,       setMaxQ]       = useState('8')
+  const [inclNps,    setInclNps]    = useState(true)
+  const [res,        setRes]        = useState<any>(null)
+  const [loading,    setLoading]    = useState(false)
+  const [err,        setErr]        = useState('')
+  const [view,       setView]       = useState<'questions'|'channels'|'scoring'>('questions')
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null)
+    try {
+      setRes(await csAction('csat_survey', {
+        business_name: bizName, product_name: prodName,
+        survey_goal: goal, industry,
+        max_questions: parseInt(maxQ) || 8,
+        include_nps: inclNps,
+      }))
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+
+  const TYPE_COLORS: Record<string, string> = {
+    rating_5: '#10b981', rating_10: '#3b82f6', binary: '#f59e0b', open_text: '#8b5cf6', mcq: '#ec4899'
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 20 }}>
+      <div style={{ flex: '0 0 320px' }}>
+        <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 16 }}>CSAT Survey Builder</div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>Business Name</div>
+            <input value={bizName} onChange={e => setBizName(e.target.value)}
+              placeholder="e.g. TechCorp Solutions"
+              style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>Product / Service Name</div>
+            <input value={prodName} onChange={e => setProdName(e.target.value)}
+              placeholder="e.g. HelpDesk Pro"
+              style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>Survey Goal</div>
+            <select value={goal} onChange={e => setGoal(e.target.value)}
+              style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13 }}>
+              {SURVEY_GOALS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>Industry</div>
+            <select value={industry} onChange={e => setIndustry(e.target.value)}
+              style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13 }}>
+              {CS_INDUSTRIES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>Max Questions (1–12)</div>
+            <input type="number" min={1} max={12} value={maxQ} onChange={e => setMaxQ(e.target.value)}
+              style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 6, padding: '7px 10px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, cursor: 'pointer' }}>
+            <input type="checkbox" checked={inclNps} onChange={e => setInclNps(e.target.checked)}
+              style={{ accentColor: '#10b981' }} />
+            <span style={{ fontSize: 12, color: '#9ca3af' }}>Include NPS question</span>
+          </label>
+          <button onClick={run} disabled={loading}
+            style={{ width: '100%', padding: '10px', borderRadius: 7, border: 'none', background: loading ? '#374151' : '#10b981', color: '#fff', fontWeight: 700, fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer' }}>
+            {loading ? 'Building Survey…' : 'Build CSAT Survey →'}
+          </button>
+          {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{err}</div>}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {res ? (() => {
+          const r = res
+          const views = [
+            { id: 'questions', label: `Questions (${r.total_questions})` },
+            { id: 'channels',  label: 'Distribution' },
+            { id: 'scoring',   label: 'Scoring Guide' },
+          ] as const
+          return (
+            <div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                {views.map(v => (
+                  <button key={v.id} onClick={() => setView(v.id as any)}
+                    style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: view === v.id ? '#10b981' : '#1e2535', color: view === v.id ? '#fff' : '#9ca3af' }}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+
+              {view === 'questions' && (
+                <div>
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 16, marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Survey: {r.survey_goal}</div>
+                    <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 8 }}>{r.intro_message}</div>
+                    <div style={{ fontSize: 11, color: '#10b981' }}>⏱ Est. time: {r.estimated_time}</div>
+                  </div>
+                  {r.questions.map((q: any) => (
+                    <div key={q.id} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14, marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                        <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 600, flex: 1 }}>Q{q.order}. {q.question}</div>
+                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 12, marginLeft: 8, flexShrink: 0,
+                          background: (TYPE_COLORS[q.type] || '#6b7280') + '22', color: TYPE_COLORS[q.type] || '#6b7280', fontWeight: 700 }}>
+                          {q.type}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Scale: {q.scale_low} → {q.scale_high}</div>
+                      {q.options && (
+                        <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {q.options.map((o: string) => (
+                            <span key={o} style={{ fontSize: 11, background: '#1e2535', padding: '2px 8px', borderRadius: 12, color: '#9ca3af' }}>{o}</span>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 11, color: '#4b5563', marginTop: 6 }}>📌 {q.why_this_question}</div>
+                      <div style={{ fontSize: 10, color: '#374151', marginTop: 3 }}>Benchmark: {q.benchmark}</div>
+                    </div>
+                  ))}
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 12, marginTop: 4 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Outro message</div>
+                    <div style={{ fontSize: 12, color: '#9ca3af' }}>{r.outro_message}</div>
+                  </div>
+                </div>
+              )}
+
+              {view === 'channels' && (
+                <div>
+                  {r.distribution_channels.map((c: any) => (
+                    <div key={c.channel} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14, marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 700 }}>{c.channel}</div>
+                        <span style={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>Open rate: {c.open_rate}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>⏰ {c.timing}</div>
+                      <div style={{ fontSize: 12, color: '#9ca3af' }}>💡 {c.tip}</div>
+                    </div>
+                  ))}
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14 }}>
+                    <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 700, marginBottom: 10 }}>Pro Tips</div>
+                    {r.pro_tips.map((t: string, i: number) => (
+                      <div key={i} style={{ fontSize: 12, color: '#9ca3af', marginBottom: 6, display: 'flex', gap: 6 }}>
+                        <span style={{ color: '#10b981', flexShrink: 0 }}>✓</span> {t}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {view === 'scoring' && (
+                <div>
+                  {Object.entries(r.scoring_guide).map(([k, v]) => (
+                    <div key={k} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3, textTransform: 'uppercase', letterSpacing: 1 }}>{k.replace(/_/g, ' ')}</div>
+                      <div style={{ fontSize: 12, color: '#e2e8f0' }}>{String(v)}</div>
+                    </div>
+                  ))}
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14, marginTop: 4 }}>
+                    <div style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 700, marginBottom: 10 }}>Analysis Tips</div>
+                    {r.analysis_tips.map((t: string, i: number) => (
+                      <div key={i} style={{ fontSize: 12, color: '#9ca3af', marginBottom: 6 }}>📊 {t}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })() : (
+          <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill survey details and click Build CSAT Survey →</div>
         )}
       </div>
     </div>

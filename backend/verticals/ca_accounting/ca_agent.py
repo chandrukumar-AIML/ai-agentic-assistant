@@ -953,6 +953,26 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "salary_slip":
+        return generate_salary_slip(
+            employee_name=payload.get("employee_name", ""),
+            employee_id=payload.get("employee_id", ""),
+            designation=payload.get("designation", ""),
+            department=payload.get("department", ""),
+            company_name=payload.get("company_name", ""),
+            month_year=payload.get("month_year", ""),
+            ctc_annual=payload.get("ctc_annual", 0),
+            basic_pct=payload.get("basic_pct", 40),
+            hra_pct=payload.get("hra_pct", 20),
+            city_tier=payload.get("city_tier", "metro"),
+            pf_applicable=payload.get("pf_applicable", True),
+            pt_state=payload.get("pt_state", "karnataka"),
+            bonus=payload.get("bonus", 0),
+            advance_deduction=payload.get("advance_deduction", 0),
+            lop_days=payload.get("lop_days", 0),
+            working_days=payload.get("working_days", 26),
+        )
+
     elif action == "itr_checklist":
         return generate_itr_checklist(
             taxpayer_name=payload.get("taxpayer_name", ""),
@@ -2447,6 +2467,200 @@ _ITR_FORM_SELECTOR = {
     ("business",):                                  "ITR-3 or ITR-4 (Sugam if presumptive)",
     ("salary", "business"):                         "ITR-3",
 }
+
+
+# ── Round 19: Salary Slip Generator ─────────────────────────────────────────
+
+_PT_SLABS = {
+    "karnataka":     [(15000, 0), (14999, 150), (999999, 200)],  # monthly gross → PT
+    "maharashtra":   [(7500, 0), (7500, 175), (999999, 200)],
+    "andhra_pradesh":[(15000, 0), (999999, 150)],
+    "telangana":     [(15000, 0), (999999, 150)],
+    "west_bengal":   [(10000, 0), (999999, 110)],
+    "tamil_nadu":    [(21000, 0), (999999, 208)],
+    "gujarat":       [(5999, 0), (999999, 200)],
+    "delhi":         [(999999, 0)],  # No PT in Delhi
+    "none":          [(999999, 0)],
+}
+
+_ALLOWANCE_LABELS = {
+    "basic":        "Basic Salary",
+    "hra":          "House Rent Allowance (HRA)",
+    "ta":           "Travel Allowance",
+    "medical":      "Medical Allowance",
+    "special":      "Special Allowance",
+    "lta":          "Leave Travel Allowance",
+}
+
+_DEDUCTION_LABELS = {
+    "pf_employee":  "Provident Fund (Employee 12%)",
+    "esi":          "ESI (Employee 0.75%)",
+    "pt":           "Professional Tax",
+    "tds":          "TDS (Income Tax)",
+    "advance":      "Advance Recovery",
+    "lop":          "Loss of Pay",
+}
+
+
+def generate_salary_slip(
+    employee_name: str,
+    employee_id: str,
+    designation: str,
+    department: str,
+    company_name: str,
+    month_year: str,
+    ctc_annual: float,
+    basic_pct: float,
+    hra_pct: float,
+    city_tier: str,
+    pf_applicable: bool,
+    pt_state: str,
+    bonus: float,
+    advance_deduction: float,
+    lop_days: int,
+    working_days: int,
+) -> dict:
+    from datetime import datetime as _dt
+
+    ctc   = float(ctc_annual) if ctc_annual else 600000.0
+    bpct  = float(basic_pct) if basic_pct else 40.0
+    hpct  = float(hra_pct) if hra_pct else 20.0
+    wdays = int(working_days) if working_days else 26
+    lop   = int(lop_days) if lop_days else 0
+    bonus_amt = float(bonus) if bonus else 0.0
+    advance   = float(advance_deduction) if advance_deduction else 0.0
+    my = month_year or _dt.now().strftime("%B %Y")
+
+    # Monthly CTC
+    monthly_ctc = ctc / 12
+
+    # Earnings
+    basic       = round(monthly_ctc * bpct / 100, 2)
+    hra         = round(monthly_ctc * hpct / 100, 2)
+    ta          = round(monthly_ctc * 0.04, 2)   # 4% travel
+    medical     = round(monthly_ctc * 0.04, 2)   # 4% medical
+    special     = round(monthly_ctc - basic - hra - ta - medical, 2)
+    gross       = round(basic + hra + ta + medical + special + bonus_amt, 2)
+
+    # LOP adjustment
+    lop_deduction = round((gross / wdays) * lop, 2) if lop > 0 else 0.0
+    gross_after_lop = round(gross - lop_deduction, 2)
+
+    # Deductions
+    pf_emp  = round(min(basic, 15000) * 0.12, 2) if pf_applicable else 0.0
+    pf_er   = round(min(basic, 15000) * 0.12, 2) if pf_applicable else 0.0  # employer share
+    # ESI applicable if gross ≤ 21000
+    esi_emp = round(gross_after_lop * 0.0075, 2) if gross_after_lop <= 21000 else 0.0
+    esi_er  = round(gross_after_lop * 0.0325, 2) if gross_after_lop <= 21000 else 0.0
+
+    # Professional Tax
+    pt_slabs = _PT_SLABS.get(pt_state.lower().replace(" ", "_"), _PT_SLABS["none"])
+    pt_amt = 0.0
+    remaining = gross_after_lop
+    for slab_max, slab_pt in pt_slabs:
+        if remaining <= slab_max:
+            pt_amt = slab_pt
+            break
+
+    # Estimated TDS (simplified — annual tax / 12)
+    annual_taxable = max(0, (gross_after_lop * 12) - pf_emp * 12 - 50000)  # std deduction ₹50K
+    # New tax regime slabs FY 2024-25
+    if annual_taxable <= 300000:
+        annual_tax = 0
+    elif annual_taxable <= 600000:
+        annual_tax = (annual_taxable - 300000) * 0.05
+    elif annual_taxable <= 900000:
+        annual_tax = 15000 + (annual_taxable - 600000) * 0.10
+    elif annual_taxable <= 1200000:
+        annual_tax = 45000 + (annual_taxable - 900000) * 0.15
+    elif annual_taxable <= 1500000:
+        annual_tax = 90000 + (annual_taxable - 1200000) * 0.20
+    else:
+        annual_tax = 150000 + (annual_taxable - 1500000) * 0.30
+    # Rebate 87A if taxable ≤ 7L (new regime)
+    if annual_taxable <= 700000:
+        annual_tax = 0
+    annual_tax_with_cess = round(annual_tax * 1.04, 2)
+    tds_monthly = round(annual_tax_with_cess / 12, 2)
+
+    total_deductions = round(pf_emp + esi_emp + pt_amt + tds_monthly + advance + lop_deduction, 2)
+    net_pay = round(gross_after_lop - pf_emp - esi_emp - pt_amt - tds_monthly - advance, 2)
+
+    # CTC reconciliation
+    ctc_components = {
+        "gross_salary":     round(gross, 2),
+        "pf_employer":      pf_er,
+        "esi_employer":     esi_er,
+        "total_ctc_monthly": round(gross + pf_er + esi_er, 2),
+        "total_ctc_annual":  round((gross + pf_er + esi_er) * 12, 2),
+    }
+
+    earnings = [
+        {"component": "Basic Salary",                       "amount": basic},
+        {"component": "House Rent Allowance (HRA)",         "amount": hra},
+        {"component": "Travel Allowance",                   "amount": ta},
+        {"component": "Medical Allowance",                  "amount": medical},
+        {"component": "Special Allowance",                  "amount": max(0, special)},
+    ]
+    if bonus_amt:
+        earnings.append({"component": "Bonus / Incentive", "amount": bonus_amt})
+
+    deductions = []
+    if pf_emp:      deductions.append({"component": "Provident Fund (Employee 12%)", "amount": pf_emp})
+    if esi_emp:     deductions.append({"component": "ESI (Employee 0.75%)",          "amount": esi_emp})
+    if pt_amt:      deductions.append({"component": "Professional Tax",              "amount": pt_amt})
+    if tds_monthly: deductions.append({"component": "TDS (Income Tax)",              "amount": tds_monthly})
+    if advance:     deductions.append({"component": "Advance Recovery",              "amount": advance})
+    if lop_deduction: deductions.append({"component": f"Loss of Pay ({lop} days)",  "amount": lop_deduction})
+
+    # Amount in words helper
+    def _n2w(n):
+        n = int(round(n))
+        if n >= 100000: return f"Rupees {n//100000} Lakh {(n%100000)//1000} Thousand {n%1000} only"
+        if n >= 1000:   return f"Rupees {n//1000} Thousand {n%1000} only"
+        return f"Rupees {n} only"
+
+    return {
+        "action": "salary_slip",
+        "employee": {
+            "name": employee_name or "Employee",
+            "id": employee_id or "EMP001",
+            "designation": designation or "Software Engineer",
+            "department": department or "Engineering",
+        },
+        "company_name": company_name or "Company Pvt. Ltd.",
+        "month_year": my,
+        "working_days_in_month": wdays,
+        "days_worked": wdays - lop,
+        "lop_days": lop,
+        "earnings": earnings,
+        "gross_salary": gross,
+        "deductions": deductions,
+        "total_deductions": total_deductions,
+        "net_pay": net_pay,
+        "net_pay_words": _n2w(net_pay),
+        "ctc_breakdown": ctc_components,
+        "tax_info": {
+            "regime": "New Tax Regime (FY 2025-26)",
+            "annual_taxable_income": annual_taxable,
+            "annual_tax_before_cess": round(annual_tax, 2),
+            "annual_tax_with_cess": annual_tax_with_cess,
+            "monthly_tds": tds_monthly,
+            "note": "TDS estimated under new tax regime. Consult CA for old regime or investment declarations.",
+        },
+        "employer_contributions": {
+            "pf_employer": pf_er,
+            "esi_employer": esi_er,
+            "note": "Employer contributions are part of CTC but not shown in net pay.",
+        },
+        "compliance_notes": [
+            "PF deducted on basic salary capped at ₹15,000 (statutory limit).",
+            "ESI applicable only if gross salary ≤ ₹21,000/month.",
+            f"Professional Tax as per {pt_state.title()} state rules.",
+            "TDS computed under new tax regime (FY 2025-26) — assumes no deduction declarations.",
+            "Issue salary slips by 7th of the following month as per Shops & Establishment Act.",
+        ],
+    }
 
 
 def generate_itr_checklist(

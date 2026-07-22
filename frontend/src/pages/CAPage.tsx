@@ -395,6 +395,43 @@ export default function CAPage() {
   const [icLoading, setIcLoading]   = useState(false)
   const [icErr, setIcErr]           = useState('')
   const [icView, setIcView]         = useState<'income'|'deductions'|'common'>('common')
+
+  // ── R19: Salary Slip Generator ──
+  const [ssEmpName,    setSsEmpName]    = useState('')
+  const [ssEmpId,      setSsEmpId]      = useState('')
+  const [ssDesig,      setSsDesig]      = useState('')
+  const [ssDept,       setSsDept]       = useState('')
+  const [ssCompany,    setSsCompany]    = useState('')
+  const [ssMonth,      setSsMonth]      = useState('July 2025')
+  const [ssCtc,        setSsCtc]        = useState('600000')
+  const [ssBasicPct,   setSsBasicPct]   = useState('40')
+  const [ssHraPct,     setSsHraPct]     = useState('20')
+  const [ssCityTier,   setSsCityTier]   = useState('metro')
+  const [ssPf,         setSsPf]         = useState(true)
+  const [ssPtState,    setSsPtState]    = useState('Karnataka')
+  const [ssBonus,      setSsBonus]      = useState('0')
+  const [ssLop,        setSsLop]        = useState('0')
+  const [ssWorkDays,   setSsWorkDays]   = useState('26')
+  const [ssRes,        setSsRes]        = useState<any>(null)
+  const [ssLoading,    setSsLoading]    = useState(false)
+  const [ssErr,        setSsErr]        = useState('')
+  const [ssView,       setSsView]       = useState<'slip'|'ctc'|'compliance'>('slip')
+  const runSalarySlip = async () => {
+    setSsLoading(true); setSsErr(''); setSsRes(null)
+    try {
+      setSsRes(await caAction('salary_slip', {
+        employee_name: ssEmpName, employee_id: ssEmpId, designation: ssDesig,
+        department: ssDept, company_name: ssCompany, month_year: ssMonth,
+        ctc_annual: parseFloat(ssCtc) || 600000, basic_pct: parseFloat(ssBasicPct) || 40,
+        hra_pct: parseFloat(ssHraPct) || 20, city_tier: ssCityTier,
+        pf_applicable: ssPf, pt_state: ssPtState,
+        bonus: parseFloat(ssBonus) || 0, advance_deduction: 0,
+        lop_days: parseFloat(ssLop) || 0, working_days: parseFloat(ssWorkDays) || 26,
+      }))
+    } catch (e: any) { setSsErr(e.message) }
+    finally { setSsLoading(false) }
+  }
+
   const toggleIcSource = (s: string) => setIcSources(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
   const toggleIcDed = (d: string) => setIcDeductions(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])
   const runItrChecklist = async () => {
@@ -706,6 +743,7 @@ export default function CAPage() {
           { id: 'gst_invoice',       label: 'GST Invoice',                icon: '🧾' },
           { id: 'depreciation',     label: 'Depreciation Calculator',    icon: '📉' },
           { id: 'itr_checklist',   label: 'ITR Filing Checklist',       icon: '📋' },
+          { id: 'salary_slip',     label: 'Salary Slip Generator',      icon: '🧾' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2970,6 +3008,169 @@ export default function CAPage() {
                 </>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill in your business details and click Check Loan Eligibility →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── R19: Salary Slip Generator ── */}
+      {tab === 'salary_slip' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Salary Slip Generator" sub="Detailed monthly salary slip with PF, ESI, PT, TDS — India compliant" />
+            <Input label="Employee Name" value={ssEmpName} onChange={setSsEmpName} placeholder="e.g. Ramesh Kumar" />
+            <Input label="Employee ID" value={ssEmpId} onChange={setSsEmpId} placeholder="e.g. EMP-001" />
+            <Input label="Designation" value={ssDesig} onChange={setSsDesig} placeholder="e.g. Senior Software Engineer" />
+            <Input label="Department" value={ssDept} onChange={setSsDept} placeholder="e.g. Engineering" />
+            <Input label="Company Name" value={ssCompany} onChange={setSsCompany} placeholder="e.g. Acme Technologies Pvt Ltd" />
+            <Input label="Month & Year" value={ssMonth} onChange={setSsMonth} placeholder="e.g. July 2025" />
+            <Input label="Annual CTC (₹)" value={ssCtc} onChange={setSsCtc} placeholder="e.g. 600000" />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <Input label="Basic % of CTC" value={ssBasicPct} onChange={setSsBasicPct} placeholder="40" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Input label="HRA % of CTC" value={ssHraPct} onChange={setSsHraPct} placeholder="20" />
+              </div>
+            </div>
+            <Select label="City Tier (for HRA exemption)" value={ssCityTier} onChange={setSsCityTier} options={[
+              { value: 'metro', label: 'Metro (Delhi/Mumbai/Chennai/Kolkata)' },
+              { value: 'non_metro', label: 'Non-Metro' },
+            ]} />
+            <Select label="State (for Professional Tax)" value={ssPtState} onChange={setSsPtState} options={[
+              { value: 'Karnataka',    label: 'Karnataka' },
+              { value: 'Maharashtra',  label: 'Maharashtra' },
+              { value: 'Andhra Pradesh', label: 'Andhra Pradesh' },
+              { value: 'Telangana',    label: 'Telangana' },
+              { value: 'West Bengal',  label: 'West Bengal' },
+              { value: 'Tamil Nadu',   label: 'Tamil Nadu' },
+              { value: 'Gujarat',      label: 'Gujarat' },
+              { value: 'Delhi',        label: 'Delhi (No PT)' },
+            ]} />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <Input label="Bonus (₹)" value={ssBonus} onChange={setSsBonus} placeholder="0" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Input label="LOP Days" value={ssLop} onChange={setSsLop} placeholder="0" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Input label="Working Days" value={ssWorkDays} onChange={setSsWorkDays} placeholder="26" />
+              </div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
+              <input type="checkbox" checked={ssPf} onChange={e => setSsPf(e.target.checked)} style={{ accentColor: '#10b981' }} />
+              <span style={{ fontSize: 12, color: '#9ca3af' }}>PF Applicable</span>
+            </label>
+            <Btn onClick={runSalarySlip} loading={ssLoading}>Generate Salary Slip →</Btn>
+            {ssErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{ssErr}</div>}
+          </Card>
+          <Card>
+            {ssRes ? (() => {
+              const r = ssRes
+              const views = [
+                { id: 'slip',       label: 'Salary Slip' },
+                { id: 'ctc',        label: 'CTC Breakup' },
+                { id: 'compliance', label: 'Compliance' },
+              ] as const
+              const fmt = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`
+              return (
+                <div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {views.map(v => (
+                      <button key={v.id} onClick={() => setSsView(v.id as any)}
+                        style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                          background: ssView === v.id ? '#059669' : '#f3f4f6', color: ssView === v.id ? '#fff' : '#374151' }}>
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {ssView === 'slip' && (
+                    <div>
+                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 16, marginBottom: 12 }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: '#14532d' }}>{r.employee?.name}</div>
+                        <div style={{ fontSize: 12, color: '#166534' }}>{r.employee?.designation} · {r.employee?.department}</div>
+                        <div style={{ fontSize: 11, color: '#15803d', marginTop: 4 }}>{r.employee?.company} · {r.employee?.month_year}</div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                        <div style={{ background: '#f9fafb', borderRadius: 8, padding: 12 }}>
+                          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, fontWeight: 700 }}>EARNINGS</div>
+                          {r.earnings?.map((e: any, i: number) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#374151', marginBottom: 4 }}>
+                              <span>{e.label}</span><span style={{ fontWeight: 600 }}>{fmt(e.amount)}</span>
+                            </div>
+                          ))}
+                          <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 6, marginTop: 6, display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 13 }}>
+                            <span>Gross Salary</span><span style={{ color: '#059669' }}>{fmt(r.gross_salary)}</span>
+                          </div>
+                        </div>
+                        <div style={{ background: '#fef2f2', borderRadius: 8, padding: 12 }}>
+                          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, fontWeight: 700 }}>DEDUCTIONS</div>
+                          {r.deductions?.map((d: any, i: number) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#374151', marginBottom: 4 }}>
+                              <span>{d.label}</span><span style={{ fontWeight: 600 }}>{fmt(d.amount)}</span>
+                            </div>
+                          ))}
+                          <div style={{ borderTop: '1px solid #fecaca', paddingTop: 6, marginTop: 6, display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 13 }}>
+                            <span>Total Deductions</span><span style={{ color: '#dc2626' }}>{fmt(r.total_deductions)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ background: '#1e3a5f', borderRadius: 10, padding: 16, textAlign: 'center' }}>
+                        <div style={{ fontSize: 11, color: '#93c5fd', marginBottom: 4 }}>NET PAY (TAKE HOME)</div>
+                        <div style={{ fontSize: 24, fontWeight: 800, color: '#fff' }}>{fmt(r.net_pay)}</div>
+                        <div style={{ fontSize: 11, color: '#93c5fd', marginTop: 4 }}>{r.net_pay_words}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {ssView === 'ctc' && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, fontWeight: 700 }}>CTC BREAKDOWN</div>
+                      {r.ctc_breakdown && Object.entries(r.ctc_breakdown).map(([k, v]) => (
+                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13, color: '#374151' }}>
+                          <span>{k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+                          <span style={{ fontWeight: 600 }}>{fmt(Number(v))}</span>
+                        </div>
+                      ))}
+                      {r.tax_info && (
+                        <div style={{ marginTop: 12, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 12 }}>
+                          <div style={{ fontSize: 11, color: '#92400e', fontWeight: 700, marginBottom: 6 }}>TAX INFORMATION (New Regime)</div>
+                          {Object.entries(r.tax_info).map(([k, v]) => (
+                            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#78350f', marginBottom: 3 }}>
+                              <span>{k.replace(/_/g, ' ')}</span>
+                              <span>{typeof v === 'number' ? fmt(v) : String(v)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {r.employer_contributions && (
+                        <div style={{ marginTop: 12, background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: 12 }}>
+                          <div style={{ fontSize: 11, color: '#075985', fontWeight: 700, marginBottom: 6 }}>EMPLOYER CONTRIBUTIONS (not in salary)</div>
+                          {Object.entries(r.employer_contributions).map(([k, v]) => (
+                            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#0c4a6e', marginBottom: 3 }}>
+                              <span>{k.replace(/_/g, ' ')}</span>
+                              <span>{fmt(Number(v))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {ssView === 'compliance' && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>COMPLIANCE NOTES</div>
+                      {r.compliance_notes?.map((note: string, i: number) => (
+                        <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 8, padding: '8px 10px', background: '#f9fafb', borderRadius: 6, borderLeft: '3px solid #059669' }}>
+                          {note}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill employee details and click Generate Salary Slip →</div>}
           </Card>
         </TwoCol>
       )}

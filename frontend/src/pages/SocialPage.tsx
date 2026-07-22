@@ -375,6 +375,31 @@ export default function SocialPage() {
   const [ydLoading, setYdLoading]   = useState(false)
   const [ydErr, setYdErr]           = useState('')
   const [ydView, setYdView]         = useState<'desc'|'tags'|'checklist'>('desc')
+
+  // ── R19: LinkedIn Company Post ──
+  const [lcpCompany,   setLcpCompany]   = useState('')
+  const [lcpIndustry,  setLcpIndustry]  = useState('technology')
+  const [lcpPostType,  setLcpPostType]  = useState('thought_leadership')
+  const [lcpTopic,     setLcpTopic]     = useState('')
+  const [lcpMessage,   setLcpMessage]   = useState('')
+  const [lcpTone,      setLcpTone]      = useState('professional')
+  const [lcpAudience,  setLcpAudience]  = useState('')
+  const [lcpRes,       setLcpRes]       = useState<any>(null)
+  const [lcpLoading,   setLcpLoading]   = useState(false)
+  const [lcpErr,       setLcpErr]       = useState('')
+  const [lcpView,      setLcpView]      = useState<'post'|'carousel'|'tips'>('post')
+  const runLcp = async () => {
+    setLcpLoading(true); setLcpErr(''); setLcpRes(null)
+    try {
+      setLcpRes(await socialAction('linkedin_company_post', {
+        company_name: lcpCompany, industry: lcpIndustry, post_type: lcpPostType,
+        topic: lcpTopic, key_message: lcpMessage, tone: lcpTone,
+        include_cta: true, target_audience: lcpAudience,
+      }))
+    } catch (e: any) { setLcpErr(e.message) }
+    finally { setLcpLoading(false) }
+  }
+
   const runYoutubeDesc = async () => {
     setYdLoading(true); setYdErr(''); setYdRes(null)
     try {
@@ -713,6 +738,7 @@ export default function SocialPage() {
           { id: 'review',     label: 'Review & Testimonial Kit', icon: '⭐' },
           { id: 'reel',       label: 'Instagram Reel Script',   icon: '🎬' },
           { id: 'youtube',    label: 'YouTube Description',      icon: '▶️' },
+          { id: 'lcp',        label: 'LinkedIn Company Post',    icon: '🏢' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3476,6 +3502,140 @@ export default function SocialPage() {
                 </div>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill video details and click Generate YouTube Description →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── R19: LinkedIn Company Post ── */}
+      {tab === 'lcp' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="LinkedIn Company Post Generator" sub="Thought leadership, updates, and campaigns for company pages" />
+            <Input label="Company Name" value={lcpCompany} onChange={setLcpCompany} placeholder="e.g. Acme Technologies" />
+            <Select label="Industry" value={lcpIndustry} onChange={setLcpIndustry} options={[
+              { value: 'technology',  label: 'Technology' },
+              { value: 'finance',     label: 'Finance / Fintech' },
+              { value: 'healthcare',  label: 'Healthcare' },
+              { value: 'education',   label: 'Education' },
+              { value: 'ecommerce',   label: 'E-Commerce / Retail' },
+              { value: 'manufacturing', label: 'Manufacturing' },
+              { value: 'consulting',  label: 'Consulting / Professional Services' },
+            ]} />
+            <Select label="Post Type" value={lcpPostType} onChange={setLcpPostType} options={[
+              { value: 'thought_leadership', label: 'Thought Leadership' },
+              { value: 'product_update',     label: 'Product / Feature Update' },
+              { value: 'company_news',       label: 'Company News / Milestone' },
+              { value: 'hiring',             label: 'We Are Hiring' },
+              { value: 'case_study',         label: 'Customer Case Study' },
+              { value: 'industry_insight',   label: 'Industry Insight' },
+            ]} />
+            <Input label="Topic / Headline" value={lcpTopic} onChange={setLcpTopic} placeholder="e.g. How AI is reshaping supply chains" />
+            <Input label="Key Message (1 sentence)" value={lcpMessage} onChange={setLcpMessage} placeholder="e.g. We help manufacturers cut costs by 30% using AI" />
+            <Select label="Tone" value={lcpTone} onChange={setLcpTone} options={[
+              { value: 'professional',  label: 'Professional' },
+              { value: 'authoritative', label: 'Authoritative' },
+              { value: 'inspiring',     label: 'Inspiring' },
+              { value: 'conversational',label: 'Conversational' },
+            ]} />
+            <Input label="Target Audience (optional)" value={lcpAudience} onChange={setLcpAudience} placeholder="e.g. CTOs, supply chain managers" />
+            <Btn onClick={runLcp} loading={lcpLoading}>Generate LinkedIn Company Post →</Btn>
+            {lcpErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{lcpErr}</div>}
+          </Card>
+          <Card>
+            {lcpRes ? (() => {
+              const r = lcpRes
+              const views = [
+                { id: 'post',     label: 'Post' },
+                { id: 'carousel', label: 'Carousel Slides' },
+                { id: 'tips',     label: 'Tips & CTA' },
+              ] as const
+              return (
+                <div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {views.map(v => (
+                      <button key={v.id} onClick={() => setLcpView(v.id as any)}
+                        style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                          background: lcpView === v.id ? '#0a66c2' : '#f3f4f6', color: lcpView === v.id ? '#fff' : '#374151' }}>
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {lcpView === 'post' && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>POST TYPE: {r.post_type} · TONE: {r.tone}</div>
+                      {r.hook && <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 13, color: '#1e3a5f', fontWeight: 600 }}>🎣 Hook: {r.hook}</div>}
+                      <ResultBox value={r.primary_post || ''} />
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>SHORTER VARIANT</div>
+                        <ResultBox value={r.short_post || ''} />
+                      </div>
+                      {r.hashtags && (
+                        <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {r.hashtags.slice(0, 10).map((h: string, i: number) => (
+                            <span key={i} style={{ fontSize: 11, background: '#eff6ff', color: '#1d4ed8', padding: '2px 8px', borderRadius: 12 }}>{h}</span>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ marginTop: 8, fontSize: 11, color: '#6b7280' }}>📊 Character count: {r.char_count}</div>
+                    </div>
+                  )}
+
+                  {lcpView === 'carousel' && (
+                    <div>
+                      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>CAROUSEL SLIDES</div>
+                      {r.carousel_slides?.map((slide: any, i: number) => (
+                        <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, marginBottom: 8 }}>
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 4 }}>SLIDE {slide.slide}</div>
+                          <div style={{ fontSize: 13, color: '#111827', fontWeight: 700 }}>{slide.headline}</div>
+                          <div style={{ fontSize: 12, color: '#374151', marginTop: 4 }}>{slide.body}</div>
+                          {slide.visual_note && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>📷 {slide.visual_note}</div>}
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>BEST POSTING TIMES</div>
+                        {r.best_posting_times?.map((t: string, i: number) => (
+                          <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>🕐 {t}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {lcpView === 'tips' && (
+                    <div>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>CTA OPTIONS</div>
+                        {r.cta_options?.map((cta: string, i: number) => (
+                          <div key={i} style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '6px 10px', marginBottom: 6, fontSize: 12, color: '#166534' }}>→ {cta}</div>
+                        ))}
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>HOOK ALTERNATIVES</div>
+                        {r.hook_alternatives?.map((h: string, i: number) => (
+                          <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 4, padding: '6px 10px', background: '#f9fafb', borderRadius: 6 }}>{h}</div>
+                        ))}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>PRO TIPS</div>
+                        {r.pro_tips?.map((t: string, i: number) => (
+                          <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 6 }}>💡 {t}</div>
+                        ))}
+                      </div>
+                      {r.post_checklist && (
+                        <div style={{ marginTop: 12 }}>
+                          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>PRE-PUBLISH CHECKLIST</div>
+                          {r.post_checklist.map((item: string, i: number) => (
+                            <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 4, display: 'flex', gap: 6 }}>
+                              <span style={{ color: '#0a66c2' }}>☐</span> {item}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill company details and click Generate LinkedIn Company Post →</div>}
           </Card>
         </TwoCol>
       )}

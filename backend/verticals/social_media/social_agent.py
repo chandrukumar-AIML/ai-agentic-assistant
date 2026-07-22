@@ -2069,6 +2069,18 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "linkedin_company_post":
+        return generate_linkedin_company_post(
+            company_name=payload.get("company_name", ""),
+            industry=payload.get("industry", "technology"),
+            post_type=payload.get("post_type", "thought_leadership"),
+            topic=payload.get("topic", ""),
+            key_message=payload.get("key_message", ""),
+            tone=payload.get("tone", "professional"),
+            include_cta=payload.get("include_cta", True),
+            target_audience=payload.get("target_audience", ""),
+        )
+
     elif action == "youtube_description":
         return generate_youtube_description(
             channel_name=payload.get("channel_name", ""),
@@ -2695,6 +2707,210 @@ _YT_SEO_TITLE_FORMULAS = [
     "Best {topic} Tips for Indian {audience} | {channel}",
     "{topic} Explained Simply | {audience} Guide",
 ]
+
+
+# ── Round 19: LinkedIn Company Post Generator ─────────────────────────────────
+
+_COMPANY_POST_TYPES = {
+    "thought_leadership": {
+        "label": "Thought Leadership",
+        "hook_styles": [
+            "The {industry} industry is changing. Here's what smart companies are doing.",
+            "Unpopular opinion: {topic}",
+            "We've been thinking about {topic} — and we need to talk.",
+            "3 years ago, we said {topic} would change everything. We were right.",
+        ],
+        "structure": ["Bold opinion/observation", "Supporting evidence (2-3 points)", "What this means for the industry", "CTA for discussion"],
+        "emoji_palette": ["💡", "🔍", "📊", "🎯", "🚀"],
+    },
+    "product_launch": {
+        "label": "Product / Feature Launch",
+        "hook_styles": [
+            "Introducing {topic} — built for {audience}.",
+            "Today is the day. We're launching {topic}.",
+            "You asked. We built. Announcing {topic}.",
+            "{company} just changed the way {audience} does {topic}.",
+        ],
+        "structure": ["Announcement hook", "What it is + key benefit", "Who it's for", "How to get access / CTA"],
+        "emoji_palette": ["🎉", "🚀", "✨", "🎯", "🔥"],
+    },
+    "hiring": {
+        "label": "Hiring / Talent",
+        "hook_styles": [
+            "We're growing — and we want you on the team.",
+            "Dream job alert: {company} is hiring a {topic}.",
+            "We don't just offer jobs. We offer careers. {company} is hiring.",
+            "Big things are happening at {company} — and we need more builders.",
+        ],
+        "structure": ["Culture hook", "Role / what you'll work on", "What we offer", "How to apply / CTA"],
+        "emoji_palette": ["👥", "🌟", "💼", "🤝", "🏆"],
+    },
+    "milestone": {
+        "label": "Milestone / Achievement",
+        "hook_styles": [
+            "{topic} — we couldn't have done it without you.",
+            "From zero to {topic}. Thank you.",
+            "We hit a milestone we're proud of: {topic}.",
+            "{company} just crossed {topic}. Here's how we got here.",
+        ],
+        "structure": ["Milestone announcement", "The journey / what it took", "Thank you to team / customers", "What's next + CTA"],
+        "emoji_palette": ["🎊", "🏆", "💙", "🙏", "🚀"],
+    },
+    "culture": {
+        "label": "Culture & Values",
+        "hook_styles": [
+            "At {company}, we believe {topic}.",
+            "Culture isn't what you say. It's what you do. At {company}, this means {topic}.",
+            "Behind every great product is a great team. Here's a peek inside {company}.",
+            "We talk a lot about values. Here's one we actually live by.",
+        ],
+        "structure": ["Value statement / story hook", "A real example from the team", "Why this matters to us", "Invite others to share their values"],
+        "emoji_palette": ["❤️", "🌱", "🤝", "💙", "✨"],
+    },
+    "case_study": {
+        "label": "Customer Success / Case Study",
+        "hook_styles": [
+            "How {topic} helped a customer achieve [result].",
+            "Real results. Real customer. Here's what {topic} did for them.",
+            "Our customer had a problem. {company} had the answer.",
+            "Before {topic}: [struggle]. After {topic}: [result].",
+        ],
+        "structure": ["Customer challenge hook", "What they tried before", "How your solution helped", "Measurable result + CTA"],
+        "emoji_palette": ["📈", "✅", "💡", "🎯", "🤝"],
+    },
+}
+
+_LINKEDIN_COMPANY_HASHTAGS = {
+    "technology": ["#Tech", "#Innovation", "#SaaS", "#DigitalTransformation", "#Startup", "#BuildingInPublic"],
+    "finance":    ["#Finance", "#Fintech", "#MoneyMatters", "#Banking", "#Investment", "#FinancialServices"],
+    "retail":     ["#Retail", "#ECommerce", "#ConsumerBrands", "#CustomerExperience", "#Shopping", "#Retail"],
+    "health":     ["#Healthcare", "#HealthTech", "#Wellness", "#MedTech", "#HealthcareInnovation", "#Pharma"],
+    "education":  ["#EdTech", "#Education", "#Learning", "#FutureOfWork", "#Skills", "#Training"],
+    "manufacturing": ["#Manufacturing", "#MakeInIndia", "#Industry40", "#Operations", "#SupplyChain", "#Engineering"],
+}
+
+_COMPANY_TONES = {
+    "professional": "authoritative, clear, confident",
+    "warm":         "human, approachable, story-driven",
+    "bold":         "direct, provocative, opinionated",
+    "inspiring":    "motivational, forward-looking, aspirational",
+}
+
+_COMPANY_CTA_MAP = {
+    "thought_leadership": ["Share your take in the comments 👇", "What's your experience with this? Comment below.", "Tag someone who needs to read this.", "Follow {company} for more industry insights."],
+    "product_launch":     ["Try it free → [link in bio]", "Request early access → [link]", "DM us 'LAUNCH' to get started.", "Visit our website to learn more → [link]"],
+    "hiring":             ["Apply here → [link]", "Know someone great? Tag them below 👇", "DM us your LinkedIn profile.", "See all open roles → [link in bio]"],
+    "milestone":          ["Thank you for being part of this journey 💙", "Share this if you've been rooting for us! 🙌", "Follow us for what's coming next.", "Drop a 🎉 if you want to celebrate with us!"],
+    "culture":            ["Follow {company} to see more behind-the-scenes.", "What does your company culture look like? Share below 👇", "Tag a teammate who embodies this value.", "Join us → [careers page link]"],
+    "case_study":         ["Read the full case study → [link]", "Could this help your business? DM us.", "See how we can help → [link in bio]", "Share if you know someone facing the same challenge 👇"],
+}
+
+
+def generate_linkedin_company_post(
+    company_name: str,
+    industry: str,
+    post_type: str,
+    topic: str,
+    key_message: str,
+    tone: str,
+    include_cta: bool,
+    target_audience: str,
+) -> dict:
+    company  = company_name or "Our Company"
+    pt       = _COMPANY_POST_TYPES.get(post_type, _COMPANY_POST_TYPES["thought_leadership"])
+    tone_desc = _COMPANY_TONES.get(tone, _COMPANY_TONES["professional"])
+    audience = target_audience or "industry professionals"
+    base_tags = _LINKEDIN_COMPANY_HASHTAGS.get(industry, _LINKEDIN_COMPANY_HASHTAGS["technology"])
+    topic_str = topic or "industry trends"
+    key_msg   = key_message or f"Our perspective on {topic_str}"
+
+    # Build hooks
+    hooks = [h.replace("{company}", company).replace("{topic}", topic_str).replace("{industry}", industry).replace("{audience}", audience)
+             for h in pt["hook_styles"]]
+
+    # Build primary post
+    hook = hooks[0]
+    structure = pt["structure"]
+    emojis = pt["emoji_palette"]
+
+    body_sections = []
+    messages = key_msg.split(". ") if key_msg else [key_msg]
+    for i, step in enumerate(structure):
+        emoji = emojis[i % len(emojis)]
+        if i == 0:
+            body_sections.append(f"{hook}\n")
+        elif i < len(messages) + 1:
+            body_sections.append(f"{emoji} {step}:\n{messages[min(i-1, len(messages)-1)]}")
+        else:
+            body_sections.append(f"{emoji} {step}:\n[Add your detail here]")
+
+    cta_options = _COMPANY_CTA_MAP.get(post_type, _COMPANY_CTA_MAP["thought_leadership"])
+    cta = cta_options[0].replace("{company}", company) if include_cta else ""
+
+    general_tags = ["#LinkedIn", f"#{company.replace(' ', '')}", f"#{industry.title()}India", "#IndianBusiness"]
+    all_tags = base_tags + general_tags
+    hashtag_str = " ".join(all_tags[:10])
+
+    primary_post = "\n\n".join(body_sections)
+    if cta:
+        primary_post += f"\n\n{cta}"
+    primary_post += f"\n\n{hashtag_str}"
+
+    # Short version (under 700 chars for better reach)
+    short_post = f"{hook}\n\n{key_msg}\n\n{cta}\n\n{hashtag_str}" if cta else f"{hook}\n\n{key_msg}\n\n{hashtag_str}"
+
+    # Carousel teaser (text for a LinkedIn carousel post)
+    carousel_slides = [
+        {"slide": 1, "title": hook, "subtitle": "Swipe to learn more →"},
+        {"slide": 2, "title": structure[0] if structure else "Key Insight", "subtitle": messages[0] if messages else key_msg},
+        {"slide": 3, "title": structure[1] if len(structure) > 1 else "Why It Matters", "subtitle": messages[1] if len(messages) > 1 else "This matters because..."},
+        {"slide": 4, "title": structure[-1] if structure else "What's Next", "subtitle": cta or "Follow us for more updates."},
+    ]
+
+    # Best time to post
+    best_times = [
+        "Tuesday–Thursday, 7:30–9:00 AM IST (professionals check LinkedIn before work)",
+        "Tuesday–Thursday, 12:00–1:00 PM IST (lunch break scroll)",
+        "Tuesday–Thursday, 5:00–6:00 PM IST (end of workday)",
+    ]
+
+    # Post checklist
+    checklist = [
+        {"item": "Hook is in the first line — no fluff before the main point", "done": False},
+        {"item": "Line breaks after every 1-2 sentences (mobile reading)", "done": False},
+        {"item": "CTA is specific — tells reader exactly what to do", "done": False},
+        {"item": "Hashtags added (8-10 max for company pages)", "done": False},
+        {"item": "Tag relevant people / partners mentioned in the post", "done": False},
+        {"item": "First comment prepared (add link there, not in post body)", "done": False},
+        {"item": "Scheduled for peak engagement time", "done": False},
+    ]
+
+    return {
+        "action": "linkedin_company_post",
+        "company_name": company,
+        "post_type": pt["label"],
+        "industry": industry,
+        "tone": tone_desc,
+        "target_audience": audience,
+        "primary_post": primary_post,
+        "short_post": short_post,
+        "hook": hook,
+        "hook_alternatives": hooks[1:],
+        "cta_options": [c.replace("{company}", company) for c in cta_options],
+        "carousel_slides": carousel_slides,
+        "hashtags": all_tags[:10],
+        "best_posting_times": best_times,
+        "post_structure": structure,
+        "post_checklist": checklist,
+        "char_count": len(primary_post),
+        "pro_tips": [
+            "Company pages get 3× more reach when employees reshare — brief your team before posting.",
+            "First comment tip: put any links in the first comment, not the post body (LinkedIn suppresses link posts).",
+            f"For {pt['label']} posts, native documents (PDFs/carousels) get 3× more impressions than text posts.",
+            "Reply to every comment within the first hour — early engagement signals boost distribution.",
+            "Pin your best-performing post to the top of your company page.",
+        ],
+    }
 
 
 def generate_youtube_description(
