@@ -827,7 +827,7 @@ Output JSON:
                 tickets=payload.get("tickets", []),
                 business_name=payload.get("business_name", ""),
                 custom_categories=payload.get("custom_categories", []),
-                language=lang,
+                language=language,
             )
 
         elif action == "onboarding_planner":
@@ -838,7 +838,7 @@ Output JSON:
                 tier=payload.get("tier", "standard"),
                 goals=payload.get("goals", []),
                 team_size=int(payload.get("team_size", 1) or 1),
-                language=lang,
+                language=language,
             )
 
         elif action == "churn_risk":
@@ -846,7 +846,7 @@ Output JSON:
                 customers=payload.get("customers", []),
                 business_name=payload.get("business_name", ""),
                 industry=payload.get("industry", "saas"),
-                language=lang,
+                language=language,
             )
 
         elif action == "escalation_manager":
@@ -855,7 +855,7 @@ Output JSON:
                 rules=payload.get("rules", {}),
                 business_name=payload.get("business_name", ""),
                 escalation_email=payload.get("escalation_email", ""),
-                language=lang,
+                language=language,
             )
 
         elif action == "build_csat_survey":
@@ -863,7 +863,7 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
                 business_type=payload.get("business_type", ""),
                 touchpoints=payload.get("touchpoints", []),
-                language=lang,
+                language=language,
             )
 
         elif action == "analyze_csat":
@@ -1458,10 +1458,14 @@ _URGENCY_SIGNALS = {
 def _categorize_ticket(text: str, custom_categories: list) -> tuple[str, str, str, int, str]:
     text_lower = text.lower()
 
-    # Custom categories first
+    # Custom categories first (support both string and dict entries)
     for cc in custom_categories:
-        if any(kw.lower() in text_lower for kw in cc.get("keywords", [])):
-            return cc["name"], cc.get("team", "Support"), "medium", cc.get("sla_hours", 24), cc.get("color", "#6b7280")
+        if isinstance(cc, str):
+            if cc.lower() in text_lower:
+                return cc, "Support", "medium", 24, "#6b7280"
+        elif isinstance(cc, dict):
+            if any(kw.lower() in text_lower for kw in cc.get("keywords", [])):
+                return cc["name"], cc.get("team", "Support"), "medium", cc.get("sla_hours", 24), cc.get("color", "#6b7280")
 
     # Standard categories — scored
     scores: dict[str, int] = {}
@@ -2504,8 +2508,10 @@ def _nps_campaign_builder(
             seg = "detractor"; detractors += 1
 
         follow_up_template = _NPS_FOLLOW_UP[seg]
+        _name_parts = r.get("name","Customer").split()
+        _first_name = _name_parts[0] if _name_parts else "Customer"
         email_subject = (follow_up_template["email_subject"]
-            .replace("{product}", product).replace("{name}", r.get("name","").split()[0]))
+            .replace("{product}", product).replace("{name}", _first_name))
         email_body = (
             follow_up_template["opening"].replace("{score}", str(s)).replace("{company}", company).replace("{product}", product) + "\n\n"
             + follow_up_template["ask"].replace("{product}", product) + "\n\n"
