@@ -69,6 +69,7 @@ const TABS = [
   { id: 'returns_policy', label: 'Returns Policy' },
   { id: 'chatbot',        label: 'Chatbot Builder' },
   { id: 'agent_training', label: 'Agent Training' },
+  { id: 'sla_policy',    label: 'SLA Policy' },
 ]
 
 const WA_TYPES = [
@@ -1328,6 +1329,7 @@ export default function CustomerSupportPage() {
         {tab === 'returns_policy'    && <ReturnsPolicyTab lang={lang} />}
         {tab === 'chatbot'           && <ChatbotBuilderTab lang={lang} />}
         {tab === 'agent_training'    && <AgentTrainingTab lang={lang} />}
+        {tab === 'sla_policy'        && <SlaPolicyTab lang={lang} />}
         {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
         {tab === 'cx360'          && <Customer360Tab lang={lang} />}
         {tab === 'analytics'      && <SupportAnalyticsTab lang={lang} />}
@@ -4097,6 +4099,178 @@ export function SupportAnalyticsTab({ lang }: { lang: string }) {
 const CB_INDUSTRIES = ['ecommerce','services','education','health','real_estate','restaurant','finance','retail']
 const CB_PLATFORMS  = [{value:'whatsapp',label:'WhatsApp Business'},{value:'website',label:'Website Chat'},{value:'instagram',label:'Instagram DM'}]
 const CB_TONES      = ['friendly','professional','formal']
+
+// ── R25: SLA Policy Generator ────────────────────────────────────────────────
+export function SlaPolicyTab({ lang }: { lang: string }) {
+  const [slCompany,   setSlCompany]   = useState('')
+  const [slPlans,     setSlPlans]     = useState<string[]>(['basic','standard','premium'])
+  const [slChannels,  setSlChannels]  = useState<string[]>(['chat','email'])
+  const [slHours,     setSlHours]     = useState('Mon–Sat, 9am–6pm IST')
+  const [slRes,       setSlRes]       = useState<any>(null)
+  const [slLoading,   setSlLoading]   = useState(false)
+  const [slErr,       setSlErr]       = useState('')
+
+  const togglePlan = (p: string) => setSlPlans(x => x.includes(p) ? x.filter(v=>v!==p) : [...x,p])
+  const toggleCh   = (c: string) => setSlChannels(x => x.includes(c) ? x.filter(v=>v!==c) : [...x,c])
+
+  const generate = async () => {
+    if (!slCompany.trim()) { setSlErr('Enter company name'); return }
+    setSlLoading(true); setSlErr(''); setSlRes(null)
+    try {
+      const r = await csAction('sla_policy', {
+        company_name: slCompany, plan_tiers: slPlans, support_channels: slChannels, business_hours: slHours,
+      }, lang)
+      setSlRes(r)
+    } catch (e: any) { setSlErr(e.message || 'Error') }
+    finally { setSlLoading(false) }
+  }
+
+  const allPlans = ['basic','standard','premium','enterprise']
+  const allCh    = ['chat','email','phone','whatsapp','social','self_serve']
+  const priColors: Record<string,string> = {critical:'#ef4444',high:'#f97316',medium:'#eab308',low:'#22c55e'}
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">📋 SLA Policy Generator</h2>
+      <p className="tool-desc">Define response and resolution SLAs by priority tier, channel, and plan with breach escalation rules.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Company Name</label>
+          <input value={slCompany} onChange={e=>setSlCompany(e.target.value)} placeholder="Your Company" /></div>
+        <div className="form-group"><label>Business Hours</label>
+          <input value={slHours} onChange={e=>setSlHours(e.target.value)} /></div>
+        <div className="form-group full">
+          <label>Plan Tiers</label>
+          <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',marginTop:'0.25rem'}}>
+            {allPlans.map(p => (
+              <label key={p} style={{display:'flex',alignItems:'center',gap:'0.3rem',cursor:'pointer'}}>
+                <input type="checkbox" checked={slPlans.includes(p)} onChange={()=>togglePlan(p)} />
+                {p.charAt(0).toUpperCase()+p.slice(1)}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="form-group full">
+          <label>Support Channels</label>
+          <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap',marginTop:'0.25rem'}}>
+            {allCh.map(c => (
+              <label key={c} style={{display:'flex',alignItems:'center',gap:'0.3rem',cursor:'pointer'}}>
+                <input type="checkbox" checked={slChannels.includes(c)} onChange={()=>toggleCh(c)} />
+                {c.charAt(0).toUpperCase()+c.slice(1)}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {slErr && <div className="error-box">{slErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={slLoading}>
+        {slLoading ? 'Generating…' : 'Generate SLA Policy'}
+      </button>
+
+      {slRes && (
+        <div className="result-box">
+          <h3>{slRes.company_name} — SLA Policy</h3>
+
+          <div className="ca-section">
+            <h4>Priority Tiers</h4>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.85rem'}}>
+                <thead><tr style={{background:'var(--bg-secondary)'}}>
+                  {['Priority','Description','First Response','Resolution','Escalation'].map(h =>
+                    <th key={h} style={{padding:'0.5rem',textAlign:'left'}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {Object.entries(slRes.priority_tiers||{}).map(([k, t]: any) => (
+                    <tr key={k} style={{borderTop:'1px solid var(--border-color)'}}>
+                      <td style={{padding:'0.5rem'}}><span style={{background:priColors[k],color:'white',padding:'2px 8px',borderRadius:'12px',fontSize:'0.75rem',fontWeight:600}}>{t.label}</span></td>
+                      <td style={{padding:'0.5rem'}}>{t.description}</td>
+                      <td style={{padding:'0.5rem',fontWeight:600}}>{t.first_response}</td>
+                      <td style={{padding:'0.5rem',fontWeight:600}}>{t.resolution}</td>
+                      <td style={{padding:'0.5rem',fontSize:'0.8rem'}}>{t.escalation}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>Channel SLAs</h4>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.85rem'}}>
+                <thead><tr style={{background:'var(--bg-secondary)'}}>
+                  {['Channel','First Response','Resolution'].map(h => <th key={h} style={{padding:'0.5rem',textAlign:'left'}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {Object.entries(slRes.channel_slas||{}).map(([ch, s]: any) => (
+                    <tr key={ch} style={{borderTop:'1px solid var(--border-color)'}}>
+                      <td style={{padding:'0.5rem',textTransform:'capitalize',fontWeight:500}}>{ch}</td>
+                      <td style={{padding:'0.5rem'}}>{s.first_response}</td>
+                      <td style={{padding:'0.5rem'}}>{s.resolution}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {Object.keys(slRes.plan_slas||{}).length > 0 && (
+            <div className="ca-section">
+              <h4>Plan-wise SLA Summary</h4>
+              {Object.entries(slRes.plan_slas||{}).map(([plan, slas]: any) => (
+                <div key={plan} style={{marginBottom:'0.75rem'}}>
+                  <h5 style={{textTransform:'capitalize',marginBottom:'0.3rem'}}>{plan} Plan</h5>
+                  {Object.entries(slas).map(([pri, s]: any) => (
+                    <div key={pri} style={{display:'flex',gap:'0.5rem',alignItems:'center',fontSize:'0.85rem',marginBottom:'0.2rem'}}>
+                      <span style={{background:priColors[pri],color:'white',padding:'1px 6px',borderRadius:'8px',fontSize:'0.75rem',minWidth:'60px',textAlign:'center'}}>{pri}</span>
+                      <span>Response: <strong>{s.first_response}</strong> | Resolve: <strong>{s.resolution}</strong> | Hours: {s.support_hours}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="ca-section">
+            <h4>🚨 Breach Actions</h4>
+            <ul>{(slRes.breach_actions||[]).map((b: string, i: number) => <li key={i}>{b}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>🚫 SLA Exclusions</h4>
+            <ul>{(slRes.sla_exclusions||[]).map((e: string, i: number) => <li key={i}>{e}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>📊 KPI Targets</h4>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.85rem'}}>
+                <thead><tr style={{background:'var(--bg-secondary)'}}>
+                  {['Metric','Name','Target'].map(h => <th key={h} style={{padding:'0.4rem',textAlign:'left'}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {Object.entries(slRes.kpi_targets||{}).map(([k,v]: any) => (
+                    <tr key={k} style={{borderTop:'1px solid var(--border-color)'}}>
+                      <td style={{padding:'0.4rem',fontWeight:600}}>{k}</td>
+                      <td style={{padding:'0.4rem'}}>{v.name}</td>
+                      <td style={{padding:'0.4rem',color:'#22c55e',fontWeight:600}}>{v.target}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>CS Notes</h4>
+            <ul>{(slRes.cs_notes||[]).map((n: string, i: number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R24: Agent Training Manual ────────────────────────────────────────────────
 export function AgentTrainingTab({ lang }: { lang: string }) {

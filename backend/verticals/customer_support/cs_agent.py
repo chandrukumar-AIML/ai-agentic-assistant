@@ -560,6 +560,15 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "sla_policy":
+            return generate_sla_policy(
+                company_name=payload.get("company_name", ""),
+                plan_tiers=payload.get("plan_tiers", ["basic","standard","premium"]),
+                support_channels=payload.get("support_channels", ["chat","email"]),
+                business_hours=payload.get("business_hours", "Mon–Sat, 9am–6pm IST"),
+                language=language,
+            )
+
         elif action == "agent_training":
             return generate_agent_training_manual(
                 company_name=payload.get("company_name", ""),
@@ -3005,6 +3014,139 @@ _ATM_ESCALATION_MATRIX = [
     {"level": "L3", "who": "Manager / Specialist", "handles": "Escalated complaints, fraud, SLA breach cases", "escalate_when": "Threat of legal action or media"},
     {"level": "L4", "who": "Leadership",           "handles": "PR risk, regulatory issues, executive escalations", "escalate_when": "Viral complaints or regulatory notice"},
 ]
+
+
+# ── R25: SLA Policy Generator ────────────────────────────────────────────────
+
+_SLA_PRIORITY_TIERS = {
+    "critical": {
+        "label":       "P1 — Critical",
+        "description": "Complete service outage or data breach affecting all users",
+        "first_response": "15 minutes",
+        "resolution":    "2 hours",
+        "escalation":    "Immediate — notify leadership within 30 min",
+        "color":         "#ef4444",
+    },
+    "high": {
+        "label":       "P2 — High",
+        "description": "Major feature broken, affecting significant portion of users",
+        "first_response": "1 hour",
+        "resolution":    "8 hours",
+        "escalation":    "L2 within 2 hours if unresolved",
+        "color":         "#f97316",
+    },
+    "medium": {
+        "label":       "P3 — Medium",
+        "description": "Non-critical issue with workaround available",
+        "first_response": "4 hours",
+        "resolution":    "2 business days",
+        "escalation":    "L2 on next business day if unresolved",
+        "color":         "#eab308",
+    },
+    "low": {
+        "label":       "P4 — Low",
+        "description": "Minor issues, feature requests, how-to questions",
+        "first_response": "8 hours",
+        "resolution":    "5 business days",
+        "escalation":    "Reviewed in weekly backlog",
+        "color":         "#22c55e",
+    },
+}
+
+_SLA_BY_CHANNEL = {
+    "chat":      {"first_response": "under 2 minutes",   "resolution": "per priority tier"},
+    "email":     {"first_response": "under 4 hours",     "resolution": "per priority tier"},
+    "phone":     {"first_response": "under 3 minutes",   "resolution": "first call resolution target 80%"},
+    "whatsapp":  {"first_response": "under 10 minutes",  "resolution": "per priority tier"},
+    "social":    {"first_response": "under 30 minutes",  "resolution": "redirect to email/chat for resolution"},
+    "self_serve":{"first_response": "Instant (bot)",     "resolution": "bot handles L0; escalates to agent for L1+"},
+}
+
+_SLA_BREACH_ACTIONS = [
+    "System auto-alerts agent and TL via email/Slack when 75% of SLA time is consumed",
+    "Automatic escalation to L2 when SLA is breached without resolution",
+    "Breach logged in CRM against agent and ticket for QA review",
+    "Customer receives proactive apology update at breach point",
+    "Monthly SLA breach report reviewed by support manager",
+    "Repeated breaches trigger root cause analysis (RCA) within 48 hours",
+]
+
+_SLA_EXCLUSIONS = [
+    "Scheduled maintenance windows (communicated 48h in advance)",
+    "Force majeure events (natural disaster, ISP outage, etc.)",
+    "Customer-caused delays (incomplete information, unresponsive customer)",
+    "Issues outside scope of support agreement",
+    "Public holidays (unless 24×7 SLA contracted)",
+]
+
+_SLA_METRICS = {
+    "FCR":   {"name": "First Contact Resolution",  "target": ">80%"},
+    "AHT":   {"name": "Average Handle Time",       "target": "Chat <4 min | Email <8 min | Call <6 min"},
+    "CSAT":  {"name": "Customer Satisfaction",     "target": ">4.2/5 or >85%"},
+    "SLA_C": {"name": "SLA Compliance Rate",       "target": ">95%"},
+    "RES":   {"name": "Reopen Rate",               "target": "<5%"},
+    "ABAND": {"name": "Abandonment Rate",          "target": "<5% (chat/call)"},
+}
+
+
+def generate_sla_policy(
+    company_name: str,
+    plan_tiers: list = None,
+    support_channels: list = None,
+    business_hours: str = "Mon–Sat, 9am–6pm IST",
+    language: str = "en",
+) -> dict:
+    plan_tiers = plan_tiers or ["basic", "standard", "premium"]
+    support_channels = support_channels or ["chat", "email"]
+
+    # Build per-plan SLA
+    plan_slas = {}
+    tier_configs = {
+        "basic":    {"channels": ["email"],            "hours": "Business hours only", "priorities": ["medium","low"],            "response_boost": 1.0},
+        "standard": {"channels": ["chat","email"],     "hours": "Mon–Sat 9am–9pm",     "priorities": ["high","medium","low"],     "response_boost": 0.75},
+        "premium":  {"channels": ["chat","email","phone","whatsapp"], "hours": "24×7", "priorities": ["critical","high","medium","low"], "response_boost": 0.5},
+        "enterprise":{"channels": ["chat","email","phone","whatsapp","dedicated_csm"], "hours": "24×7 + dedicated", "priorities": ["critical","high","medium","low"], "response_boost": 0.25},
+    }
+
+    for plan in plan_tiers:
+        cfg = tier_configs.get(plan, tier_configs["standard"])
+        plan_sla = {}
+        for pri in cfg["priorities"]:
+            tier = _SLA_PRIORITY_TIERS[pri]
+            plan_sla[pri] = {
+                "first_response": tier["first_response"],
+                "resolution":     tier["resolution"],
+                "channels":       [c for c in cfg["channels"] if c in (support_channels + ["email","chat","phone","whatsapp"])],
+                "support_hours":  cfg["hours"],
+            }
+        plan_slas[plan] = plan_sla
+
+    channel_slas = {ch: _SLA_BY_CHANNEL[ch] for ch in support_channels if ch in _SLA_BY_CHANNEL}
+
+    return {
+        "company_name":      company_name,
+        "plan_tiers":        plan_tiers,
+        "support_channels":  support_channels,
+        "business_hours":    business_hours,
+        "priority_tiers":    _SLA_PRIORITY_TIERS,
+        "plan_slas":         plan_slas,
+        "channel_slas":      channel_slas,
+        "breach_actions":    _SLA_BREACH_ACTIONS,
+        "sla_exclusions":    _SLA_EXCLUSIONS,
+        "kpi_targets":       _SLA_METRICS,
+        "review_cadence":    {
+            "weekly":   "SLA compliance & breach count reviewed in team standup",
+            "monthly":  "Full SLA report to management with trend analysis",
+            "quarterly":"SLA targets reviewed and revised based on team capacity",
+        },
+        "cs_notes": [
+            "Publish SLA policy on your website/help centre — customers should know what to expect",
+            "Set up automated alerts at 75% SLA consumption — don't wait for breaches",
+            "Define 'business hours' clearly — Indian holidays vary by state",
+            "WhatsApp SLA is increasingly important for Indian SMBs — prioritise it",
+            "Review SLA targets every 6 months as team scales",
+        ],
+    }
 
 
 def generate_agent_training_manual(

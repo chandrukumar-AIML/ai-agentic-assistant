@@ -2069,6 +2069,28 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "facebook_post":
+        return generate_facebook_post(
+            brand_name=payload.get("brand_name", ""),
+            post_topic=payload.get("post_topic", ""),
+            post_type=payload.get("post_type", "engagement"),
+            audience=payload.get("audience", "b2c"),
+            post_format=payload.get("post_format", "text_post"),
+            product_or_offer=payload.get("product_or_offer", ""),
+            location=payload.get("location", ""),
+            language=language,
+        )
+
+    elif action == "comment_replies":
+        return generate_comment_replies(
+            brand_name=payload.get("brand_name", ""),
+            post_topic=payload.get("post_topic", ""),
+            comments=payload.get("comments", []),
+            brand_tone=payload.get("brand_tone", "friendly"),
+            platform=platform,
+            include_cta=payload.get("include_cta", True),
+            language=language,
+        )
     elif action == "bio_optimizer":
         return generate_bio_optimizer(
             name=payload.get("name", ""),
@@ -3013,6 +3035,279 @@ _BIO_EMOJI_SETS = {
     "energetic":    ["🚀", "⚡", "🔥", "💪", "🌍"],
     "warm":         ["🙏", "❤️", "🌱", "🤝", "💛"],
 }
+
+
+# ── R24: Comment Reply Generator ─────────────────────────────────────────────
+
+_COMMENT_TYPES = {
+    "praise":      {"intent": "positive feedback", "goal": "amplify goodwill, invite engagement"},
+    "question":    {"intent": "seeking information","goal": "answer helpfully, drive to DM or link"},
+    "complaint":   {"intent": "negative experience","goal": "acknowledge, apologise, resolve offline"},
+    "troll":       {"intent": "hostile/baiting",    "goal": "de-escalate, not engage, stay classy"},
+    "spam":        {"intent": "irrelevant promo",   "goal": "brief polite decline, no engagement"},
+    "general":     {"intent": "neutral comment",    "goal": "warm reply, keep conversation going"},
+    "competitor":  {"intent": "comparison/rivalry", "goal": "confident, non-defensive, value-led"},
+}
+
+_COMMENT_TONES = {
+    "professional": "formal yet warm, no slang",
+    "friendly":     "casual, use emojis sparingly, conversational",
+    "witty":        "clever, light humour, punchy",
+    "empathetic":   "sensitive, validating, human first",
+}
+
+_COMMENT_REPLY_STARTERS = {
+    "praise":    ["Thank you so much 🙏", "This made our day! 😊", "We really appreciate this ❤️", "Means a lot to us!"],
+    "question":  ["Great question!", "Happy to help!", "Sure — here's the answer:", "Absolutely! 👇"],
+    "complaint": ["We're really sorry to hear this 🙏", "That's not the experience we want for you.", "We sincerely apologise.", "Thank you for flagging this."],
+    "troll":     ["We hear you.", "Thanks for sharing your thoughts.", "We appreciate all feedback.", "Noted!"],
+    "general":   ["Thanks for stopping by! 😊", "Glad you're here!", "Love seeing this! ❤️", "Always great to hear from you!"],
+    "competitor":["We're proud of what we've built!", "Every brand has its strengths 💪", "We'd love to show you why our users stay!", "Check out what makes us different 👇"],
+}
+
+
+# ── R25: Facebook Post Adapter ────────────────────────────────────────────────
+
+_FB_POST_TYPES = {
+    "awareness":    {"cta": "Save this post!", "emoji_set": ["📢","💡","🔔","👀"], "length": "medium"},
+    "engagement":   {"cta": "Drop a comment below! 👇", "emoji_set": ["💬","🤔","❤️","🙌"], "length": "short"},
+    "sale":         {"cta": "DM us or click the link in bio!", "emoji_set": ["🔥","💥","🎉","💰"], "length": "medium"},
+    "story":        {"cta": "Share with someone who needs this!", "emoji_set": ["✨","🌟","💫","🙏"], "length": "long"},
+    "educational":  {"cta": "Save & share with your team!", "emoji_set": ["📚","💡","🧠","✅"], "length": "long"},
+    "testimonial":  {"cta": "See more reviews in our highlights!", "emoji_set": ["⭐","🏆","❤️","🙏"], "length": "short"},
+}
+
+_FB_AUDIENCE_HOOKS = {
+    "b2c":      ["Did you know…", "Here's something most people miss:", "This changed everything for us:", "Stop scrolling — this is for you:"],
+    "b2b":      ["For business owners only:", "Here's what the data says:", "We've helped 500+ businesses:", "Most founders overlook this:"],
+    "local":    ["Chennai friends, listen up! 👋", "Coimbatore ke log, sunte ho?", "Our city deserves better.", "Proud to serve [City]!"],
+    "youth":    ["Okay real talk —", "No cap,", "Lowkey, this hits different:", "POV: you finally found it 👇"],
+}
+
+_FB_HASHTAG_SETS = {
+    "business":   ["#SmallBusiness", "#Entrepreneur", "#BusinessGrowth", "#StartupIndia", "#MSME"],
+    "lifestyle":  ["#DailyLife", "#MadeInIndia", "#IndianBrand", "#SupportLocal", "#ShopSmall"],
+    "education":  ["#LearnSomethingNew", "#DidYouKnow", "#TipsAndTricks", "#KnowledgeIsPower"],
+    "sale":       ["#Sale", "#Offer", "#Discount", "#LimitedTime", "#DealAlert"],
+}
+
+_FB_FORMATS = {
+    "text_post":   "Plain engaging text with hooks, story, and CTA",
+    "list_post":   "Numbered list or bullet format — easy to scan",
+    "question":    "Curiosity-triggering question post to drive comments",
+    "poll_intro":  "Intro text for a Facebook Poll post",
+    "event_post":  "Event announcement post with date/time/venue",
+    "share_post":  "Post designed to maximize shares/reshares",
+}
+
+
+def generate_facebook_post(
+    brand_name: str,
+    post_topic: str,
+    post_type: str = "engagement",
+    audience: str = "b2c",
+    post_format: str = "text_post",
+    product_or_offer: str = "",
+    location: str = "",
+    language: str = "en",
+) -> dict:
+    config = _FB_POST_TYPES.get(post_type, _FB_POST_TYPES["engagement"])
+    hooks = _FB_AUDIENCE_HOOKS.get(audience, _FB_AUDIENCE_HOOKS["b2c"])
+    hashtags = _FB_HASHTAG_SETS.get("business", []) + _FB_HASHTAG_SETS.get("lifestyle", [])
+
+    hook = hooks[hash(post_topic) % len(hooks)]
+    emoji1, emoji2 = config["emoji_set"][0], config["emoji_set"][1]
+    cta = config["cta"]
+
+    # Craft core body based on format
+    if post_format == "list_post":
+        body_lines = [
+            f"{hook}",
+            f"",
+            f"Here are 5 reasons why {brand_name} stands out:",
+            f"",
+            f"1️⃣ Quality you can trust",
+            f"2️⃣ Prices that make sense",
+            f"3️⃣ Service that actually cares",
+            f"4️⃣ {post_topic}",
+            f"5️⃣ A brand that grows with you",
+        ]
+    elif post_format == "question":
+        body_lines = [
+            f"Quick question for you {emoji1}",
+            f"",
+            f"When it comes to {post_topic} — what matters most to you?",
+            f"",
+            f"A) Quality",
+            f"B) Price",
+            f"C) Speed",
+            f"D) All of the above 😄",
+        ]
+    elif post_format == "poll_intro":
+        body_lines = [
+            f"We want to hear from YOU! {emoji1}",
+            f"",
+            f"Tell us about {post_topic}. Vote below and comment why! {emoji2}",
+        ]
+    elif post_format == "share_post":
+        body_lines = [
+            f"If this helped you, tag a friend who needs to see this {emoji1}",
+            f"",
+            f"{hook}",
+            f"",
+            f"{post_topic}",
+            f"",
+            f"Share this with someone it could help today 🙏",
+        ]
+    else:
+        body_lines = [
+            f"{hook}",
+            f"",
+            f"{emoji1} {post_topic}",
+            f"",
+            f"At {brand_name}, we believe every customer deserves the best.",
+            f"{product_or_offer}" if product_or_offer else f"That's why we keep raising the bar every single day.",
+        ]
+
+    body_lines += ["", cta]
+    if location:
+        body_lines.append(f"📍 {location}")
+
+    post_text = "\n".join(body_lines)
+    hashtag_str = " ".join(hashtags[:8])
+
+    full_post = f"{post_text}\n\n{hashtag_str}"
+
+    return {
+        "brand_name": brand_name,
+        "post_type": post_type,
+        "post_format": post_format,
+        "audience": audience,
+        "post_text": full_post,
+        "character_count": len(full_post),
+        "hashtags": hashtags[:8],
+        "cta": cta,
+        "best_time_to_post": {
+            "weekday": "Tuesday–Thursday, 8–10am or 6–9pm IST",
+            "weekend": "Saturday 10am–12pm IST",
+            "avoid":   "Monday mornings and Sunday nights",
+        },
+        "fb_tips": [
+            "Facebook prefers native video — add a relevant Reel if possible",
+            "First 2 lines are critical — 'See More' hides the rest on mobile",
+            "Posts with questions get 3× more comments",
+            "Tag your location to boost local reach",
+            "Reply to every comment within 1 hour for algorithm boost",
+        ],
+        "boost_suggestion": f"Boost this post for ₹200–₹500/day targeting {audience.upper()} within 25km of {location or 'your city'} for best ROI",
+    }
+
+
+def generate_comment_replies(
+    brand_name: str,
+    post_topic: str,
+    comments: list,
+    brand_tone: str = "friendly",
+    platform: str = "instagram",
+    include_cta: bool = True,
+    language: str = "en",
+) -> dict:
+    tone_desc = _COMMENT_TONES.get(brand_tone, _COMMENT_TONES["friendly"])
+    replies = []
+
+    for i, comment_item in enumerate(comments[:10]):
+        if isinstance(comment_item, dict):
+            comment_text = comment_item.get("text", "")
+            comment_type = comment_item.get("type", "general")
+        else:
+            comment_text = str(comment_item)
+            comment_type = _detect_comment_type(comment_text)
+
+        cfg = _COMMENT_TYPES.get(comment_type, _COMMENT_TYPES["general"])
+        starters = _COMMENT_REPLY_STARTERS.get(comment_type, _COMMENT_REPLY_STARTERS["general"])
+        starter = starters[i % len(starters)]
+
+        reply = _craft_reply(
+            starter=starter, comment=comment_text, brand=brand_name,
+            topic=post_topic, comment_type=comment_type, platform=platform,
+            include_cta=include_cta and comment_type in ["question", "praise", "general"],
+            tone=brand_tone,
+        )
+
+        replies.append({
+            "original_comment": comment_text,
+            "detected_type": comment_type,
+            "intent": cfg["intent"],
+            "reply": reply,
+            "char_count": len(reply),
+            "do_not_do": _comment_dont(comment_type),
+        })
+
+    return {
+        "brand": brand_name,
+        "platform": platform,
+        "post_topic": post_topic,
+        "total_replies": len(replies),
+        "replies": replies,
+        "brand_tone": brand_tone,
+        "comment_management_tips": [
+            "Reply within 1 hour — engagement spikes when you reply fast",
+            "Never delete negative comments unless abusive — it signals authenticity",
+            "Use first names when visible: 'Hi Priya!' feels personal",
+            "For complaints — always move to DM after the public acknowledgement",
+            "Pin the best comment + reply to keep positive vibes at top",
+            f"On {platform}, replying boosts your post in the algorithm",
+        ],
+    }
+
+
+def _detect_comment_type(text: str) -> str:
+    text_lower = text.lower()
+    if any(w in text_lower for w in ["worst", "bad", "disappointed", "angry", "refund", "scam", "fake", "never again"]):
+        return "complaint"
+    if any(w in text_lower for w in ["love", "great", "amazing", "awesome", "best", "excellent", "❤️", "🔥", "👏"]):
+        return "praise"
+    if "?" in text or any(w in text_lower for w in ["how", "what", "when", "where", "why", "price", "cost", "available"]):
+        return "question"
+    if any(w in text_lower for w in ["competitor", "better than", "vs", "compared"]):
+        return "competitor"
+    if any(w in text_lower for w in ["follow me", "check my", "dm me", "visit my"]):
+        return "spam"
+    return "general"
+
+
+def _craft_reply(starter, comment, brand, topic, comment_type, platform, include_cta, tone):
+    cta_map = {
+        "instagram": "DM us or check the link in bio 👆",
+        "linkedin":  "Feel free to connect or message us directly.",
+        "twitter":   "Slide into our DMs 😊",
+        "whatsapp":  "WhatsApp us for more info!",
+    }
+    cta = cta_map.get(platform, cta_map["instagram"]) if include_cta else ""
+
+    bodies = {
+        "praise":    f"{starter} Feedback like yours keeps us going! 💪 Tell a friend if {brand} helped you. {cta}",
+        "question":  f"{starter} We'll be happy to help — {cta if cta else 'send us a DM for details!'}",
+        "complaint": f"{starter} Please DM us your order/contact details and we'll make it right asap. 🙏",
+        "troll":     f"{starter} We're always working to improve. Have a good day! ✨",
+        "spam":      "Thanks for reaching out! We'll stick to our own page for now 😊",
+        "general":   f"{starter} Glad you're part of the {brand} community! ❤️ {cta}",
+        "competitor":f"{starter} We'd love for you to experience {brand} first-hand — we think you'll love what you find. {cta}",
+    }
+    return bodies.get(comment_type, bodies["general"])
+
+
+def _comment_dont(comment_type: str) -> str:
+    donts = {
+        "complaint":  "Don't argue publicly — acknowledge + move to DM always",
+        "troll":      "Don't engage emotionally — one calm reply max, then disengage",
+        "spam":       "Don't delete unless abusive — a polite decline looks professional",
+        "praise":     "Don't just reply 'thanks' — missed opportunity to deepen the relationship",
+        "question":   "Don't leave unanswered — unanswered questions signal poor support",
+        "competitor": "Don't badmouth — confident + value-led always wins",
+        "general":    "Don't use generic replies — personalise with their name or comment detail",
+    }
+    return donts.get(comment_type, donts["general"])
 
 
 def generate_bio_optimizer(

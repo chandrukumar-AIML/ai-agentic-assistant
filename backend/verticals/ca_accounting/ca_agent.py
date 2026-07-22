@@ -953,6 +953,16 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "startup_guide":
+        return generate_startup_registration_guide(
+            startup_name=payload.get("startup_name", ""),
+            entity_type=payload.get("entity_type", "private_limited"),
+            industry_sector=payload.get("industry_sector", ""),
+            state=payload.get("state", "Tamil Nadu"),
+            founders_count=payload.get("founders_count", 2),
+            language=language,
+        )
+
     elif action == "partnership_deed":
         return generate_partnership_deed(
             firm_name=payload.get("firm_name", ""),
@@ -2855,6 +2865,176 @@ _STAMP_DUTY_BY_STATE = {
     "Telangana":   "₹200 stamp paper",
     "default":     "stamp paper as per state stamp duty act",
 }
+
+
+# ── R25: Startup India Registration Guide ────────────────────────────────────
+
+_STARTUP_ENTITY_TYPES = {
+    "private_limited": {
+        "name":        "Private Limited Company",
+        "law":         "Companies Act 2013",
+        "min_capital": "No minimum",
+        "members":     "2–200 shareholders",
+        "liability":   "Limited",
+        "ideal_for":   "VC/PE funding, scalable startups",
+    },
+    "llp": {
+        "name":        "Limited Liability Partnership",
+        "law":         "LLP Act 2008",
+        "min_capital": "No minimum",
+        "members":     "Min 2 designated partners",
+        "liability":   "Limited",
+        "ideal_for":   "Professional services, small teams",
+    },
+    "opc": {
+        "name":        "One Person Company",
+        "law":         "Companies Act 2013",
+        "min_capital": "No minimum",
+        "members":     "1 shareholder",
+        "liability":   "Limited",
+        "ideal_for":   "Solo founders, service businesses",
+    },
+    "partnership": {
+        "name":        "Partnership Firm",
+        "law":         "Indian Partnership Act 1932",
+        "min_capital": "No minimum",
+        "members":     "2–20 partners",
+        "liability":   "Unlimited",
+        "ideal_for":   "Family/small businesses, low formality",
+    },
+}
+
+_STARTUP_INDIA_BENEFITS = [
+    "Self-certification under 9 labour and 3 environment laws",
+    "Fast-track patent examination at 80% discounted cost",
+    "Income tax exemption under Sec 80-IAC for 3 consecutive years (out of 10)",
+    "Exemption from Angel Tax (Sec 56(2)(viib)) for DPIIT recognised startups",
+    "₹10 lakh seed funding via Startup India Seed Fund Scheme (SISFS)",
+    "Government tender relaxation — no prior experience / turnover required",
+    "Easy winding up within 90 days under Insolvency & Bankruptcy Code",
+    "Access to SIDBI Fund of Funds (₹10,000 cr corpus)",
+    "Networking & mentorship through Startup India Hub",
+    "State-specific incentives (e.g. Tamil Nadu: TANSIM, Karnataka: Elevate)",
+]
+
+_STARTUP_REGISTRATION_STEPS = {
+    "private_limited": [
+        {"step": 1,  "action": "Obtain DSC (Digital Signature Certificate) for all directors",              "timeline": "1–2 days",  "portal": "MCA21 / private agencies"},
+        {"step": 2,  "action": "Obtain DIN (Director Identification Number) via SPICe+ form",               "timeline": "1–2 days",  "portal": "mca.gov.in"},
+        {"step": 3,  "action": "Name approval via SPICe+ Part A (RUN form)",                                "timeline": "2–5 days",  "portal": "mca.gov.in"},
+        {"step": 4,  "action": "Draft MOA & AOA",                                                           "timeline": "1 day",     "portal": "Company Secretary"},
+        {"step": 5,  "action": "File SPICe+ Part B for incorporation",                                      "timeline": "3–5 days",  "portal": "mca.gov.in"},
+        {"step": 6,  "action": "Receive Certificate of Incorporation (CoI) + CIN + PAN + TAN",             "timeline": "1–2 days",  "portal": "MCA21"},
+        {"step": 7,  "action": "Open current bank account in company name",                                 "timeline": "2–3 days",  "portal": "Bank"},
+        {"step": 8,  "action": "File INC-20A (Declaration of Commencement of Business)",                   "timeline": "Within 180 days of CoI", "portal": "mca.gov.in"},
+        {"step": 9,  "action": "Apply for DPIIT Startup India recognition on Startup India portal",         "timeline": "2–5 days",  "portal": "startupindia.gov.in"},
+        {"step": 10, "action": "Apply for GST registration if applicable",                                  "timeline": "3–7 days",  "portal": "gst.gov.in"},
+        {"step": 11, "action": "Apply for MSME/Udyam registration",                                        "timeline": "Instant",   "portal": "udyamregistration.gov.in"},
+        {"step": 12, "action": "Register for ESI/PF if headcount ≥ 10/20",                                "timeline": "As applicable", "portal": "esic.in / epfindia.gov.in"},
+    ],
+    "llp": [
+        {"step": 1, "action": "Obtain DSC for designated partners",                                        "timeline": "1–2 days",  "portal": "MCA21"},
+        {"step": 2, "action": "Apply for DPIN (Designated Partner Identification Number)",                  "timeline": "1–2 days",  "portal": "mca.gov.in"},
+        {"step": 3, "action": "Name reservation via RUN-LLP",                                              "timeline": "2–3 days",  "portal": "mca.gov.in"},
+        {"step": 4, "action": "File FiLLiP (Form for Incorporation of LLP)",                               "timeline": "3–5 days",  "portal": "mca.gov.in"},
+        {"step": 5, "action": "Draft and file LLP Agreement within 30 days",                               "timeline": "30 days",   "portal": "mca.gov.in (Form 3)"},
+        {"step": 6, "action": "Receive Certificate of Incorporation",                                      "timeline": "1–2 days",  "portal": "MCA21"},
+        {"step": 7, "action": "Open current bank account",                                                 "timeline": "2–3 days",  "portal": "Bank"},
+        {"step": 8, "action": "Apply for GST / MSME / DPIIT recognition",                                 "timeline": "2–7 days",  "portal": "Respective portals"},
+    ],
+}
+
+_STARTUP_COMPLIANCES = {
+    "annual": [
+        "ROC Annual Return (MGT-7 / LLP-11) — 60 days from AGM",
+        "Financial Statements (AOC-4) — 30 days from AGM",
+        "Income Tax Return — 31 Oct (audit) / 31 Jul (non-audit)",
+        "DPT-3 (Deposits Return) — 30 June",
+        "DIR-3 KYC for all directors — 30 September",
+        "MSME Form I if outstanding payments to MSME > 45 days",
+    ],
+    "monthly": [
+        "GST Return (GSTR-1, GSTR-3B) — 11th & 20th of next month",
+        "TDS payment by 7th of next month",
+        "Advance Tax instalments — Jun 15, Sep 15, Dec 15, Mar 15",
+        "PF/ESI challan by 15th of next month",
+    ],
+}
+
+_STARTUP_COSTS = {
+    "private_limited": {"govt_fees": "₹0–₹2,000 (waived for authorised capital ≤ ₹15L)", "professional": "₹8,000–₹25,000", "total_est": "₹8,000–₹30,000"},
+    "llp":             {"govt_fees": "₹500–₹5,600",  "professional": "₹5,000–₹15,000", "total_est": "₹6,000–₹20,000"},
+    "opc":             {"govt_fees": "₹0–₹2,000",    "professional": "₹6,000–₹15,000", "total_est": "₹6,000–₹18,000"},
+    "partnership":     {"govt_fees": "₹0–₹500",      "professional": "₹2,000–₹5,000",  "total_est": "₹2,000–₹6,000"},
+}
+
+
+def generate_startup_registration_guide(
+    startup_name: str,
+    entity_type: str = "private_limited",
+    industry_sector: str = "",
+    state: str = "Tamil Nadu",
+    founders_count: int = 2,
+    language: str = "en",
+) -> dict:
+    entity = _STARTUP_ENTITY_TYPES.get(entity_type, _STARTUP_ENTITY_TYPES["private_limited"])
+    steps = _STARTUP_REGISTRATION_STEPS.get(entity_type, _STARTUP_REGISTRATION_STEPS["private_limited"])
+    costs = _STARTUP_COSTS.get(entity_type, _STARTUP_COSTS["private_limited"])
+
+    # DPIIT eligibility check
+    dpiit_eligible = entity_type in ("private_limited", "llp", "opc")
+    dpiit_criteria = [
+        "Entity incorporated less than 10 years ago",
+        "Annual turnover not exceeding ₹100 crore in any year",
+        "Working towards innovation/improvement of product, process, or service",
+        "Scalable business model with potential for high employment / wealth creation",
+        "Not formed by splitting up or reconstructing existing business",
+    ]
+
+    # State-specific incentives
+    state_incentives = {
+        "Tamil Nadu":   ["TANSIM investment matching", "TIDCO startup space", "Power tariff concession"],
+        "Karnataka":    ["Elevate programme grant up to ₹50L", "KBITS support", "T-Hub access"],
+        "Maharashtra":  ["Maharashtra State Innovation Society grants", "SINE IIT-B incubation"],
+        "Delhi":        ["Delhi Startup Policy 2023 benefits", "iStart Delhi support"],
+        "Gujarat":      ["iCreate incubation", "GiZ support", "GUSEC programmes"],
+    }.get(state, [f"Check {state} government startup policy for specific incentives"])
+
+    total_time = "15–25 working days" if entity_type == "private_limited" else "10–18 working days"
+
+    return {
+        "startup_name":      startup_name,
+        "entity_type":       entity_type,
+        "entity_details":    entity,
+        "industry_sector":   industry_sector,
+        "state":             state,
+        "founders_count":    founders_count,
+        "registration_steps": steps,
+        "total_estimated_time": total_time,
+        "cost_estimate":     costs,
+        "dpiit_eligible":    dpiit_eligible,
+        "dpiit_criteria":    dpiit_criteria,
+        "startup_india_benefits": _STARTUP_INDIA_BENEFITS,
+        "annual_compliances": _STARTUP_COMPLIANCES["annual"],
+        "monthly_compliances": _STARTUP_COMPLIANCES["monthly"],
+        "state_incentives":  state_incentives,
+        "documents_required": [
+            "PAN card of all founders",
+            "Aadhar card of all founders",
+            "Passport-size photographs",
+            "Address proof of registered office (rent agreement + NOC from owner OR utility bill)",
+            "Latest bank statement / utility bill of founders (address proof)",
+            "MOA & AOA draft (CA/CS will prepare)",
+            "Digital Signature Certificate (DSC)",
+        ],
+        "ca_notes": [
+            "Choose Pvt Ltd if you plan to raise VC/angel funding — LLPs cannot issue equity shares",
+            "DPIIT recognition is FREE and unlocks Angel Tax exemption — apply within 3 months of incorporation",
+            "File INC-20A within 180 days of incorporation to avoid ₹50,000+ penalty",
+            "Register under MSME/Udyam — it's free and unlocks priority lending and govt tender access",
+            f"Check {state} startup policy — many states offer free office space, seed grants, and mentorship",
+        ],
+    }
 
 
 def generate_partnership_deed(

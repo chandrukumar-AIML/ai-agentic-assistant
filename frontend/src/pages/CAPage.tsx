@@ -830,6 +830,7 @@ export default function CAPage() {
           { id: 'balance_sheet',   label: 'Balance Sheet',              icon: '⚖️' },
           { id: 'advance_tax',     label: 'Advance Tax',                icon: '📅' },
           { id: 'partnership_deed', label: 'Partnership Deed',           icon: '🤝' },
+          { id: 'startup_guide',   label: 'Startup India Guide',        icon: '🚀' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3593,6 +3594,7 @@ export default function CAPage() {
       {tab === 'balance_sheet' && <BalanceSheetTab />}
       {tab === 'advance_tax'   && <AdvanceTaxTab />}
       {tab === 'partnership_deed' && <PartnershipDeedTab />}
+      {tab === 'startup_guide'   && <StartupGuideTab />}
     </PageShell>
   )
 }
@@ -3600,6 +3602,128 @@ export default function CAPage() {
 // ── R23: Advance Tax Calculator ──────────────────────────────────────────────
 const AT_YEARS = ['2025-26','2026-27','2024-25']
 const AT_TYPES = [{value:'individual',label:'Individual'},{value:'huf',label:'HUF'},{value:'firm',label:'Firm/LLP'},{value:'company',label:'Company'}]
+
+// ── R25: Startup India Registration Guide ────────────────────────────────────
+function StartupGuideTab() {
+  const [sgName,    setSgName]    = useState('')
+  const [sgEntity,  setSgEntity]  = useState('private_limited')
+  const [sgSector,  setSgSector]  = useState('')
+  const [sgState,   setSgState]   = useState('Tamil Nadu')
+  const [sgFounders,setSgFounders]= useState(2)
+  const [sgRes,     setSgRes]     = useState<any>(null)
+  const [sgLoading, setSgLoading] = useState(false)
+  const [sgErr,     setSgErr]     = useState('')
+
+  const generate = async () => {
+    if (!sgName.trim()) { setSgErr('Enter startup name'); return }
+    setSgLoading(true); setSgErr(''); setSgRes(null)
+    try {
+      const r = await caAction('startup_guide', {
+        startup_name: sgName, entity_type: sgEntity, industry_sector: sgSector,
+        state: sgState, founders_count: sgFounders,
+      })
+      setSgRes(r)
+    } catch (e: any) { setSgErr(e.message || 'Error') }
+    finally { setSgLoading(false) }
+  }
+
+  const states = ['Tamil Nadu','Karnataka','Maharashtra','Delhi','Gujarat','Telangana','Kerala','Rajasthan','UP','Punjab']
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">🚀 Startup India Registration Guide</h2>
+      <p className="tool-desc">Step-by-step registration roadmap with DPIIT recognition, compliances, costs, and state-specific incentives.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Startup Name</label>
+          <input value={sgName} onChange={e=>setSgName(e.target.value)} placeholder="My Startup Pvt Ltd" /></div>
+        <div className="form-group"><label>Entity Type</label>
+          <select value={sgEntity} onChange={e=>setSgEntity(e.target.value)}>
+            {[['private_limited','Private Limited'],['llp','LLP'],['opc','OPC'],['partnership','Partnership']].map(([v,l]) =>
+              <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Industry / Sector</label>
+          <input value={sgSector} onChange={e=>setSgSector(e.target.value)} placeholder="EdTech, FinTech, SaaS, D2C..." /></div>
+        <div className="form-group"><label>State</label>
+          <select value={sgState} onChange={e=>setSgState(e.target.value)}>
+            {states.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Number of Founders</label>
+          <input type="number" min={1} max={20} value={sgFounders} onChange={e=>setSgFounders(Number(e.target.value))} /></div>
+      </div>
+
+      {sgErr && <div className="error-box">{sgErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={sgLoading}>
+        {sgLoading ? 'Generating…' : 'Generate Registration Guide'}
+      </button>
+
+      {sgRes && (
+        <div className="result-box">
+          <h3>{sgRes.startup_name}</h3>
+          <p><strong>Entity:</strong> {sgRes.entity_details?.name} | <strong>State:</strong> {sgRes.state} | <strong>Est. Time:</strong> {sgRes.total_estimated_time}</p>
+          <p><strong>Cost Estimate:</strong> Govt: {sgRes.cost_estimate?.govt_fees} | Professional: {sgRes.cost_estimate?.professional} | Total: {sgRes.cost_estimate?.total_est}</p>
+
+          <div className="ca-section">
+            <h4>Entity Details</h4>
+            {Object.entries(sgRes.entity_details||{}).map(([k,v]: any) => (
+              <p key={k}><strong style={{textTransform:'capitalize'}}>{k.replace(/_/g,' ')}:</strong> {v}</p>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>Registration Steps</h4>
+            {(sgRes.registration_steps||[]).map((s: any) => (
+              <div key={s.step} style={{display:'flex',gap:'1rem',marginBottom:'0.6rem',alignItems:'flex-start'}}>
+                <span style={{minWidth:'28px',height:'28px',background:'var(--accent)',color:'white',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.8rem',fontWeight:700,flexShrink:0}}>{s.step}</span>
+                <div>
+                  <p style={{margin:0,fontWeight:500}}>{s.action}</p>
+                  <p style={{margin:0,fontSize:'0.8rem',color:'var(--text-muted)'}}>⏱ {s.timeline} | 🌐 {s.portal}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {sgRes.dpiit_eligible && (
+            <div className="ca-section" style={{borderLeft:'3px solid #22c55e',paddingLeft:'1rem'}}>
+              <h4>✅ DPIIT Startup India Recognition — Eligible</h4>
+              <p>Apply at <strong>startupindia.gov.in</strong> after incorporation.</p>
+              <h5 style={{marginTop:'0.5rem'}}>Benefits:</h5>
+              <ul>{(sgRes.startup_india_benefits||[]).map((b: string, i: number) => <li key={i}>{b}</li>)}</ul>
+            </div>
+          )}
+
+          <div className="ca-section">
+            <h4>📍 {sgRes.state} Incentives</h4>
+            <ul>{(sgRes.state_incentives||[]).map((s: string, i: number) => <li key={i}>{s}</li>)}</ul>
+          </div>
+
+          <div className="form-grid">
+            <div className="ca-section">
+              <h4>📋 Annual Compliances</h4>
+              <ul>{(sgRes.annual_compliances||[]).map((c: string, i: number) => <li key={i}>{c}</li>)}</ul>
+            </div>
+            <div className="ca-section">
+              <h4>📅 Monthly Compliances</h4>
+              <ul>{(sgRes.monthly_compliances||[]).map((c: string, i: number) => <li key={i}>{c}</li>)}</ul>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>📁 Documents Required</h4>
+            <ul>{(sgRes.documents_required||[]).map((d: string, i: number) => <li key={i}>☐ {d}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>CA Notes</h4>
+            <ul>{(sgRes.ca_notes||[]).map((n: string, i: number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R24: Partnership Deed Generator ──────────────────────────────────────────
 function PartnershipDeedTab() {

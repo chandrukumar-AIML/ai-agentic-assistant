@@ -833,7 +833,8 @@ export default function SocialPage() {
           { id: 'cal',          label: 'Content Calendar',         icon: '📅' },
           { id: 'bulk',         label: 'Bulk Post Generator',      icon: '⚡' },
           { id: 'bio_opt',      label: 'Bio Optimizer',            icon: '✍️' },
-          { id: 'comment_reply', label: 'Comment Replies',          icon: '💬' },
+          { id: 'comment_reply',  label: 'Comment Replies',          icon: '💬' },
+          { id: 'facebook_post',  label: 'Facebook Post',            icon: '📘' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1438,6 +1439,7 @@ export default function SocialPage() {
       {tab === 'launch_kit' && <LaunchKitTab />}
       {tab === 'bio_opt'    && <BioOptimizerTab />}
       {tab === 'comment_reply' && <CommentReplyTab />}
+      {tab === 'facebook_post' && <FacebookPostTab />}
 
       {/* ── ANALYTICS ── */}
       {tab === 'analytics' && (
@@ -3976,6 +3978,103 @@ export default function SocialPage() {
 const BO_TONES    = ['professional','creative','energetic','warm']
 const BO_PLATFORMS = ['instagram','linkedin','twitter','youtube']
 const BO_INDUSTRIES = ['technology','finance','marketing','education','health','ecommerce','consulting','creative']
+
+// ── R25: Facebook Post Adapter ────────────────────────────────────────────────
+export function FacebookPostTab() {
+  const [fbBrand,   setFbBrand]   = useState('')
+  const [fbTopic,   setFbTopic]   = useState('')
+  const [fbType,    setFbType]    = useState('engagement')
+  const [fbAud,     setFbAud]     = useState('b2c')
+  const [fbFormat,  setFbFormat]  = useState('text_post')
+  const [fbOffer,   setFbOffer]   = useState('')
+  const [fbLoc,     setFbLoc]     = useState('')
+  const [fbRes,     setFbRes]     = useState<any>(null)
+  const [fbLoading, setFbLoading] = useState(false)
+  const [fbErr,     setFbErr]     = useState('')
+
+  const generate = async () => {
+    if (!fbBrand.trim() || !fbTopic.trim()) { setFbErr('Enter brand name and post topic'); return }
+    setFbLoading(true); setFbErr(''); setFbRes(null)
+    try {
+      const r = await socialAction('facebook_post', {
+        brand_name: fbBrand, post_topic: fbTopic, post_type: fbType,
+        audience: fbAud, post_format: fbFormat, product_or_offer: fbOffer, location: fbLoc,
+      })
+      setFbRes(r)
+    } catch (e: any) { setFbErr(e.message || 'Error') }
+    finally { setFbLoading(false) }
+  }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">📘 Facebook Post Adapter</h2>
+      <p className="tool-desc">Create Facebook-optimised posts with hooks, CTAs, hashtags, and boost suggestions.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Brand Name</label>
+          <input value={fbBrand} onChange={e=>setFbBrand(e.target.value)} placeholder="Your Brand Name" /></div>
+        <div className="form-group"><label>Post Topic / Message</label>
+          <input value={fbTopic} onChange={e=>setFbTopic(e.target.value)} placeholder="New product launch, festive sale..." /></div>
+        <div className="form-group"><label>Post Type</label>
+          <select value={fbType} onChange={e=>setFbType(e.target.value)}>
+            {['awareness','engagement','sale','story','educational','testimonial'].map(x =>
+              <option key={x} value={x}>{x.charAt(0).toUpperCase()+x.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Audience</label>
+          <select value={fbAud} onChange={e=>setFbAud(e.target.value)}>
+            {[['b2c','B2C'],['b2b','B2B'],['local','Local'],['youth','Youth']].map(([v,l]) =>
+              <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Post Format</label>
+          <select value={fbFormat} onChange={e=>setFbFormat(e.target.value)}>
+            {[['text_post','Text Post'],['list_post','List Post'],['question','Question'],['poll_intro','Poll Intro'],['share_post','Share Post']].map(([v,l]) =>
+              <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Product / Offer (optional)</label>
+          <input value={fbOffer} onChange={e=>setFbOffer(e.target.value)} placeholder="e.g. 30% off on all plans" /></div>
+        <div className="form-group"><label>Location (optional)</label>
+          <input value={fbLoc} onChange={e=>setFbLoc(e.target.value)} placeholder="Chennai, Tamil Nadu" /></div>
+      </div>
+
+      {fbErr && <div className="error-box">{fbErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={fbLoading}>
+        {fbLoading ? 'Generating…' : 'Generate Facebook Post'}
+      </button>
+
+      {fbRes && (
+        <div className="result-box">
+          <h3>Facebook Post — {fbRes.post_type} / {fbRes.post_format}</h3>
+          <div style={{background:'var(--bg-secondary)',padding:'1rem',borderRadius:'8px',whiteSpace:'pre-wrap',fontFamily:'inherit',marginBottom:'1rem'}}>
+            {fbRes.post_text}
+          </div>
+          <p style={{fontSize:'0.8rem',color:'var(--text-muted)'}}>{fbRes.character_count} characters</p>
+
+          <div className="ca-section">
+            <h4>Best Time to Post</h4>
+            <p>📅 Weekday: {fbRes.best_time_to_post?.weekday}</p>
+            <p>🗓 Weekend: {fbRes.best_time_to_post?.weekend}</p>
+            <p>🚫 Avoid: {fbRes.best_time_to_post?.avoid}</p>
+          </div>
+
+          <div className="ca-section">
+            <h4>💡 Facebook Tips</h4>
+            <ul>{(fbRes.fb_tips||[]).map((t: string, i: number) => <li key={i}>{t}</li>)}</ul>
+          </div>
+
+          {fbRes.boost_suggestion && (
+            <div className="ca-section">
+              <h4>🚀 Boost Suggestion</h4>
+              <p>{fbRes.boost_suggestion}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R24: Comment Reply Generator ──────────────────────────────────────────────
 export function CommentReplyTab() {
