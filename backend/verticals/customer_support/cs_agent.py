@@ -560,6 +560,18 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "review_response":
+            return generate_review_response_kit(
+                business_name=payload.get("business_name", ""),
+                product_name=payload.get("product_name", ""),
+                platform=payload.get("platform", "google"),
+                review_text=payload.get("review_text", ""),
+                star_rating=payload.get("star_rating", 5),
+                reviewer_name=payload.get("reviewer_name", "there"),
+                support_email=payload.get("support_email", ""),
+                language=language,
+            )
+
         elif action == "sla_policy":
             return generate_sla_policy(
                 company_name=payload.get("company_name", ""),
@@ -3087,6 +3099,183 @@ _SLA_METRICS = {
     "RES":   {"name": "Reopen Rate",               "target": "<5%"},
     "ABAND": {"name": "Abandonment Rate",          "target": "<5% (chat/call)"},
 }
+
+
+# ── R26: Product Review Response Kit ────────────────────────────────────────
+
+_REVIEW_SENTIMENTS = {
+    "positive":  {"stars": [4, 5], "tone": "warm and grateful"},
+    "neutral":   {"stars": [3],    "tone": "acknowledging and helpful"},
+    "negative":  {"stars": [1, 2], "tone": "apologetic and solution-focused"},
+}
+
+_REVIEW_RESPONSE_STARTERS = {
+    "positive": [
+        "Thank you so much for your kind words, {name}! 🙏",
+        "We're absolutely thrilled to hear this, {name}! ⭐",
+        "This made our day, {name}! Thank you for taking the time to share this!",
+        "Wow, reviews like this keep us going! Thank you, {name}! 🌟",
+    ],
+    "neutral": [
+        "Thank you for your honest feedback, {name}.",
+        "We appreciate you sharing your experience with us, {name}.",
+        "Thank you for taking the time to review us, {name}.",
+    ],
+    "negative": [
+        "We sincerely apologise for your experience, {name}.",
+        "We're truly sorry to hear this, {name}, and we take full responsibility.",
+        "Thank you for bringing this to our attention, {name}. We're very sorry.",
+        "This is not the experience we want for our customers. We apologise, {name}.",
+    ],
+}
+
+_REVIEW_CLOSERS = {
+    "positive": [
+        "We look forward to serving you again! 😊",
+        "Hope to see you again soon!",
+        "Your support means the world to us! 💙",
+    ],
+    "neutral": [
+        "We hope to do better next time. Please reach out if you need anything.",
+        "We'd love a chance to make it up to you. Please DM us anytime.",
+        "We're always improving — your feedback helps us grow!",
+    ],
+    "negative": [
+        "Please DM us or email {support_email} so we can make this right.",
+        "We'd like to resolve this personally. Please reach out at {support_email}.",
+        "Your satisfaction is our priority. Please contact us at {support_email}.",
+    ],
+}
+
+_REVIEW_PLATFORMS = {
+    "google":    {"char_limit": 4096, "tip": "Reply within 24h — Google surfaces recent replies in search"},
+    "amazon":    {"char_limit": 1000, "tip": "Cannot offer refunds in reply — direct to seller support"},
+    "flipkart":  {"char_limit": 500,  "tip": "Short replies work best — Flipkart customers scan quickly"},
+    "zomato":    {"char_limit": 500,  "tip": "Be warm and personal — food is emotional; show you care"},
+    "swiggy":    {"char_limit": 500,  "tip": "Acknowledge delivery issues separately from food quality"},
+    "trustpilot":{"char_limit": 2000, "tip": "Professional tone; Trustpilot is B2B-facing"},
+    "facebook":  {"char_limit": 2000, "tip": "Public reply visible to all — keep it brand-positive"},
+    "instagram": {"char_limit": 2200, "tip": "Use emojis, keep it short and visual"},
+    "playstore": {"char_limit": 350,  "tip": "Mention version fix if it's a bug report"},
+    "appstore":  {"char_limit": 500,  "tip": "Cannot reply directly to individual reviews currently"},
+    "general":   {"char_limit": 1000, "tip": "Adapt length to platform norms"},
+}
+
+_REVIEW_TEMPLATES = {
+    "positive_feature": "{starter} We're so glad {feature} worked well for you! Your feedback motivates the whole team. {closer}",
+    "positive_delivery": "{starter} We work hard to ensure fast and safe delivery — glad it reached you perfectly! {closer}",
+    "positive_general":  "{starter} We put a lot of care into every {product}, and it means everything to hear that. {closer}",
+    "neutral_service":   "{starter} We hear you — {concern} is something we're actively working to improve. Your feedback goes directly to our team. {closer}",
+    "neutral_expectation": "{starter} We understand the experience didn't fully meet expectations. Could you DM us the details so we can look into it? {closer}",
+    "negative_delay":    "{starter} A delay like this is unacceptable and we completely understand your frustration. {resolution} {closer}",
+    "negative_quality":  "{starter} Quality is our #1 priority, and we failed here. We'd like to {resolution} immediately. {closer}",
+    "negative_support":  "{starter} Our support team should have resolved this faster — that's on us. {resolution} {closer}",
+}
+
+
+def generate_review_response_kit(
+    business_name: str,
+    product_name: str = "",
+    platform: str = "google",
+    review_text: str = "",
+    star_rating: int = 5,
+    reviewer_name: str = "there",
+    support_email: str = "",
+    language: str = "en",
+) -> dict:
+    # Determine sentiment
+    if star_rating >= 4:
+        sentiment = "positive"
+    elif star_rating == 3:
+        sentiment = "neutral"
+    else:
+        sentiment = "negative"
+
+    platform_info = _REVIEW_PLATFORMS.get(platform, _REVIEW_PLATFORMS["general"])
+    char_limit = platform_info["char_limit"]
+
+    starters = _REVIEW_RESPONSE_STARTERS[sentiment]
+    closers  = _REVIEW_CLOSERS[sentiment]
+    starter  = starters[hash(review_text) % len(starters)].replace("{name}", reviewer_name)
+    closer   = closers[hash(review_text) % len(closers)].replace("{support_email}", support_email or f"support@{business_name.lower().replace(' ','')}.com")
+
+    # Build 3 response variants
+    responses = []
+
+    if sentiment == "positive":
+        bodies = [
+            f"It's wonderful to know that {product_name or 'our product'} met your expectations.",
+            f"Reviews like yours remind us why we do what we do every day.",
+            f"We've shared your feedback with the team — they'll be absolutely delighted!",
+        ]
+    elif sentiment == "neutral":
+        bodies = [
+            f"We're glad parts of your experience were positive, and we're sorry we fell short in some areas.",
+            f"We've noted your feedback about {product_name or 'your experience'} and are working to improve.",
+            f"Your 3-star experience tells us we have room to grow, and we take that seriously.",
+        ]
+    else:
+        resolutions = [
+            f"Please reach out to us directly so we can arrange a replacement or full refund",
+            f"We'd like to offer you a complimentary replacement at no charge",
+            f"Our team will personally follow up to make this right",
+        ]
+        bodies = resolutions
+
+    for i, body in enumerate(bodies):
+        full_response = f"{starter} {body} {closer}"
+        responses.append({
+            "variant":       i + 1,
+            "response_text": full_response,
+            "char_count":    len(full_response),
+            "within_limit":  len(full_response) <= char_limit,
+        })
+
+    # Short version (always within platform limit)
+    short_resp = f"{starter} {closer}"
+
+    # DO / DON'T for the platform
+    dos = [
+        "Respond within 24 hours — speed signals you care",
+        "Use the reviewer's name to personalise",
+        "Acknowledge specific details from their review",
+        "Keep negative responses brief and move to private channel",
+        "Thank them even for negative reviews — it's public goodwill",
+    ]
+    donts = [
+        "Never argue with a negative reviewer publicly",
+        "Don't use generic copy-paste replies — customers notice",
+        "Don't ignore any review, even if it's just a star with no text",
+        "Don't offer refunds/discounts publicly — DM instead",
+        "Don't use overly formal language on casual platforms",
+    ]
+
+    return {
+        "business_name":    business_name,
+        "product_name":     product_name,
+        "platform":         platform,
+        "star_rating":      star_rating,
+        "sentiment":        sentiment,
+        "reviewer_name":    reviewer_name,
+        "platform_tip":     platform_info["tip"],
+        "char_limit":       char_limit,
+        "response_variants": responses,
+        "short_response":   short_resp,
+        "dos":              dos,
+        "donts":            donts,
+        "response_sla": {
+            "positive": "Within 48 hours",
+            "neutral":  "Within 24 hours",
+            "negative": "Within 2–4 hours — urgency matters",
+        },
+        "cs_notes": [
+            "Set up Google Alerts / brand monitoring to catch reviews in real time",
+            "Designate a 'Review Owner' in your team — don't let reviews go unanswered",
+            "Track star rating trends monthly — sudden drops indicate a product/process issue",
+            "For Amazon/Flipkart: flag fake/abusive reviews using the platform's 'Report' feature",
+            "Aim for >4.3 average rating — below 4.0 significantly impacts purchase intent",
+        ],
+    }
 
 
 def generate_sla_policy(

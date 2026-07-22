@@ -69,7 +69,8 @@ const TABS = [
   { id: 'returns_policy', label: 'Returns Policy' },
   { id: 'chatbot',        label: 'Chatbot Builder' },
   { id: 'agent_training', label: 'Agent Training' },
-  { id: 'sla_policy',    label: 'SLA Policy' },
+  { id: 'sla_policy',      label: 'SLA Policy' },
+  { id: 'review_response', label: 'Review Responses' },
 ]
 
 const WA_TYPES = [
@@ -1330,6 +1331,7 @@ export default function CustomerSupportPage() {
         {tab === 'chatbot'           && <ChatbotBuilderTab lang={lang} />}
         {tab === 'agent_training'    && <AgentTrainingTab lang={lang} />}
         {tab === 'sla_policy'        && <SlaPolicyTab lang={lang} />}
+        {tab === 'review_response'   && <ReviewResponseTab lang={lang} />}
         {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
         {tab === 'cx360'          && <Customer360Tab lang={lang} />}
         {tab === 'analytics'      && <SupportAnalyticsTab lang={lang} />}
@@ -4099,6 +4101,135 @@ export function SupportAnalyticsTab({ lang }: { lang: string }) {
 const CB_INDUSTRIES = ['ecommerce','services','education','health','real_estate','restaurant','finance','retail']
 const CB_PLATFORMS  = [{value:'whatsapp',label:'WhatsApp Business'},{value:'website',label:'Website Chat'},{value:'instagram',label:'Instagram DM'}]
 const CB_TONES      = ['friendly','professional','formal']
+
+// ── R26: Product Review Response Kit ─────────────────────────────────────────
+export function ReviewResponseTab({ lang }: { lang: string }) {
+  const [rvBiz,      setRvBiz]      = useState('')
+  const [rvProduct,  setRvProduct]  = useState('')
+  const [rvPlatform, setRvPlatform] = useState('google')
+  const [rvText,     setRvText]     = useState('')
+  const [rvStars,    setRvStars]    = useState(5)
+  const [rvName,     setRvName]     = useState('')
+  const [rvEmail,    setRvEmail]    = useState('')
+  const [rvRes,      setRvRes]      = useState<any>(null)
+  const [rvLoading,  setRvLoading]  = useState(false)
+  const [rvErr,      setRvErr]      = useState('')
+
+  const generate = async () => {
+    if (!rvBiz.trim()) { setRvErr('Enter business name'); return }
+    setRvLoading(true); setRvErr(''); setRvRes(null)
+    try {
+      const r = await csAction('review_response', {
+        business_name: rvBiz, product_name: rvProduct, platform: rvPlatform,
+        review_text: rvText, star_rating: rvStars,
+        reviewer_name: rvName || 'there', support_email: rvEmail,
+      }, lang)
+      setRvRes(r)
+    } catch (e: any) { setRvErr(e.message || 'Error') }
+    finally { setRvLoading(false) }
+  }
+
+  const platforms = ['google','amazon','flipkart','zomato','swiggy','trustpilot','facebook','instagram','playstore','general']
+  const sentimentColor: Record<string,string> = { positive:'#22c55e', neutral:'#eab308', negative:'#ef4444' }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">⭐ Product Review Response Kit</h2>
+      <p className="tool-desc">Generate platform-optimised replies to customer reviews — positive, neutral, and negative — across all major platforms.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Business Name</label>
+          <input value={rvBiz} onChange={e=>setRvBiz(e.target.value)} placeholder="Your Business Name" /></div>
+        <div className="form-group"><label>Product Name (optional)</label>
+          <input value={rvProduct} onChange={e=>setRvProduct(e.target.value)} placeholder="e.g. Wireless Earbuds Pro" /></div>
+        <div className="form-group"><label>Platform</label>
+          <select value={rvPlatform} onChange={e=>setRvPlatform(e.target.value)}>
+            {platforms.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Star Rating</label>
+          <select value={rvStars} onChange={e=>setRvStars(Number(e.target.value))}>
+            {[5,4,3,2,1].map(s => <option key={s} value={s}>{'⭐'.repeat(s)} ({s} star{s>1?'s':''})</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Reviewer Name (optional)</label>
+          <input value={rvName} onChange={e=>setRvName(e.target.value)} placeholder="Rahul / Customer" /></div>
+        <div className="form-group"><label>Support Email (optional)</label>
+          <input value={rvEmail} onChange={e=>setRvEmail(e.target.value)} placeholder="support@yourcompany.com" /></div>
+        <div className="form-group full"><label>Review Text (paste the review)</label>
+          <textarea rows={4} value={rvText} onChange={e=>setRvText(e.target.value)}
+            placeholder="Paste the customer's review here..." /></div>
+      </div>
+
+      {rvErr && <div className="error-box">{rvErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={rvLoading}>
+        {rvLoading ? 'Generating…' : 'Generate Response Variants'}
+      </button>
+
+      {rvRes && (
+        <div className="result-box">
+          <div style={{display:'flex',gap:'1rem',alignItems:'center',marginBottom:'1rem',flexWrap:'wrap'}}>
+            <h3 style={{margin:0}}>{rvRes.platform?.charAt(0).toUpperCase()+rvRes.platform?.slice(1)} — {'⭐'.repeat(rvRes.star_rating)}</h3>
+            <span style={{background:sentimentColor[rvRes.sentiment]||'#888',color:'white',padding:'2px 10px',borderRadius:'12px',fontSize:'0.8rem',fontWeight:600,textTransform:'capitalize'}}>
+              {rvRes.sentiment}
+            </span>
+            <span style={{fontSize:'0.8rem',color:'var(--text-muted)'}}>Char limit: {rvRes.char_limit}</span>
+          </div>
+
+          <div className="ca-section">
+            <h4>💡 Platform Tip</h4>
+            <p>{rvRes.platform_tip}</p>
+          </div>
+
+          <div className="ca-section">
+            <h4>Response Variants</h4>
+            {(rvRes.response_variants||[]).map((v: any) => (
+              <div key={v.variant} style={{background:'var(--bg-secondary)',padding:'0.75rem',borderRadius:'8px',marginBottom:'0.75rem'}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.4rem'}}>
+                  <strong>Variant {v.variant}</strong>
+                  <span style={{fontSize:'0.75rem',color:v.within_limit?'#22c55e':'#ef4444'}}>
+                    {v.char_count} chars {v.within_limit ? '✅' : '⚠️ over limit'}
+                  </span>
+                </div>
+                <p style={{margin:0,lineHeight:1.6}}>{v.response_text}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>Short Response</h4>
+            <div style={{background:'var(--bg-secondary)',padding:'0.75rem',borderRadius:'8px'}}>
+              {rvRes.short_response}
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>⏱ Response SLA</h4>
+            {Object.entries(rvRes.response_sla||{}).map(([k,v]: any) => (
+              <p key={k}><strong style={{textTransform:'capitalize'}}>{k}:</strong> {v}</p>
+            ))}
+          </div>
+
+          <div className="form-grid">
+            <div className="ca-section">
+              <h4>✅ Do's</h4>
+              <ul>{(rvRes.dos||[]).map((d: string, i: number) => <li key={i}>{d}</li>)}</ul>
+            </div>
+            <div className="ca-section">
+              <h4>❌ Don'ts</h4>
+              <ul>{(rvRes.donts||[]).map((d: string, i: number) => <li key={i}>{d}</li>)}</ul>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>CS Notes</h4>
+            <ul>{(rvRes.cs_notes||[]).map((n: string, i: number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R25: SLA Policy Generator ────────────────────────────────────────────────
 export function SlaPolicyTab({ lang }: { lang: string }) {

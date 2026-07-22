@@ -831,6 +831,7 @@ export default function CAPage() {
           { id: 'advance_tax',     label: 'Advance Tax',                icon: '📅' },
           { id: 'partnership_deed', label: 'Partnership Deed',           icon: '🤝' },
           { id: 'startup_guide',   label: 'Startup India Guide',        icon: '🚀' },
+          { id: 'directors_report', label: "Director's Report",          icon: '📑' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3594,7 +3595,8 @@ export default function CAPage() {
       {tab === 'balance_sheet' && <BalanceSheetTab />}
       {tab === 'advance_tax'   && <AdvanceTaxTab />}
       {tab === 'partnership_deed' && <PartnershipDeedTab />}
-      {tab === 'startup_guide'   && <StartupGuideTab />}
+      {tab === 'startup_guide'    && <StartupGuideTab />}
+      {tab === 'directors_report' && <DirectorsReportTab />}
     </PageShell>
   )
 }
@@ -3602,6 +3604,164 @@ export default function CAPage() {
 // ── R23: Advance Tax Calculator ──────────────────────────────────────────────
 const AT_YEARS = ['2025-26','2026-27','2024-25']
 const AT_TYPES = [{value:'individual',label:'Individual'},{value:'huf',label:'HUF'},{value:'firm',label:'Firm/LLP'},{value:'company',label:'Company'}]
+
+// ── R26: Director's Report Generator ─────────────────────────────────────────
+function DirectorsReportTab() {
+  const [drCompany,   setDrCompany]   = useState('')
+  const [drCin,       setDrCin]       = useState('')
+  const [drFyStart,   setDrFyStart]   = useState('01-04-2024')
+  const [drFyEnd,     setDrFyEnd]     = useState('31-03-2025')
+  const [drRevenue,   setDrRevenue]   = useState('')
+  const [drPbt,       setDrPbt]       = useState('')
+  const [drPat,       setDrPat]       = useState('')
+  const [drDividend,  setDrDividend]  = useState(false)
+  const [drDivAmt,    setDrDivAmt]    = useState('')
+  const [drAuditor,   setDrAuditor]   = useState('no_qualification')
+  const [drCsr,       setDrCsr]       = useState(false)
+  const [drCsrAmt,    setDrCsrAmt]    = useState('')
+  const [drFxEarn,    setDrFxEarn]    = useState('')
+  const [drFxOut,     setDrFxOut]     = useState('')
+  const [drDirectors, setDrDirectors] = useState([{ name: '', din: '', designation: '' }])
+  const [drRes,       setDrRes]       = useState<any>(null)
+  const [drLoading,   setDrLoading]   = useState(false)
+  const [drErr,       setDrErr]       = useState('')
+
+  const addDirector = () => setDrDirectors(d => [...d, { name:'', din:'', designation:'' }])
+  const updateDir   = (i: number, f: string, v: string) =>
+    setDrDirectors(d => d.map((x,j) => j===i ? {...x,[f]:v} : x))
+
+  const generate = async () => {
+    if (!drCompany.trim()) { setDrErr('Enter company name'); return }
+    setDrLoading(true); setDrErr(''); setDrRes(null)
+    try {
+      const r = await caAction('directors_report', {
+        company_name: drCompany, cin: drCin, fy_start: drFyStart, fy_end: drFyEnd,
+        revenue: parseFloat(drRevenue)||0, profit_before_tax: parseFloat(drPbt)||0,
+        profit_after_tax: parseFloat(drPat)||0, dividend_declared: drDividend,
+        dividend_per_share: parseFloat(drDivAmt)||0, directors: drDirectors,
+        auditor_status: drAuditor, csr_applicable: drCsr,
+        csr_amount_spent: parseFloat(drCsrAmt)||0,
+        foreign_exchange_earnings: parseFloat(drFxEarn)||0,
+        foreign_exchange_outgo: parseFloat(drFxOut)||0,
+      })
+      setDrRes(r)
+    } catch (e: any) { setDrErr(e.message || 'Error') }
+    finally { setDrLoading(false) }
+  }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">📑 Director's Report Generator</h2>
+      <p className="tool-desc">Generate a Companies Act 2013-compliant Director's Report with all mandatory sections and annexures list.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Company Name</label>
+          <input value={drCompany} onChange={e=>setDrCompany(e.target.value)} placeholder="ABC Technologies Pvt Ltd" /></div>
+        <div className="form-group"><label>CIN</label>
+          <input value={drCin} onChange={e=>setDrCin(e.target.value)} placeholder="U72900TN2020PTC123456" /></div>
+        <div className="form-group"><label>FY Start</label>
+          <input value={drFyStart} onChange={e=>setDrFyStart(e.target.value)} placeholder="01-04-2024" /></div>
+        <div className="form-group"><label>FY End</label>
+          <input value={drFyEnd} onChange={e=>setDrFyEnd(e.target.value)} placeholder="31-03-2025" /></div>
+        <div className="form-group"><label>Revenue (₹)</label>
+          <input type="number" value={drRevenue} onChange={e=>setDrRevenue(e.target.value)} placeholder="e.g. 50000000 (₹5 Cr)" /></div>
+        <div className="form-group"><label>Profit Before Tax (₹)</label>
+          <input type="number" value={drPbt} onChange={e=>setDrPbt(e.target.value)} placeholder="e.g. 8000000" /></div>
+        <div className="form-group"><label>Profit After Tax (₹)</label>
+          <input type="number" value={drPat} onChange={e=>setDrPat(e.target.value)} placeholder="e.g. 6000000" /></div>
+        <div className="form-group"><label>Auditor Report Status</label>
+          <select value={drAuditor} onChange={e=>setDrAuditor(e.target.value)}>
+            <option value="no_qualification">No Qualification</option>
+            <option value="qualified">Qualified Report</option>
+            <option value="secretarial">Secretarial Audit</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label style={{display:'flex',gap:'0.5rem',alignItems:'center',cursor:'pointer'}}>
+            <input type="checkbox" checked={drDividend} onChange={e=>setDrDividend(e.target.checked)} />
+            Dividend Declared?
+          </label>
+          {drDividend && <input type="number" value={drDivAmt} onChange={e=>setDrDivAmt(e.target.value)} placeholder="₹ per share" style={{marginTop:'0.4rem'}} />}
+        </div>
+        <div className="form-group">
+          <label style={{display:'flex',gap:'0.5rem',alignItems:'center',cursor:'pointer'}}>
+            <input type="checkbox" checked={drCsr} onChange={e=>setDrCsr(e.target.checked)} />
+            CSR Applicable?
+          </label>
+          {drCsr && <input type="number" value={drCsrAmt} onChange={e=>setDrCsrAmt(e.target.value)} placeholder="CSR amount spent (₹)" style={{marginTop:'0.4rem'}} />}
+        </div>
+        <div className="form-group"><label>Forex Earnings (₹)</label>
+          <input type="number" value={drFxEarn} onChange={e=>setDrFxEarn(e.target.value)} placeholder="0 if nil" /></div>
+        <div className="form-group"><label>Forex Outgo (₹)</label>
+          <input type="number" value={drFxOut} onChange={e=>setDrFxOut(e.target.value)} placeholder="0 if nil" /></div>
+      </div>
+
+      <div className="ca-section">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.75rem'}}>
+          <h4>Board of Directors</h4>
+          <button className="btn-secondary" onClick={addDirector}>+ Add Director</button>
+        </div>
+        {drDirectors.map((d,i) => (
+          <div key={i} className="form-grid" style={{background:'var(--bg-secondary)',padding:'0.75rem',borderRadius:'8px',marginBottom:'0.5rem'}}>
+            <div className="form-group"><label>Name</label>
+              <input value={d.name} onChange={e=>updateDir(i,'name',e.target.value)} placeholder="Director name" /></div>
+            <div className="form-group"><label>DIN</label>
+              <input value={d.din} onChange={e=>updateDir(i,'din',e.target.value)} placeholder="12345678" /></div>
+            <div className="form-group"><label>Designation</label>
+              <input value={d.designation} onChange={e=>updateDir(i,'designation',e.target.value)} placeholder="Managing Director / CFO..." /></div>
+          </div>
+        ))}
+      </div>
+
+      {drErr && <div className="error-box">{drErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={drLoading}>
+        {drLoading ? 'Generating…' : "Generate Director's Report"}
+      </button>
+
+      {drRes && (
+        <div className="result-box">
+          <h3>{drRes.company_name} — Director's Report</h3>
+          <p><strong>CIN:</strong> {drRes.cin} | <strong>FY:</strong> {drRes.fy_start} to {drRes.fy_end}</p>
+          <p><strong>Revenue:</strong> ₹{drRes.financial_summary?.revenue_cr?.toFixed(2)} Cr | <strong>PBT:</strong> ₹{drRes.financial_summary?.pbt_cr?.toFixed(2)} Cr | <strong>PAT:</strong> ₹{drRes.financial_summary?.pat_cr?.toFixed(2)} Cr</p>
+
+          {Object.entries(drRes.report_sections||{}).map(([section, content]: any) => (
+            <div key={section} className="ca-section">
+              <h4 style={{textTransform:'capitalize'}}>{section.replace(/_/g,' ')}</h4>
+              {Array.isArray(content)
+                ? <ul>{content.map((c: any, i: number) => (
+                    typeof c === 'string'
+                      ? <li key={i}>{c}</li>
+                      : <li key={i}><strong>{c.risk}:</strong> {c.mitigation}</li>
+                  ))}</ul>
+                : typeof content === 'object' && content !== null
+                  ? Object.entries(content).map(([k,v]: any) =>
+                      <p key={k}><strong style={{textTransform:'capitalize'}}>{k.replace(/_/g,' ')}:</strong> {String(v)}</p>)
+                  : <p>{content}</p>
+              }
+            </div>
+          ))}
+
+          <div className="ca-section">
+            <h4>📎 Mandatory Annexures</h4>
+            <ul>{(drRes.mandatory_annexures||[]).map((a: string, i: number) => <li key={i}>☐ {a}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>📅 Filing Deadlines</h4>
+            {Object.entries(drRes.filing_deadlines||{}).map(([k,v]: any) => (
+              <p key={k}><strong>{k}:</strong> {v}</p>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>CA Notes</h4>
+            <ul>{(drRes.ca_notes||[]).map((n: string, i: number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R25: Startup India Registration Guide ────────────────────────────────────
 function StartupGuideTab() {

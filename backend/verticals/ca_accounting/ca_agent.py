@@ -953,6 +953,28 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "directors_report":
+        return generate_directors_report(
+            company_name=payload.get("company_name", ""),
+            cin=payload.get("cin", ""),
+            fy_start=payload.get("fy_start", ""),
+            fy_end=payload.get("fy_end", ""),
+            revenue=payload.get("revenue", 0),
+            profit_before_tax=payload.get("profit_before_tax", 0),
+            profit_after_tax=payload.get("profit_after_tax", 0),
+            dividend_declared=payload.get("dividend_declared", False),
+            dividend_per_share=payload.get("dividend_per_share", 0),
+            directors=payload.get("directors", []),
+            new_directors=payload.get("new_directors", []),
+            resigned_directors=payload.get("resigned_directors", []),
+            auditor_status=payload.get("auditor_status", "no_qualification"),
+            csr_applicable=payload.get("csr_applicable", False),
+            csr_amount_spent=payload.get("csr_amount_spent", 0),
+            foreign_exchange_earnings=payload.get("foreign_exchange_earnings", 0),
+            foreign_exchange_outgo=payload.get("foreign_exchange_outgo", 0),
+            language=language,
+        )
+
     elif action == "startup_guide":
         return generate_startup_registration_guide(
             startup_name=payload.get("startup_name", ""),
@@ -2967,6 +2989,207 @@ _STARTUP_COSTS = {
     "opc":             {"govt_fees": "₹0–₹2,000",    "professional": "₹6,000–₹15,000", "total_est": "₹6,000–₹18,000"},
     "partnership":     {"govt_fees": "₹0–₹500",      "professional": "₹2,000–₹5,000",  "total_est": "₹2,000–₹6,000"},
 }
+
+
+# ── R26: Director's Report Generator ─────────────────────────────────────────
+
+_DR_SECTIONS = [
+    "state_of_company_affairs",
+    "financial_highlights",
+    "dividend",
+    "reserves",
+    "share_capital",
+    "directors_responsibility_statement",
+    "auditors",
+    "related_party_transactions",
+    "material_changes",
+    "conservation_of_energy",
+    "technology_absorption",
+    "foreign_exchange",
+    "risk_management",
+    "corporate_social_responsibility",
+    "vigil_mechanism",
+    "declarations",
+    "acknowledgement",
+]
+
+_DR_RESPONSIBILITY_STATEMENT = [
+    "The applicable accounting standards have been followed in preparation of annual accounts and there are no material departures.",
+    "Accounting policies have been selected and applied consistently; judgements and estimates made are reasonable and prudent.",
+    "Proper and sufficient care has been taken for the maintenance of adequate accounting records in accordance with the provisions of the Companies Act, 2013.",
+    "The annual accounts have been prepared on a going concern basis.",
+    "Internal financial controls have been laid down and such controls are adequate and operating effectively.",
+    "Proper systems have been devised to ensure compliance with the provisions of all applicable laws and such systems are adequate and operating effectively.",
+]
+
+_DR_AUDITOR_STATEMENTS = {
+    "no_qualification": "The Auditors' Report does not contain any qualification, reservation or adverse remark.",
+    "qualified":        "The Auditors' Report contains the following qualifications/remarks: [Details]. The Board's explanation: [Explanation].",
+    "secretarial":      "The Secretarial Audit Report for the year is annexed as Annexure and does not contain any qualification, reservation or adverse remark.",
+}
+
+_DR_CSR_NOTE = "As per Section 135 of the Companies Act, 2013, the provisions of CSR are applicable to companies with net worth ≥ ₹500 crore OR turnover ≥ ₹1,000 crore OR net profit ≥ ₹5 crore."
+
+_DR_RISK_CATEGORIES = [
+    {"risk": "Market Risk",       "mitigation": "Diversified revenue streams, regular market analysis"},
+    {"risk": "Credit Risk",       "mitigation": "Strict credit appraisal, customer credit limits"},
+    {"risk": "Operational Risk",  "mitigation": "SOPs, internal audits, business continuity plan"},
+    {"risk": "Regulatory Risk",   "mitigation": "Dedicated compliance team, periodic legal review"},
+    {"risk": "Technology Risk",   "mitigation": "Cybersecurity policy, data backup, IT audits"},
+    {"risk": "Human Resource Risk","mitigation": "Competitive remuneration, succession planning, training"},
+]
+
+
+def generate_directors_report(
+    company_name: str,
+    cin: str,
+    fy_start: str,
+    fy_end: str,
+    revenue: float = 0.0,
+    profit_before_tax: float = 0.0,
+    profit_after_tax: float = 0.0,
+    dividend_declared: bool = False,
+    dividend_per_share: float = 0.0,
+    directors: list = None,
+    new_directors: list = None,
+    resigned_directors: list = None,
+    auditor_status: str = "no_qualification",
+    csr_applicable: bool = False,
+    csr_amount_spent: float = 0.0,
+    foreign_exchange_earnings: float = 0.0,
+    foreign_exchange_outgo: float = 0.0,
+    language: str = "en",
+) -> dict:
+    directors = directors or []
+    new_directors = new_directors or []
+    resigned_directors = resigned_directors or []
+
+    revenue_cr     = revenue / 1e7
+    pbt_cr         = profit_before_tax / 1e7
+    pat_cr         = profit_after_tax / 1e7
+    fx_earn_lakhs  = foreign_exchange_earnings / 1e5
+    fx_out_lakhs   = foreign_exchange_outgo / 1e5
+
+    report_sections = {}
+
+    report_sections["state_of_company_affairs"] = (
+        f"During the financial year {fy_start} to {fy_end}, the Company carried on its business satisfactorily. "
+        f"The total revenue for the year stood at ₹{revenue_cr:.2f} crore. "
+        f"The Profit Before Tax (PBT) was ₹{pbt_cr:.2f} crore and Profit After Tax (PAT) was ₹{pat_cr:.2f} crore. "
+        f"The Board of Directors is pleased to report that the Company continued to maintain its growth trajectory."
+    )
+
+    if dividend_declared:
+        report_sections["dividend"] = (
+            f"The Board of Directors is pleased to recommend a dividend of ₹{dividend_per_share:.2f} per equity share "
+            f"(face value ₹10 each) for the financial year {fy_end}, subject to approval of shareholders at the ensuing Annual General Meeting."
+        )
+    else:
+        report_sections["dividend"] = (
+            f"In order to conserve resources for future growth and operations, the Board of Directors does not recommend "
+            f"any dividend for the financial year ended {fy_end}."
+        )
+
+    report_sections["reserves"] = (
+        f"The Company proposes to transfer the net profit of ₹{pat_cr:.2f} crore to the Reserves and Surplus. "
+        f"No amount has been transferred to the General Reserve during the year."
+    )
+
+    report_sections["directors_responsibility_statement"] = _DR_RESPONSIBILITY_STATEMENT
+
+    report_sections["auditors"] = _DR_AUDITOR_STATEMENTS.get(auditor_status, _DR_AUDITOR_STATEMENTS["no_qualification"])
+
+    report_sections["related_party_transactions"] = (
+        "All related party transactions that were entered into during the financial year were on arm's length basis "
+        "and were in the ordinary course of business. There are no materially significant related party transactions "
+        "which may have a potential conflict with the interest of the Company at large."
+    )
+
+    report_sections["material_changes"] = (
+        f"There have been no material changes and commitments affecting the financial position of the Company "
+        f"which have occurred between the end of the financial year {fy_end} and the date of this Report."
+    )
+
+    report_sections["conservation_of_energy"] = (
+        "The Company continues to take measures to reduce energy consumption by using energy-efficient equipment "
+        "and processes. LED lighting, energy-star rated equipment, and awareness programmes have been implemented."
+    )
+
+    report_sections["technology_absorption"] = (
+        "The Company has not imported any technology during the year. The Company continues to explore and adopt "
+        "latest technologies to improve its processes and product quality."
+    )
+
+    report_sections["foreign_exchange"] = {
+        "earnings": f"₹{fx_earn_lakhs:.2f} lakhs" if foreign_exchange_earnings else "Nil",
+        "outgo":    f"₹{fx_out_lakhs:.2f} lakhs" if foreign_exchange_outgo else "Nil",
+    }
+
+    report_sections["risk_management"] = _DR_RISK_CATEGORIES
+
+    if csr_applicable:
+        report_sections["corporate_social_responsibility"] = {
+            "applicable": True,
+            "amount_spent": f"₹{csr_amount_spent/1e5:.2f} lakhs",
+            "note": _DR_CSR_NOTE,
+        }
+    else:
+        report_sections["corporate_social_responsibility"] = {
+            "applicable": False,
+            "note": "The provisions of Section 135 of the Companies Act, 2013 relating to Corporate Social Responsibility are not applicable to the Company during the year under review.",
+        }
+
+    report_sections["vigil_mechanism"] = (
+        "The Company has established a Vigil Mechanism/Whistle Blower Policy to deal with instances of fraud and "
+        "mismanagement, if any. The details of the Vigil Mechanism Policy are available on the Company's website."
+    )
+
+    report_sections["declarations"] = [
+        "The Company has not accepted any deposits within the meaning of Section 73 of the Companies Act, 2013.",
+        "No significant or material orders have been passed by the Regulators or Courts during the year.",
+        "The Company has in place adequate internal financial controls with reference to financial statements.",
+        "The Company has complied with the applicable Secretarial Standards issued by the Institute of Company Secretaries of India.",
+    ]
+
+    director_changes = []
+    for d in new_directors:
+        director_changes.append(f"{d.get('name','')} was appointed as {d.get('designation','')} w.e.f. {d.get('date','')}")
+    for d in resigned_directors:
+        director_changes.append(f"{d.get('name','')} resigned as {d.get('designation','')} w.e.f. {d.get('date','')}")
+
+    return {
+        "company_name":     company_name,
+        "cin":              cin,
+        "fy_start":         fy_start,
+        "fy_end":           fy_end,
+        "financial_summary": {
+            "revenue_cr":   revenue_cr,
+            "pbt_cr":       pbt_cr,
+            "pat_cr":       pat_cr,
+        },
+        "directors":          directors,
+        "director_changes":   director_changes,
+        "report_sections":    report_sections,
+        "mandatory_annexures": [
+            "Annexure I — Extract of Annual Return (MGT-9)",
+            "Annexure II — Secretarial Audit Report (MR-3) — if applicable",
+            "Annexure III — Report on CSR activities — if applicable",
+            "Annexure IV — Statement of particulars of employees — if applicable",
+            "Annexure V — Related Party Transactions (Form AOC-2)",
+        ],
+        "filing_deadlines": {
+            "AGM":    "Within 6 months from end of FY (30 Sep for 31 Mar FY)",
+            "AOC-4":  "Within 30 days of AGM",
+            "MGT-7":  "Within 60 days of AGM",
+        },
+        "ca_notes": [
+            "Director's Report must be signed by at least 2 directors (one must be MD/WTD if applicable)",
+            "Attach extract of Annual Return (MGT-9 or MGT-7A for small companies) as annexure",
+            "For listed companies, additional SEBI LODR disclosures are mandatory",
+            "Director's Report is part of Annual Report — file with AOC-4 with MCA",
+            "Any qualification in Auditor's Report must have Board's explanation in Director's Report",
+        ],
+    }
 
 
 def generate_startup_registration_guide(

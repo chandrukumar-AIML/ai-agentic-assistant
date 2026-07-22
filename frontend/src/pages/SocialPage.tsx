@@ -835,6 +835,7 @@ export default function SocialPage() {
           { id: 'bio_opt',      label: 'Bio Optimizer',            icon: '✍️' },
           { id: 'comment_reply',  label: 'Comment Replies',          icon: '💬' },
           { id: 'facebook_post',  label: 'Facebook Post',            icon: '📘' },
+          { id: 'meme_caption',   label: 'Meme Caption',             icon: '😂' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1440,6 +1441,7 @@ export default function SocialPage() {
       {tab === 'bio_opt'    && <BioOptimizerTab />}
       {tab === 'comment_reply' && <CommentReplyTab />}
       {tab === 'facebook_post' && <FacebookPostTab />}
+      {tab === 'meme_caption'  && <MemeCaptionTab />}
 
       {/* ── ANALYTICS ── */}
       {tab === 'analytics' && (
@@ -3978,6 +3980,122 @@ export default function SocialPage() {
 const BO_TONES    = ['professional','creative','energetic','warm']
 const BO_PLATFORMS = ['instagram','linkedin','twitter','youtube']
 const BO_INDUSTRIES = ['technology','finance','marketing','education','health','ecommerce','consulting','creative']
+
+// ── R26: Meme Caption Generator ───────────────────────────────────────────────
+export function MemeCaptionTab() {
+  const [mcBrand,    setMcBrand]    = useState('')
+  const [mcTopic,    setMcTopic]    = useState('')
+  const [mcTemplate, setMcTemplate] = useState('drake')
+  const [mcIndustry, setMcIndustry] = useState('general')
+  const [mcTone,     setMcTone]     = useState('relatable')
+  const [mcPanels,   setMcPanels]   = useState<string[]>([])
+  const [mcRes,      setMcRes]      = useState<any>(null)
+  const [mcLoading,  setMcLoading]  = useState(false)
+  const [mcErr,      setMcErr]      = useState('')
+
+  const templates = ['drake','distracted_bf','two_buttons','galaxy_brain','one_does_not','this_is_fine','gru_plan','success_kid','expanding_brain','custom']
+  const industries = ['general','ecommerce','saas','ca','startup','marketing','hr']
+  const tones = ['relatable','brand_promo','educational','industry','festive']
+
+  const generate = async () => {
+    if (!mcBrand.trim() || !mcTopic.trim()) { setMcErr('Enter brand name and topic'); return }
+    setMcLoading(true); setMcErr(''); setMcRes(null)
+    try {
+      const r = await socialAction('meme_caption', {
+        brand_name: mcBrand, topic: mcTopic, meme_template: mcTemplate,
+        industry: mcIndustry, tone: mcTone,
+        custom_panel_texts: mcPanels.filter(Boolean),
+      })
+      setMcRes(r)
+    } catch (e: any) { setMcErr(e.message || 'Error') }
+    finally { setMcLoading(false) }
+  }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">😂 Meme Caption Generator</h2>
+      <p className="tool-desc">Generate on-brand, shareable meme captions for social media that actually get engagement.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Brand Name</label>
+          <input value={mcBrand} onChange={e=>setMcBrand(e.target.value)} placeholder="Your Brand" /></div>
+        <div className="form-group"><label>Topic / Message</label>
+          <input value={mcTopic} onChange={e=>setMcTopic(e.target.value)} placeholder="e.g. Manual invoicing vs our tool" /></div>
+        <div className="form-group"><label>Meme Template</label>
+          <select value={mcTemplate} onChange={e=>setMcTemplate(e.target.value)}>
+            {templates.map(t => <option key={t} value={t}>{t.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Industry</label>
+          <select value={mcIndustry} onChange={e=>setMcIndustry(e.target.value)}>
+            {industries.map(i => <option key={i} value={i}>{i.charAt(0).toUpperCase()+i.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Tone</label>
+          <select value={mcTone} onChange={e=>setMcTone(e.target.value)}>
+            {tones.map(t => <option key={t} value={t}>{t.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+          </select>
+        </div>
+        <div className="form-group full">
+          <label>Custom Panel Texts (optional — one per line)</label>
+          <textarea rows={3} value={mcPanels.join('\n')} onChange={e=>setMcPanels(e.target.value.split('\n'))}
+            placeholder={"Panel 1 text\nPanel 2 text"} />
+        </div>
+      </div>
+
+      {mcErr && <div className="error-box">{mcErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={mcLoading}>
+        {mcLoading ? 'Generating…' : 'Generate Meme Caption'}
+      </button>
+
+      {mcRes && (
+        <div className="result-box">
+          <h3>Meme: {mcRes.meme_template?.replace(/_/g,' ').replace(/\b\w/g,(c: string)=>c.toUpperCase())} — {mcRes.template_style}</h3>
+
+          <div className="ca-section">
+            <h4>Panel Captions</h4>
+            {Object.entries(mcRes.panel_captions || {}).map(([label, text]: any, i: number) => (
+              <div key={i} style={{display:'flex',gap:'1rem',marginBottom:'0.4rem',alignItems:'center'}}>
+                <span style={{minWidth:'130px',fontSize:'0.8rem',color:'var(--text-muted)',fontWeight:500}}>{label}</span>
+                <span style={{background:'var(--bg-secondary)',padding:'0.3rem 0.6rem',borderRadius:'6px',flex:1}}>{text}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>Post Caption</h4>
+            <div style={{background:'var(--bg-secondary)',padding:'1rem',borderRadius:'8px',whiteSpace:'pre-wrap'}}>
+              {mcRes.full_caption_text}
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>Caption Hook Options</h4>
+            <ul>{(mcRes.caption_hook_options||[]).map((h: string, i: number) => <li key={i}>{h}</li>)}</ul>
+          </div>
+
+          <div className="form-grid">
+            <div className="ca-section">
+              <h4>🎨 Design Tips</h4>
+              <ul>{(mcRes.design_tips||[]).map((t: string, i: number) => <li key={i}>{t}</li>)}</ul>
+            </div>
+            <div className="ca-section">
+              <h4>📅 Posting Tips</h4>
+              <ul>{(mcRes.posting_tips||[]).map((t: string, i: number) => <li key={i}>{t}</li>)}</ul>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>Platform Variants</h4>
+            {Object.entries(mcRes.variants_for_platforms||{}).map(([p,v]: any) => (
+              <p key={p}><strong style={{textTransform:'capitalize'}}>{p}:</strong> {v}</p>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R25: Facebook Post Adapter ────────────────────────────────────────────────
 export function FacebookPostTab() {

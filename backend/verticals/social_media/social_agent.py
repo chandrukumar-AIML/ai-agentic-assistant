@@ -2069,6 +2069,17 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "meme_caption":
+        return generate_meme_caption(
+            brand_name=payload.get("brand_name", ""),
+            topic=payload.get("topic", ""),
+            meme_template=payload.get("meme_template", "drake"),
+            industry=payload.get("industry", "general"),
+            tone=payload.get("tone", "relatable"),
+            custom_panel_texts=payload.get("custom_panel_texts", []),
+            language=language,
+        )
+
     elif action == "facebook_post":
         return generate_facebook_post(
             brand_name=payload.get("brand_name", ""),
@@ -3099,6 +3110,133 @@ _FB_FORMATS = {
     "event_post":  "Event announcement post with date/time/venue",
     "share_post":  "Post designed to maximize shares/reshares",
 }
+
+
+# ── R26: Meme Caption Generator ───────────────────────────────────────────────
+
+_MEME_TEMPLATES = {
+    "drake":          {"panels": ["Reject (top)",   "Accept (bottom)"],   "style": "contrast"},
+    "distracted_bf":  {"panels": ["BF = you",       "GF = old way",       "Other girl = new product"], "style": "triangle"},
+    "two_buttons":    {"panels": ["Option A",        "Option B"],          "style": "dilemma"},
+    "galaxy_brain":   {"panels": ["Basic thought",   "Smart thought",      "Galaxy brain thought"],     "style": "escalation"},
+    "one_does_not":   {"panels": ["Caption"],                              "style": "single"},
+    "this_is_fine":   {"panels": ["Caption"],                              "style": "single"},
+    "gru_plan":       {"panels": ["Step 1","Step 2", "Step 3","Twist"],    "style": "plan"},
+    "success_kid":    {"panels": ["Caption"],                              "style": "single"},
+    "expanding_brain":{"panels": ["Basic","Better","Advanced","Galaxy"],   "style": "escalation"},
+    "custom":         {"panels": ["Panel 1","Panel 2"],                    "style": "custom"},
+}
+
+_MEME_INDUSTRIES = {
+    "ecommerce":  ["Sale season 🛒","Delivery delays","Returns process","Cart abandonment","Free shipping threshold"],
+    "saas":       ["Pricing pages","Onboarding flows","'Works on my machine'","Feature requests","Sprint planning"],
+    "ca":         ["Tax season","Audit prep","Client documents","Form 16","GST filing"],
+    "startup":    ["Pitch deck","Runway","VC meetings","MVP vs perfect product","Pivoting"],
+    "marketing":  ["Client feedback","Content calendar","Campaign results","'Make it pop'","Metrics"],
+    "hr":         ["Monday morning","Meeting that could be email","Performance reviews","Leave requests","Team building"],
+    "general":    ["WFH life","Coffee dependence","Inbox zero","Weekend work","Deadline crunch"],
+}
+
+_MEME_TONES = {
+    "relatable":   "Universally understood workplace/life situation",
+    "brand_promo": "Subtly promotes the brand while being funny",
+    "educational": "Teaches something through humour",
+    "industry":    "Inside joke for the target industry",
+    "festive":     "Tied to a festival or seasonal moment",
+}
+
+_MEME_CAPTION_FORMATS = {
+    "drake": [
+        ("Not tracking ROI", "Blaming the algorithm when sales drop"),
+        ("Spending 3 hours on Canva", "Taking 2 minutes with our tool"),
+        ("Checking email every 5 minutes", "Using automated workflows"),
+    ],
+    "two_buttons": [
+        ("Post consistently", "Sleep"),
+        ("Follow up with the lead", "Wait for them to call back"),
+    ],
+    "gru_plan": [
+        ("Make a plan", "Execute the plan", "Plan works perfectly", "Client asks for changes"),
+        ("Launch the product", "Get good reviews", "Scale marketing", "Server crashes"),
+    ],
+    "expanding_brain": [
+        ("Using pen and paper", "Using Excel", "Using CRM software", "Using AI-powered assistant"),
+        ("Sending emails manually", "Using templates", "Using automation", "AI writes them for you"),
+    ],
+}
+
+
+def generate_meme_caption(
+    brand_name: str,
+    topic: str,
+    meme_template: str = "drake",
+    industry: str = "general",
+    tone: str = "relatable",
+    custom_panel_texts: list = None,
+    language: str = "en",
+) -> dict:
+    template = _MEME_TEMPLATES.get(meme_template, _MEME_TEMPLATES["drake"])
+    panels = template["panels"]
+    style = template["style"]
+
+    # Use custom texts if provided, otherwise pick from presets
+    if custom_panel_texts and len(custom_panel_texts) >= len(panels):
+        panel_captions = custom_panel_texts[:len(panels)]
+    elif meme_template in _MEME_CAPTION_FORMATS:
+        preset = _MEME_CAPTION_FORMATS[meme_template]
+        panel_captions = list(preset[hash(topic) % len(preset)])
+    else:
+        # Generate generic captions based on topic
+        industry_ideas = _MEME_INDUSTRIES.get(industry, _MEME_INDUSTRIES["general"])
+        panel_captions = [f"Dealing with {topic}", f"Finding {brand_name}"]
+
+    # Build output
+    panel_map = {panels[i]: panel_captions[i] if i < len(panel_captions) else "" for i in range(len(panels))}
+
+    caption_variants = [
+        f"Tag someone who needs to see this 👇",
+        f"Every {industry} person will relate to this 😅",
+        f"Save this for later! You'll need it 📌",
+        f"Which one are you? Comment below! 👇",
+    ]
+    post_caption = f"{caption_variants[hash(topic) % len(caption_variants)]}\n\n#{brand_name.replace(' ','')} #Meme #{industry.capitalize()} #RelateableMemes #Trending"
+
+    hashtags = [
+        f"#{brand_name.replace(' ','')}", "#MemeMarketing", "#FunnyButTrue",
+        f"#{industry.capitalize()}", "#Trending", "#IndianStartup", "#SmallBusinessIndia",
+    ]
+
+    return {
+        "brand_name":     brand_name,
+        "topic":          topic,
+        "meme_template":  meme_template,
+        "template_style": style,
+        "panel_labels":   panels,
+        "panel_captions": panel_map,
+        "full_caption_text": post_caption,
+        "hashtags":       hashtags,
+        "caption_hook_options": caption_variants,
+        "design_tips": [
+            "Use Canva Meme Maker or MemeFull.com to add your text to the template",
+            "Keep text short — max 6 words per panel for readability",
+            "Use bold white text with dark stroke for universal readability",
+            "Add your logo subtly in one corner",
+            "Don't over-explain — the punchline should land on its own",
+        ],
+        "posting_tips": [
+            "Post memes on Wednesday or Thursday — mid-week peaks for humour content",
+            "Memes get 60% more organic reach than product posts — use them weekly",
+            "Avoid controversial topics — keep it safe and workplace-friendly",
+            "Respond to every comment within 1 hour to ride the algorithm wave",
+        ],
+        "variants_for_platforms": {
+            "instagram": "Square crop (1080×1080), add to Stories with poll sticker",
+            "facebook":  "Landscape works well (1200×630), post in relevant groups too",
+            "linkedin":  "Keep tone professional-funny — avoid slapstick on LinkedIn",
+            "twitter":   "Add thread for context if the meme needs explanation",
+            "whatsapp":  "Share in broadcast list — high forward rate for relatable memes",
+        },
+    }
 
 
 def generate_facebook_post(
