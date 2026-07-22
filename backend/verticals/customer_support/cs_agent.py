@@ -560,6 +560,16 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "ticket_triage":
+            return score_ticket_priority(
+                ticket_text=payload.get("ticket_text", ""),
+                customer_name=payload.get("customer_name", ""),
+                channel=payload.get("channel", "email"),
+                customer_tier=payload.get("customer_tier", "standard"),
+                is_repeat_contact=payload.get("is_repeat_contact", False),
+                language=language,
+            )
+
         elif action == "voc_report":
             return generate_voc_report(
                 company_name=payload.get("company_name", ""),
@@ -3225,6 +3235,144 @@ _VOC_ACTION_FRAMEWORK = [
     {"priority": "P3 — Monitor",    "criteria": "Sporadic negative feedback or positive to amplify","owner": "CS Manager",       "timeline": "Ongoing"},
     {"priority": "P4 — Share",      "criteria": "Strong positive feedback / praise",               "owner": "Marketing",        "timeline": "Amplify immediately"},
 ]
+
+
+# ── R28: Ticket Triage & Priority Scorer ─────────────────────────────────────
+
+_TRIAGE_KEYWORDS = {
+    "critical": {
+        "keywords": ["down","outage","data loss","breach","hack","cannot login","payment failed","money deducted","refund urgent","legal","court","fraud","scam","all users","production down","critical"],
+        "priority": "P1", "sla_response": "15 minutes", "sla_resolve": "2 hours",
+        "color": "#ef4444", "auto_escalate": True,
+    },
+    "high": {
+        "keywords": ["not working","broken","error","bug","cannot access","order not received","wrong item","duplicate charge","angry","urgent","asap","immediately","escalate","supervisor","manager"],
+        "priority": "P2", "sla_response": "1 hour", "sla_resolve": "8 hours",
+        "color": "#f97316", "auto_escalate": False,
+    },
+    "medium": {
+        "keywords": ["slow","delay","issue","problem","update","where is","when will","how long","refund","return","question","help","need assistance"],
+        "priority": "P3", "sla_response": "4 hours", "sla_resolve": "2 business days",
+        "color": "#eab308", "auto_escalate": False,
+    },
+    "low": {
+        "keywords": ["suggestion","feedback","nice to have","feature request","general inquiry","how to","tutorial","guide","wondering","curious","thank you","appreciate"],
+        "priority": "P4", "sla_response": "8 hours", "sla_resolve": "5 business days",
+        "color": "#22c55e", "auto_escalate": False,
+    },
+}
+
+_TRIAGE_CATEGORIES = {
+    "billing":        ["payment","invoice","charge","refund","receipt","billing","subscription","renewal","pricing","plan"],
+    "technical":      ["bug","error","crash","not loading","broken","feature","integration","api","login","password","account"],
+    "delivery":       ["shipping","delivery","tracking","order","package","courier","logistics","dispatch","not received","wrong item"],
+    "account":        ["account","profile","settings","password","email","username","access","blocked","suspended"],
+    "product":        ["product","quality","defective","damage","size","colour","specification","description","photo"],
+    "feedback":       ["suggestion","feedback","review","rating","experience","improve","great","love","terrible","worst","best"],
+    "general_inquiry":["how to","tutorial","guide","info","details","what is","when","where","contact"],
+}
+
+_TRIAGE_CHANNEL_WEIGHTS = {
+    "social_media": 1.5,  # Social complaints spread — handle faster
+    "whatsapp":     1.3,
+    "phone":        1.2,
+    "chat":         1.0,
+    "email":        1.0,
+    "app_review":   1.4,  # Public reviews need fast response
+}
+
+_TRIAGE_SENTIMENT_SIGNALS = {
+    "very_negative": ["worst","terrible","horrible","pathetic","useless","disgusting","outrageous","never again","fraud","cheat","scam","police","court","legal"],
+    "negative":      ["bad","disappointed","frustrated","angry","annoyed","unhappy","not satisfied","poor","slow","rude"],
+    "neutral":       ["okay","average","decent","normal","expected","fine","alright"],
+    "positive":      ["good","happy","satisfied","great","nice","helpful","quick","easy","smooth"],
+    "very_positive": ["amazing","excellent","outstanding","fantastic","love","best","perfect","five star","recommend","superb"],
+}
+
+
+def score_ticket_priority(
+    ticket_text: str,
+    customer_name: str = "",
+    channel: str = "email",
+    customer_tier: str = "standard",
+    is_repeat_contact: bool = False,
+    language: str = "en",
+) -> dict:
+    text_lower = ticket_text.lower()
+
+    # Detect priority level
+    detected_priority = "low"
+    matched_keywords  = []
+    for level, config in _TRIAGE_KEYWORDS.items():
+        hits = [kw for kw in config["keywords"] if kw in text_lower]
+        if hits:
+            detected_priority = level
+            matched_keywords  = hits
+            break  # first match wins (ordered critical→low)
+
+    priority_config = _TRIAGE_KEYWORDS[detected_priority]
+
+    # Detect category
+    detected_category = "general_inquiry"
+    for cat, kws in _TRIAGE_CATEGORIES.items():
+        if any(kw in text_lower for kw in kws):
+            detected_category = cat
+            break
+
+    # Detect sentiment
+    detected_sentiment = "neutral"
+    for sentiment, signals in _TRIAGE_SENTIMENT_SIGNALS.items():
+        if any(s in text_lower for s in signals):
+            detected_sentiment = sentiment
+            break
+
+    # Score calculation (0–100)
+    base_score = {"critical": 90, "high": 70, "medium": 45, "low": 20}[detected_priority]
+    channel_multiplier = _TRIAGE_CHANNEL_WEIGHTS.get(channel, 1.0)
+    tier_boost = {"vip": 15, "premium": 10, "standard": 0, "new": -5}.get(customer_tier, 0)
+    repeat_boost = 10 if is_repeat_contact else 0
+    sentiment_boost = {"very_negative": 10, "negative": 5, "neutral": 0, "positive": -5, "very_positive": -10}.get(detected_sentiment, 0)
+
+    final_score = min(100, int(base_score * channel_multiplier) + tier_boost + repeat_boost + sentiment_boost)
+
+    # Suggested response
+    if detected_priority == "critical":
+        suggested_response = f"Hi {customer_name or 'there'}, we've received your message and are treating this as our top priority. Our team is investigating right now and will update you within 15 minutes."
+    elif detected_priority == "high":
+        suggested_response = f"Hi {customer_name or 'there'}, we understand this is urgent and are sorry for the trouble. We're looking into this right away and will get back to you within 1 hour."
+    elif detected_priority == "medium":
+        suggested_response = f"Hi {customer_name or 'there'}, thank you for reaching out. We've noted your concern and our team will look into this and respond within 4 hours."
+    else:
+        suggested_response = f"Hi {customer_name or 'there'}, thanks for writing in! We'll review your message and get back to you within 8 business hours."
+
+    return {
+        "ticket_text":         ticket_text,
+        "customer_name":       customer_name,
+        "channel":             channel,
+        "customer_tier":       customer_tier,
+        "is_repeat_contact":   is_repeat_contact,
+        "priority":            priority_config["priority"],
+        "priority_level":      detected_priority,
+        "priority_color":      priority_config["color"],
+        "priority_score":      final_score,
+        "sla_first_response":  priority_config["sla_response"],
+        "sla_resolution":      priority_config["sla_resolve"],
+        "auto_escalate":       priority_config["auto_escalate"],
+        "category":            detected_category,
+        "sentiment":           detected_sentiment,
+        "matched_keywords":    matched_keywords[:5],
+        "suggested_response":  suggested_response,
+        "routing_suggestion": {
+            "team":   "L2 / Senior Agent" if detected_priority in ("critical","high") else "L1 Agent",
+            "action": "Escalate immediately to team lead" if priority_config["auto_escalate"] else "Assign to next available agent",
+        },
+        "cs_notes": [
+            f"Respond within {priority_config['sla_response']} — SLA breach risk if delayed",
+            "Log this ticket with correct priority tag in CRM for reporting accuracy",
+            "If repeat contact, review prior ticket history before responding",
+            "For billing/payment issues, always verify account before committing to resolution",
+        ],
+    }
 
 
 def generate_voc_report(

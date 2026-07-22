@@ -837,6 +837,7 @@ export default function SocialPage() {
           { id: 'facebook_post',  label: 'Facebook Post',            icon: '📘' },
           { id: 'meme_caption',      label: 'Meme Caption',          icon: '😂' },
           { id: 'story_highlights',  label: 'Story Highlights',      icon: '✨' },
+          { id: 'twitter_thread',    label: 'X/Twitter Thread',      icon: '🐦' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1444,6 +1445,7 @@ export default function SocialPage() {
       {tab === 'facebook_post' && <FacebookPostTab />}
       {tab === 'meme_caption'     && <MemeCaptionTab />}
       {tab === 'story_highlights' && <StoryHighlightsTab />}
+      {tab === 'twitter_thread'   && <TwitterThreadTab />}
 
       {/* ── ANALYTICS ── */}
       {tab === 'analytics' && (
@@ -3982,6 +3984,120 @@ export default function SocialPage() {
 const BO_TONES    = ['professional','creative','energetic','warm']
 const BO_PLATFORMS = ['instagram','linkedin','twitter','youtube']
 const BO_INDUSTRIES = ['technology','finance','marketing','education','health','ecommerce','consulting','creative']
+
+// ── R28: Twitter/X Thread Generator ───────────────────────────────────────────
+export function TwitterThreadTab() {
+  const [ttBrand,   setTtBrand]   = useState('')
+  const [ttTopic,   setTtTopic]   = useState('')
+  const [ttType,    setTtType]    = useState('educational')
+  const [ttInd,     setTtInd]     = useState('general')
+  const [ttCount,   setTtCount]   = useState(8)
+  const [ttRes,     setTtRes]     = useState<any>(null)
+  const [ttLoading, setTtLoading] = useState(false)
+  const [ttErr,     setTtErr]     = useState('')
+
+  const threadTypes = ['educational','story','listicle','opinion']
+  const industries  = ['general','startup','marketing','finance','tech']
+
+  const generate = async () => {
+    if (!ttBrand.trim() || !ttTopic.trim()) { setTtErr('Enter brand name and topic'); return }
+    setTtLoading(true); setTtErr(''); setTtRes(null)
+    try {
+      const r = await socialAction('twitter_thread', {
+        brand_name: ttBrand, topic: ttTopic, thread_type: ttType,
+        industry: ttInd, num_tweets: ttCount, include_hook_variants: true,
+      })
+      setTtRes(r)
+    } catch (e: any) { setTtErr(e.message || 'Error') }
+    finally { setTtLoading(false) }
+  }
+
+  const typeColor: Record<string,string> = { hook:'#6366f1', context:'#3b82f6', main_point:'#8b5cf6', example:'#06b6d4', stat:'#f97316', practical:'#22c55e', counter:'#ef4444', cta:'#ec4899', quote:'#eab308' }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">🐦 X / Twitter Thread Generator</h2>
+      <p className="tool-desc">Build a structured, engagement-optimised thread with hook variants, numbered tweets, and posting strategy.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Brand / Handle</label>
+          <input value={ttBrand} onChange={e=>setTtBrand(e.target.value)} placeholder="YourBrand" /></div>
+        <div className="form-group"><label>Thread Topic</label>
+          <input value={ttTopic} onChange={e=>setTtTopic(e.target.value)} placeholder="e.g. Why most startups fail at marketing" /></div>
+        <div className="form-group"><label>Thread Type</label>
+          <select value={ttType} onChange={e=>setTtType(e.target.value)}>
+            {threadTypes.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Industry</label>
+          <select value={ttInd} onChange={e=>setTtInd(e.target.value)}>
+            {industries.map(i => <option key={i} value={i}>{i.charAt(0).toUpperCase()+i.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Number of Tweets</label>
+          <input type="number" min={5} max={15} value={ttCount} onChange={e=>setTtCount(Number(e.target.value))} /></div>
+      </div>
+
+      {ttErr && <div className="error-box">{ttErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={ttLoading}>
+        {ttLoading ? 'Generating…' : 'Generate Thread'}
+      </button>
+
+      {ttRes && (
+        <div className="result-box">
+          <h3>Thread: {ttRes.topic} ({ttRes.total_tweets} tweets)</h3>
+          <p><strong>Type:</strong> {ttRes.thread_type} | <strong>Industry:</strong> {ttRes.industry}</p>
+
+          {ttRes.hook_variants?.length > 0 && (
+            <div className="ca-section">
+              <h4>Hook Variants (pick one for Tweet 1)</h4>
+              {ttRes.hook_variants.map((h: any, i: number) => (
+                <div key={i} style={{background:'var(--bg-secondary)',padding:'0.6rem',borderRadius:'6px',marginBottom:'0.4rem'}}>
+                  <span style={{fontSize:'0.75rem',color:'var(--text-muted)',fontWeight:600,textTransform:'capitalize'}}>{h.style}</span>
+                  <p style={{margin:'0.2rem 0 0'}}>{h.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="ca-section">
+            <h4>Thread Tweets</h4>
+            {ttRes.tweets.map((t: any) => (
+              <div key={t.position} style={{display:'flex',gap:'0.75rem',marginBottom:'0.75rem',alignItems:'flex-start'}}>
+                <div style={{minWidth:'32px',height:'32px',background:typeColor[t.type]||'var(--accent)',color:'white',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.8rem',fontWeight:700,flexShrink:0}}>{t.position}</div>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',gap:'0.5rem',marginBottom:'0.3rem',alignItems:'center'}}>
+                    <span style={{fontSize:'0.72rem',background:typeColor[t.type]||'var(--accent)',color:'white',padding:'1px 6px',borderRadius:'8px'}}>{t.type}</span>
+                    <span style={{fontSize:'0.72rem',color:t.within_limit?'var(--text-muted)':'#ef4444'}}>{t.char_count}/280</span>
+                  </div>
+                  <div style={{background:'var(--bg-secondary)',padding:'0.6rem',borderRadius:'6px',whiteSpace:'pre-wrap',fontSize:'0.88rem',lineHeight:1.5}}>{t.text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>Hashtags</h4>
+            <p>{ttRes.hashtags?.join(' ')}</p>
+          </div>
+
+          <div className="form-grid">
+            <div className="ca-section">
+              <h4>📅 Posting Strategy</h4>
+              {Object.entries(ttRes.posting_strategy||{}).map(([k,v]: any) => (
+                <p key={k}><strong style={{textTransform:'capitalize'}}>{k}:</strong> {v}</p>
+              ))}
+            </div>
+            <div className="ca-section">
+              <h4>💡 Engagement Tips</h4>
+              <ul>{ttRes.engagement_tips?.map((t: string, i: number) => <li key={i}>{t}</li>)}</ul>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R27: Story Highlights Planner ─────────────────────────────────────────────
 export function StoryHighlightsTab() {

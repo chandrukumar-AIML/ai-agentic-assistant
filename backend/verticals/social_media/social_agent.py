@@ -2069,6 +2069,17 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "twitter_thread":
+        return generate_twitter_thread(
+            brand_name=payload.get("brand_name", ""),
+            topic=payload.get("topic", ""),
+            thread_type=payload.get("thread_type", "educational"),
+            industry=payload.get("industry", "general"),
+            num_tweets=payload.get("num_tweets", 8),
+            include_hook_variants=payload.get("include_hook_variants", True),
+            language=language,
+        )
+
     elif action == "story_highlights":
         return generate_story_highlights_plan(
             brand_name=payload.get("brand_name", ""),
@@ -3215,6 +3226,134 @@ _SH_CONTENT_CALENDAR = {
     "weekly":  ["Monday Motivation", "Product spotlight mid-week", "Customer story Friday", "Weekend offer"],
     "monthly": ["Month theme announcement", "Big reveal / launch", "Review roundup", "Month wrap-up"],
 }
+
+
+# ── R28: Twitter/X Thread Generator ──────────────────────────────────────────
+
+_THREAD_HOOKS = {
+    "controversial":  "Most people are wrong about {topic}. Here's the truth 🧵",
+    "story":          "I {verb} {topic} for {duration}. Here's what I learned 🧵",
+    "listicle":       "{number} things about {topic} no one talks about 🧵",
+    "how_to":         "How to {topic} — a complete guide in {number} tweets 🧵",
+    "hot_take":       "Unpopular opinion: {topic} 🧵",
+    "mistake":        "I made a ₹{amount} mistake with {topic}. Don't do what I did 🧵",
+    "breakdown":      "Breaking down {topic} so anyone can understand it 🧵",
+    "vs":             "{option_a} vs {option_b} — the honest comparison 🧵",
+}
+
+_THREAD_TWEET_TYPES = {
+    "hook":        "Attention-grabbing opener — makes them click 'Show more'",
+    "context":     "Brief background / why this matters",
+    "main_point":  "Core insight or argument",
+    "example":     "Real-world example or data point",
+    "counter":     "Acknowledge the counterargument, then rebut",
+    "practical":   "Actionable takeaway / how-to step",
+    "stat":        "Surprising statistic or fact",
+    "quote":       "Relevant quote from an expert or customer",
+    "cta":         "Call to action — like, retweet, follow, reply",
+}
+
+_THREAD_STRUCTURES = {
+    "educational": ["hook","context","main_point","main_point","example","stat","practical","practical","cta"],
+    "story":       ["hook","context","main_point","example","counter","practical","cta"],
+    "listicle":    ["hook","context","main_point","main_point","main_point","main_point","main_point","cta"],
+    "opinion":     ["hook","main_point","counter","main_point","stat","practical","cta"],
+}
+
+_THREAD_HASHTAG_RULES = {
+    "startup":    ["#StartupIndia","#Entrepreneur","#Founders","#BuildInPublic","#IndianStartup"],
+    "marketing":  ["#MarketingTips","#DigitalMarketing","#ContentMarketing","#GrowthHacking"],
+    "finance":    ["#PersonalFinance","#InvestingIndia","#MoneyMatters","#FinanceTips"],
+    "tech":       ["#TechTwitter","#SaaS","#ProductManagement","#IndianTech"],
+    "general":    ["#Thread","#TIL","#LearnOnTwitter","#KnowledgeBomb"],
+}
+
+_THREAD_ENGAGEMENT_TIPS = [
+    "Post first tweet standalone — let it get some engagement before replies chain",
+    "Number each tweet: '1/', '2/', etc. — makes threads easy to follow",
+    "Add an image or chart to tweet #2 — visuals 3× engagement",
+    "End with a question in the CTA — drives replies which boost algorithm",
+    "Retweet your own thread's first tweet 12–24h later to revive reach",
+    "Best time to post threads: Tuesday–Thursday, 7–9am or 5–7pm IST",
+    "Quote-tweet your thread in a summary tweet 3 days later for second wind",
+]
+
+
+def generate_twitter_thread(
+    brand_name: str,
+    topic: str,
+    thread_type: str = "educational",
+    industry: str = "general",
+    num_tweets: int = 8,
+    include_hook_variants: bool = True,
+    language: str = "en",
+) -> dict:
+    structure = _THREAD_STRUCTURES.get(thread_type, _THREAD_STRUCTURES["educational"])
+    hashtags  = _THREAD_HASHTAG_RULES.get(industry, _THREAD_HASHTAG_RULES["general"])
+
+    # Build tweet sequence
+    tweets = []
+    for i, tweet_type in enumerate(structure[:num_tweets]):
+        tweet_info = _THREAD_TWEET_TYPES.get(tweet_type, "")
+        num_label  = f"{i+1}/" if i > 0 else "🧵"
+
+        if tweet_type == "hook":
+            text = f"🧵 THREAD: {topic}\n\nIf you're in {industry}, you need to read this."
+        elif tweet_type == "context":
+            text = f"2/ First, let's set the context.\n\n{topic} affects every {industry} business. Yet most founders never think about it until it's too late."
+        elif tweet_type == "main_point":
+            point_num = sum(1 for t in structure[:i+1] if t == "main_point")
+            text = f"{i+1}/ Key insight #{point_num}:\n\n[Your core point about {topic} here — make it specific and surprising]"
+        elif tweet_type == "example":
+            text = f"{i+1}/ Real example:\n\nA {industry} founder I know dealt with this exact issue. Here's what happened: [your story]\n\nThe lesson? [one line takeaway]"
+        elif tweet_type == "stat":
+            text = f"{i+1}/ The data is clear:\n\n[Insert your statistic about {topic}]\n\nSource: [cite it — credibility matters on X]"
+        elif tweet_type == "practical":
+            text = f"{i+1}/ What to do about it:\n\n→ Step 1: [action]\n→ Step 2: [action]\n→ Step 3: [action]\n\nSimple. Repeatable. Works."
+        elif tweet_type == "counter":
+            text = f"{i+1}/ I know what you're thinking:\n\n'But {topic} doesn't apply to my business'\n\nHere's why you're wrong: [your rebuttal]"
+        elif tweet_type == "quote":
+            text = f"{i+1}/ As [Expert Name] once said:\n\n\"{topic} is one of the most underrated levers for growth.\"\n\nThey were right."
+        elif tweet_type == "cta":
+            text = f"{i+1}/ That's a wrap!\n\nIf this helped you:\n→ RT the first tweet to help others\n→ Follow @{brand_name.replace(' ','')} for more\n→ Reply with your take — I read every response 👇\n\n{' '.join(hashtags[:3])}"
+        else:
+            text = f"{i+1}/ [Tweet about {topic}]"
+
+        tweets.append({
+            "position":    i + 1,
+            "type":        tweet_type,
+            "type_desc":   tweet_info,
+            "text":        text,
+            "char_count":  len(text),
+            "within_limit": len(text) <= 280,
+        })
+
+    # Hook variants
+    hook_variants = []
+    if include_hook_variants:
+        for style, template in list(_THREAD_HOOKS.items())[:4]:
+            hook_variants.append({
+                "style": style,
+                "text":  template.replace("{topic}", topic).replace("{verb}", "tested").replace("{duration}", "6 months").replace("{number}", str(num_tweets)).replace("{amount}", "50,000").replace("{option_a}", "Option A").replace("{option_b}", "Option B"),
+            })
+
+    return {
+        "brand_name":       brand_name,
+        "topic":            topic,
+        "thread_type":      thread_type,
+        "industry":         industry,
+        "total_tweets":     len(tweets),
+        "tweets":           tweets,
+        "hook_variants":    hook_variants,
+        "hashtags":         hashtags,
+        "engagement_tips":  _THREAD_ENGAGEMENT_TIPS,
+        "posting_strategy": {
+            "spacing":    "Post all tweets as replies within 5 minutes of first tweet",
+            "best_time":  "Tue–Thu, 7–9am or 5–7pm IST",
+            "follow_up":  "Reply to every comment in first 2 hours to ride the algorithm",
+            "repurpose":  "Turn the thread into a blog post, LinkedIn carousel, or Instagram slides",
+        },
+    }
 
 
 def generate_story_highlights_plan(

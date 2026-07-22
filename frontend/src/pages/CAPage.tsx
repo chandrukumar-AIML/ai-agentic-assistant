@@ -833,6 +833,7 @@ export default function CAPage() {
           { id: 'startup_guide',   label: 'Startup India Guide',        icon: '🚀' },
           { id: 'directors_report', label: "Director's Report",          icon: '📑' },
           { id: 'mca_calendar',    label: 'MCA/ROC Calendar',           icon: '🗓️' },
+          { id: 'gstr_assistant',  label: 'GSTR Assistant',             icon: '🧾' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3599,6 +3600,7 @@ export default function CAPage() {
       {tab === 'startup_guide'    && <StartupGuideTab />}
       {tab === 'directors_report' && <DirectorsReportTab />}
       {tab === 'mca_calendar'    && <McaCalendarTab />}
+      {tab === 'gstr_assistant'  && <GstrAssistantTab />}
     </PageShell>
   )
 }
@@ -3606,6 +3608,143 @@ export default function CAPage() {
 // ── R23: Advance Tax Calculator ──────────────────────────────────────────────
 const AT_YEARS = ['2025-26','2026-27','2024-25']
 const AT_TYPES = [{value:'individual',label:'Individual'},{value:'huf',label:'HUF'},{value:'firm',label:'Firm/LLP'},{value:'company',label:'Company'}]
+
+// ── R28: GSTR Filing Assistant ────────────────────────────────────────────────
+function GstrAssistantTab() {
+  const [gsBiz,    setGsBiz]    = useState('')
+  const [gsGstin,  setGsGstin]  = useState('')
+  const [gsTurnover,setGsTurnover]=useState('')
+  const [gsComp,   setGsComp]   = useState(false)
+  const [gsExport, setGsExport] = useState(false)
+  const [gsRcm,    setGsRcm]    = useState(false)
+  const [gsPeriod, setGsPeriod] = useState('monthly')
+  const [gsRes,    setGsRes]    = useState<any>(null)
+  const [gsLoading,setGsLoading]= useState(false)
+  const [gsErr,    setGsErr]    = useState('')
+
+  const generate = async () => {
+    if (!gsBiz.trim()) { setGsErr('Enter business name'); return }
+    setGsLoading(true); setGsErr(''); setGsRes(null)
+    try {
+      const r = await caAction('gstr_assistant', {
+        business_name: gsBiz, gstin: gsGstin,
+        annual_turnover: parseFloat(gsTurnover)||0,
+        is_composition: gsComp, has_exports: gsExport,
+        has_rcm: gsRcm, filing_period: gsPeriod,
+      })
+      setGsRes(r)
+    } catch (e: any) { setGsErr(e.message || 'Error') }
+    finally { setGsLoading(false) }
+  }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">🧾 GSTR Filing Assistant</h2>
+      <p className="tool-desc">Your personalised GST filing guide — relevant forms, ITC rules, common errors, and monthly checklist based on your turnover and scheme.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Business Name</label>
+          <input value={gsBiz} onChange={e=>setGsBiz(e.target.value)} placeholder="ABC Traders" /></div>
+        <div className="form-group"><label>GSTIN (optional)</label>
+          <input value={gsGstin} onChange={e=>setGsGstin(e.target.value)} placeholder="27AAAAA0000A1Z5" /></div>
+        <div className="form-group"><label>Annual Turnover (₹)</label>
+          <input type="number" value={gsTurnover} onChange={e=>setGsTurnover(e.target.value)} placeholder="e.g. 15000000 (₹1.5 Cr)" /></div>
+        <div className="form-group"><label>Filing Period</label>
+          <select value={gsPeriod} onChange={e=>setGsPeriod(e.target.value)}>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly (QRMP)</option>
+          </select>
+        </div>
+        <div className="form-group full" style={{display:'flex',gap:'1.5rem',flexWrap:'wrap',alignItems:'center'}}>
+          {([['gsComp','Composition Scheme?',gsComp,setGsComp],['gsExport','Has Exports?',gsExport,setGsExport],['gsRcm','Has RCM Liability?',gsRcm,setGsRcm]] as any[]).map(([k,label,val,setter]) => (
+            <label key={k} style={{display:'flex',alignItems:'center',gap:'0.4rem',cursor:'pointer'}}>
+              <input type="checkbox" checked={val} onChange={(e: any)=>setter(e.target.checked)} />{label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {gsErr && <div className="error-box">{gsErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={gsLoading}>
+        {gsLoading ? 'Generating…' : 'Generate GSTR Guide'}
+      </button>
+
+      {gsRes && (
+        <div className="result-box">
+          <h3>{gsRes.business_name} — GST Filing Guide</h3>
+          <p><strong>Scheme:</strong> {gsRes.scheme} | <strong>Slab:</strong> {gsRes.turnover_slab} | <strong>Period:</strong> {gsRes.filing_period}</p>
+          {gsRes.slab_info?.scheme && <p style={{color:'var(--accent)'}}><strong>Scheme Eligibility:</strong> {gsRes.slab_info.scheme}</p>}
+
+          <div className="ca-section">
+            <h4>📋 Your Required GSTR Forms</h4>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.83rem'}}>
+                <thead><tr style={{background:'var(--bg-secondary)'}}>
+                  {['Form','Description','Due Date','Late Fee'].map(h =>
+                    <th key={h} style={{padding:'0.4rem',textAlign:'left'}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {Object.entries(gsRes.relevant_forms||{}).map(([form, f]: any) => (
+                    <tr key={form} style={{borderTop:'1px solid var(--border-color)'}}>
+                      <td style={{padding:'0.4rem',fontWeight:600,whiteSpace:'nowrap'}}>{form}</td>
+                      <td style={{padding:'0.4rem'}}>{f.desc}</td>
+                      <td style={{padding:'0.4rem',fontSize:'0.8rem'}}>{f.due_date}</td>
+                      <td style={{padding:'0.4rem',fontSize:'0.8rem',color:'#ef4444'}}>{f.late_fee}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>✅ Monthly Filing Checklist</h4>
+            <ul>{gsRes.monthly_checklist?.map((c: string, i: number) => <li key={i}>☐ {c}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>💡 ITC Rules to Remember</h4>
+            <ul>{gsRes.itc_rules?.map((r: string, i: number) => <li key={i}>{r}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>⚠️ Common Errors & Fixes</h4>
+            {gsRes.common_errors?.map((e: any, i: number) => (
+              <div key={i} style={{marginBottom:'0.5rem',padding:'0.5rem',background:'var(--bg-secondary)',borderRadius:'6px',borderLeft:'3px solid #f97316'}}>
+                <p style={{margin:0,fontWeight:600,fontSize:'0.85rem'}}>❌ {e.error}</p>
+                <p style={{margin:'0.2rem 0 0',fontSize:'0.83rem'}}>✅ Fix: {e.fix}</p>
+              </div>
+            ))}
+          </div>
+
+          {gsRes.export_note && (
+            <div className="ca-section" style={{borderLeft:'3px solid #6366f1',paddingLeft:'1rem'}}>
+              <h4>🌏 Export Note</h4>
+              <p>{gsRes.export_note}</p>
+            </div>
+          )}
+
+          {gsRes.rcm_note && (
+            <div className="ca-section" style={{borderLeft:'3px solid #f97316',paddingLeft:'1rem'}}>
+              <h4>🔄 RCM Note</h4>
+              <p>{gsRes.rcm_note}</p>
+            </div>
+          )}
+
+          <div className="ca-section">
+            <h4>📐 HSN/SAC Tips</h4>
+            <ul>{gsRes.hsn_sac_tips?.map((t: string, i: number) => <li key={i}>{t}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>CA Notes</h4>
+            <ul>{gsRes.ca_notes?.map((n: string, i: number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R27: MCA / ROC Filing Calendar ───────────────────────────────────────────
 function McaCalendarTab() {

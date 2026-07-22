@@ -72,6 +72,7 @@ const TABS = [
   { id: 'sla_policy',      label: 'SLA Policy' },
   { id: 'review_response', label: 'Review Responses' },
   { id: 'voc_report',      label: 'Voice of Customer' },
+  { id: 'ticket_triage',   label: 'Ticket Triage' },
 ]
 
 const WA_TYPES = [
@@ -1334,6 +1335,7 @@ export default function CustomerSupportPage() {
         {tab === 'sla_policy'        && <SlaPolicyTab lang={lang} />}
         {tab === 'review_response'   && <ReviewResponseTab lang={lang} />}
         {tab === 'voc_report'        && <VocReportTab lang={lang} />}
+        {tab === 'ticket_triage'     && <TicketTriageTab lang={lang} />}
         {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
         {tab === 'cx360'          && <Customer360Tab lang={lang} />}
         {tab === 'analytics'      && <SupportAnalyticsTab lang={lang} />}
@@ -4103,6 +4105,121 @@ export function SupportAnalyticsTab({ lang }: { lang: string }) {
 const CB_INDUSTRIES = ['ecommerce','services','education','health','real_estate','restaurant','finance','retail']
 const CB_PLATFORMS  = [{value:'whatsapp',label:'WhatsApp Business'},{value:'website',label:'Website Chat'},{value:'instagram',label:'Instagram DM'}]
 const CB_TONES      = ['friendly','professional','formal']
+
+// ── R28: Ticket Triage & Priority Scorer ──────────────────────────────────────
+export function TicketTriageTab({ lang }: { lang: string }) {
+  const [ttText,    setTtText]    = useState('')
+  const [ttName,    setTtName]    = useState('')
+  const [ttChannel, setTtChannel] = useState('email')
+  const [ttTier,    setTtTier]    = useState('standard')
+  const [ttRepeat,  setTtRepeat]  = useState(false)
+  const [ttRes,     setTtRes]     = useState<any>(null)
+  const [ttLoading, setTtLoading] = useState(false)
+  const [ttErr,     setTtErr]     = useState('')
+
+  const generate = async () => {
+    if (!ttText.trim()) { setTtErr('Paste the customer ticket text'); return }
+    setTtLoading(true); setTtErr(''); setTtRes(null)
+    try {
+      const r = await csAction('ticket_triage', {
+        ticket_text: ttText, customer_name: ttName, channel: ttChannel,
+        customer_tier: ttTier, is_repeat_contact: ttRepeat,
+      }, lang)
+      setTtRes(r)
+    } catch (e: any) { setTtErr(e.message || 'Error') }
+    finally { setTtLoading(false) }
+  }
+
+  const channels  = ['email','chat','phone','whatsapp','social_media','app_review']
+  const tiers     = ['new','standard','premium','vip']
+  const priColors: Record<string,string> = { P1:'#ef4444', P2:'#f97316', P3:'#eab308', P4:'#22c55e' }
+  const sentColors: Record<string,string> = { very_negative:'#dc2626', negative:'#ef4444', neutral:'#6b7280', positive:'#22c55e', very_positive:'#16a34a' }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">🎫 Ticket Triage & Priority Scorer</h2>
+      <p className="tool-desc">Instantly score and classify any customer ticket — priority level, SLA, sentiment, category, routing, and suggested first response.</p>
+
+      <div className="form-grid">
+        <div className="form-group full"><label>Customer Ticket Text</label>
+          <textarea rows={5} value={ttText} onChange={e=>setTtText(e.target.value)}
+            placeholder="Paste the customer's message here — email, chat, or any text..." /></div>
+        <div className="form-group"><label>Customer Name (optional)</label>
+          <input value={ttName} onChange={e=>setTtName(e.target.value)} placeholder="Rahul Kumar" /></div>
+        <div className="form-group"><label>Channel</label>
+          <select value={ttChannel} onChange={e=>setTtChannel(e.target.value)}>
+            {channels.map(c => <option key={c} value={c}>{c.replace('_',' ').replace(/\b\w/g,x=>x.toUpperCase())}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Customer Tier</label>
+          <select value={ttTier} onChange={e=>setTtTier(e.target.value)}>
+            {tiers.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label style={{display:'flex',alignItems:'center',gap:'0.4rem',cursor:'pointer',marginTop:'1.5rem'}}>
+            <input type="checkbox" checked={ttRepeat} onChange={e=>setTtRepeat(e.target.checked)} />
+            Repeat Contact?
+          </label>
+        </div>
+      </div>
+
+      {ttErr && <div className="error-box">{ttErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={ttLoading}>
+        {ttLoading ? 'Scoring…' : 'Score & Triage Ticket'}
+      </button>
+
+      {ttRes && (
+        <div className="result-box">
+          {/* Score card */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:'0.75rem',marginBottom:'1.25rem'}}>
+            {[
+              {label:'Priority',    value:ttRes.priority,           bg:priColors[ttRes.priority]||'#888'},
+              {label:'Score',       value:`${ttRes.priority_score}/100`, bg:'var(--accent)'},
+              {label:'Sentiment',   value:ttRes.sentiment?.replace('_',' '), bg:sentColors[ttRes.sentiment]||'#6b7280'},
+              {label:'Category',    value:ttRes.category?.replace('_',' '), bg:'#6366f1'},
+            ].map(card => (
+              <div key={card.label} style={{background:card.bg,color:'white',padding:'0.75rem',borderRadius:'8px',textAlign:'center'}}>
+                <p style={{margin:0,fontSize:'0.72rem',opacity:0.85,textTransform:'uppercase'}}>{card.label}</p>
+                <p style={{margin:'0.25rem 0 0',fontSize:'1.1rem',fontWeight:700,textTransform:'capitalize'}}>{card.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>⏱ SLA Targets</h4>
+            <p><strong>First Response:</strong> {ttRes.sla_first_response}</p>
+            <p><strong>Resolution:</strong> {ttRes.sla_resolution}</p>
+            {ttRes.auto_escalate && <p style={{color:'#ef4444',fontWeight:600}}>🚨 AUTO-ESCALATE — Notify team lead immediately</p>}
+          </div>
+
+          <div className="ca-section">
+            <h4>🔀 Routing</h4>
+            <p><strong>Assign To:</strong> {ttRes.routing_suggestion?.team}</p>
+            <p><strong>Action:</strong> {ttRes.routing_suggestion?.action}</p>
+            {ttRes.matched_keywords?.length > 0 && (
+              <p><strong>Trigger Keywords:</strong> {ttRes.matched_keywords.map((k: string) => (
+                <span key={k} style={{background:'#ef444420',color:'#ef4444',padding:'1px 6px',borderRadius:'6px',marginRight:'4px',fontSize:'0.8rem'}}>{k}</span>
+              ))}</p>
+            )}
+          </div>
+
+          <div className="ca-section">
+            <h4>💬 Suggested First Response</h4>
+            <div style={{background:'var(--bg-secondary)',padding:'0.75rem',borderRadius:'8px',lineHeight:1.6}}>
+              {ttRes.suggested_response}
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>📋 CS Notes</h4>
+            <ul>{ttRes.cs_notes?.map((n: string, i: number) => <li key={i}>{n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R27: Voice of Customer Report ─────────────────────────────────────────────
 export function VocReportTab({ lang }: { lang: string }) {

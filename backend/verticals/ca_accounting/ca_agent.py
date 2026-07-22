@@ -953,6 +953,18 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "gstr_assistant":
+        return generate_gstr_assistant(
+            business_name=payload.get("business_name", ""),
+            gstin=payload.get("gstin", ""),
+            annual_turnover=payload.get("annual_turnover", 0.0),
+            is_composition=payload.get("is_composition", False),
+            has_exports=payload.get("has_exports", False),
+            has_rcm=payload.get("has_rcm", False),
+            filing_period=payload.get("filing_period", "monthly"),
+            language=language,
+        )
+
     elif action == "mca_roc_calendar":
         return generate_mca_roc_calendar(
             company_name=payload.get("company_name", ""),
@@ -3086,6 +3098,181 @@ _TAX_CALENDAR = [
 ]
 
 _HIGH_RISK_FILINGS = ["DIR-3 KYC", "INC-20A", "AOC-4 / AOC-4 XBRL", "MGT-7 / MGT-7A", "DPT-3"]
+
+
+# ── R28: GSTR Filing Assistant ────────────────────────────────────────────────
+
+_GSTR_FORMS = {
+    "GSTR-1": {
+        "desc":     "Outward Supply Details (Sales)",
+        "who":      "All regular taxpayers (monthly or quarterly under QRMP)",
+        "due_date": "11th of next month (monthly) / 13th of month after quarter (QRMP)",
+        "purpose":  "Report all outward supplies (sales) made during the period",
+        "late_fee": "₹50/day (₹20/day for NIL return), max ₹10,000",
+    },
+    "GSTR-2B": {
+        "desc":     "Auto-drafted ITC Statement",
+        "who":      "All regular taxpayers (system-generated, no filing needed)",
+        "due_date": "Available 14th of next month",
+        "purpose":  "Reconcile purchase ITC — use to claim correct credit",
+        "late_fee": "N/A — auto-generated",
+    },
+    "GSTR-3B": {
+        "desc":     "Monthly Summary Return + Tax Payment",
+        "who":      "All regular taxpayers",
+        "due_date": "20th of next month (large taxpayers) / 22nd–24th (small taxpayers by state)",
+        "purpose":  "Summary of outward/inward supplies and payment of tax due",
+        "late_fee": "₹50/day (₹20/day for NIL), max ₹10,000 + interest 18% p.a. on unpaid tax",
+    },
+    "GSTR-9": {
+        "desc":     "Annual Return",
+        "who":      "All regular taxpayers (turnover > ₹2 Cr mandatory)",
+        "due_date": "31 December (for previous FY)",
+        "purpose":  "Annual reconciliation of all monthly returns filed during the year",
+        "late_fee": "₹200/day, max 0.25% of turnover",
+    },
+    "GSTR-9C": {
+        "desc":     "Reconciliation Statement (Self-certified)",
+        "who":      "Taxpayers with turnover > ₹5 Cr",
+        "due_date": "31 December (for previous FY)",
+        "purpose":  "CA-certified reconciliation between books and GSTR-9",
+        "late_fee": "Same as GSTR-9",
+    },
+    "GSTR-4": {
+        "desc":     "Composition Scheme Annual Return",
+        "who":      "Composition scheme dealers only",
+        "due_date": "30 April (for previous FY)",
+        "purpose":  "Annual return for composition taxpayers",
+        "late_fee": "₹200/day, max ₹5,000",
+    },
+    "CMP-08": {
+        "desc":     "Composition Tax Payment Statement",
+        "who":      "Composition scheme dealers",
+        "due_date": "18th of month after each quarter",
+        "purpose":  "Quarterly tax payment statement for composition dealers",
+        "late_fee": "₹50/day, max ₹2,000 + interest",
+    },
+    "GSTR-7": {
+        "desc":     "TDS Return (GST TDS)",
+        "who":      "Govt bodies and notified persons deducting GST TDS",
+        "due_date": "10th of next month",
+        "purpose":  "Report TDS deducted on payments made to suppliers",
+        "late_fee": "₹100/day per form, max ₹5,000",
+    },
+}
+
+_GST_ITC_RULES = [
+    "ITC available only on goods/services used for business purposes",
+    "ITC on motor vehicles (cars) not available except for specific businesses",
+    "ITC blocked on food, beverages, club memberships, health services",
+    "ITC must be claimed within 30 Nov of next FY or date of annual return — whichever is earlier",
+    "ITC reversal required if payment not made to supplier within 180 days",
+    "ITC on capital goods: available immediately (no deferral since GST)",
+    "Reconcile GSTR-2B monthly — only claim ITC reflected in GSTR-2B",
+    "Reverse charge ITC: pay tax in cash, claim as ITC in same return",
+]
+
+_GST_HSNSAC_TIPS = [
+    "HSN code mandatory for B2B invoices (all turnovers) and B2C > ₹5 Cr",
+    "4-digit HSN: turnover ₹1.5 Cr–₹5 Cr | 6-digit: > ₹5 Cr",
+    "SAC (Service Accounting Code) always 6 digits for services",
+    "Wrong HSN can lead to demand notice — verify with GST rate schedule",
+]
+
+_GST_COMMON_ERRORS = [
+    {"error": "GSTR-1 vs GSTR-3B mismatch",          "fix": "Reconcile before filing 3B — excess in 3B attracts scrutiny"},
+    {"error": "ITC claimed but not in GSTR-2B",       "fix": "Follow up with supplier to file their GSTR-1; don't claim unmatched ITC"},
+    {"error": "Wrong place of supply",                "fix": "For interstate supply use IGST; intrastate use CGST+SGST"},
+    {"error": "Late payment interest not accounted",  "fix": "Pay interest @18% p.a. from due date; calculate in DRC-03 if underpaid"},
+    {"error": "Input service distributor (ISD) not used", "fix": "For multi-state businesses, distribute ITC via ISD to branches"},
+    {"error": "RCM not paid on applicable services",  "fix": "Check RCM list — legal, GTA, import of services, security agency"},
+]
+
+_GST_TURNOVER_SLABS = {
+    "< ₹20 lakh":   {"registration": "Exempt (₹10L for special category states)", "scheme": "No GST registration required"},
+    "₹20L–₹1.5 Cr": {"registration": "Mandatory (optional composition)", "scheme": "Can opt composition @1–6% on turnover"},
+    "₹1.5 Cr–₹5 Cr":{"registration": "Mandatory", "scheme": "Can opt QRMP scheme (quarterly GSTR-1, monthly 3B)"},
+    "> ₹5 Cr":       {"registration": "Mandatory", "scheme": "Monthly filing mandatory; GSTR-9C certification required"},
+}
+
+
+def generate_gstr_assistant(
+    business_name: str,
+    gstin: str = "",
+    annual_turnover: float = 0.0,
+    is_composition: bool = False,
+    has_exports: bool = False,
+    has_rcm: bool = False,
+    filing_period: str = "monthly",
+    language: str = "en",
+) -> dict:
+    # Determine relevant forms
+    if is_composition:
+        relevant_forms = ["GSTR-4", "CMP-08"]
+        scheme = "Composition Scheme"
+    else:
+        relevant_forms = ["GSTR-1", "GSTR-2B", "GSTR-3B", "GSTR-9"]
+        if annual_turnover > 5e7:  # > ₹5 Cr
+            relevant_forms.append("GSTR-9C")
+        if has_rcm:
+            relevant_forms.append("GSTR-7")
+        scheme = "Regular Scheme"
+
+    forms_detail = {f: _GSTR_FORMS[f] for f in relevant_forms if f in _GSTR_FORMS}
+
+    # Turnover slab
+    if annual_turnover < 2e6:
+        slab = "< ₹20 lakh"
+    elif annual_turnover < 1.5e7:
+        slab = "₹20L–₹1.5 Cr"
+    elif annual_turnover < 5e7:
+        slab = "₹1.5 Cr–₹5 Cr"
+    else:
+        slab = "> ₹5 Cr"
+
+    slab_info = _GST_TURNOVER_SLABS.get(slab, {})
+
+    # Monthly checklist
+    monthly_checklist = [
+        "Reconcile sales register with GSTR-1 data",
+        "File GSTR-1 by 11th (monthly) / 13th (QRMP)",
+        "Download GSTR-2B on 14th and reconcile with purchase register",
+        "Claim only ITC reflected in GSTR-2B",
+        "Calculate tax liability: Output Tax − ITC = Net Tax Payable",
+        "Pay net tax via PMT-06 / Electronic Cash Ledger",
+        "File GSTR-3B by 20th (or 22nd/24th per state category)",
+        "Check for any RCM liability and pay in cash (then claim as ITC)",
+        "Archive all purchase invoices with GSTIN for audit trail",
+    ]
+
+    return {
+        "business_name":      business_name,
+        "gstin":              gstin,
+        "annual_turnover":    annual_turnover,
+        "turnover_slab":      slab,
+        "scheme":             scheme,
+        "slab_info":          slab_info,
+        "filing_period":      filing_period,
+        "relevant_forms":     forms_detail,
+        "monthly_checklist":  monthly_checklist,
+        "itc_rules":          _GST_ITC_RULES,
+        "hsn_sac_tips":       _GST_HSNSAC_TIPS,
+        "common_errors":      _GST_COMMON_ERRORS,
+        "export_note":        "File LUT (Letter of Undertaking) annually for zero-rated supply without payment of IGST. GSTR-1 Table 6A for exports." if has_exports else None,
+        "rcm_note":           "Maintain separate RCM register. Pay RCM in cash — cannot use ITC balance. Claim back as ITC in same return period." if has_rcm else None,
+        "interest_rates": {
+            "late_tax_payment":   "18% per annum",
+            "excess_itc_claimed": "24% per annum",
+            "calculation":        "Interest = (Tax × 18%) ÷ 365 × number of days late",
+        },
+        "ca_notes": [
+            "Never file GSTR-3B without reconciling GSTR-2B — excess ITC leads to demand + 24% interest",
+            "GSTR-9 due 31 Dec — don't wait; start reconciliation by October",
+            "GSTIN cancellation does not exempt you from pending return filing",
+            "Keep all e-way bills, invoices, and delivery challans for 8 years",
+            "Opt for QRMP scheme if turnover < ₹5 Cr — reduces compliance burden significantly",
+        ],
+    }
 
 
 def generate_mca_roc_calendar(
