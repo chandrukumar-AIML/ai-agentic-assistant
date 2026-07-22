@@ -944,15 +944,22 @@ async def ca_agent(
         )
 
     elif action == "generate_invoice":
-        return await generate_gst_invoice(
-            seller=payload.get("seller", {}),
-            buyer=payload.get("buyer", {}),
-            items=payload.get("items", []),
-            invoice_no=payload.get("invoice_no", ""),
+        _seller = payload.get("seller", {})
+        _buyer  = payload.get("buyer",  {})
+        return generate_gst_invoice(
+            seller_name=_seller.get("name", payload.get("seller_name", "")),
+            seller_gstin=_seller.get("gstin", payload.get("seller_gstin", "")),
+            seller_address=_seller.get("address", payload.get("seller_address", "")),
+            seller_state=_seller.get("state", payload.get("seller_state", "karnataka")),
+            buyer_name=_buyer.get("name", payload.get("buyer_name", "")),
+            buyer_gstin=_buyer.get("gstin", payload.get("buyer_gstin", "")),
+            buyer_address=_buyer.get("address", payload.get("buyer_address", "")),
+            buyer_state=_buyer.get("state", payload.get("buyer_state", "karnataka")),
+            invoice_number=payload.get("invoice_no", payload.get("invoice_number", "")),
             invoice_date=payload.get("invoice_date", ""),
-            payment_terms=payload.get("payment_terms", ""),
+            items=payload.get("items", []),
+            payment_terms=payload.get("payment_terms", "30 days"),
             notes=payload.get("notes", ""),
-            language=language,
         )
 
     elif action == "capital_gains":
