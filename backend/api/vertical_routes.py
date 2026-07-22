@@ -20,7 +20,7 @@ class SocialRequest(BaseModel):
 
 @router.post("/social/action", summary="AI Social Media Manager")
 async def social_action(req: SocialRequest, token: dict = Depends(verify_token)):
-    from backend.verticals.social_media.social_agent import social_agent
+    from backend.verticals.social_media.agent import social_agent
     return await social_agent(
         action=req.action,
         platform=req.platform,
@@ -41,7 +41,7 @@ class CARequest(BaseModel):
 
 @router.post("/ca/action", summary="AI CA / Accounting Agent")
 async def ca_action(req: CARequest, token: dict = Depends(verify_token)):
-    from backend.verticals.ca_accounting.ca_agent import ca_agent
+    from backend.verticals.ca_accounting.agent import ca_agent
     return await ca_agent(
         action=req.action,
         payload=req.payload,
@@ -59,7 +59,7 @@ class CSRequest(BaseModel):
 
 @router.post("/cs/action", summary="AI Customer Support Agent")
 async def cs_action(req: CSRequest, token: dict = Depends(verify_token)):
-    from backend.verticals.customer_support.cs_agent import cs_agent
+    from backend.verticals.customer_support.agent import cs_agent
     return await cs_agent(
         action=req.action,
         payload=req.payload,
