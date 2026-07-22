@@ -470,6 +470,49 @@ export default function CAPage() {
     finally { setMcdLoading(false) }
   }
 
+  // ── R21: Form 16 Generator ──
+  const [f16EmpName,  setF16EmpName]  = useState('')
+  const [f16EmpPan,   setF16EmpPan]   = useState('')
+  const [f16EmpDesig, setF16EmpDesig] = useState('')
+  const [f16EmpName2, setF16EmpName2] = useState('')  // employer name
+  const [f16Tan,      setF16Tan]      = useState('')
+  const [f16Fy,       setF16Fy]       = useState('2024-25')
+  const [f16Gross,    setF16Gross]    = useState('600000')
+  const [f16Hra,      setF16Hra]      = useState('60000')
+  const [f16HraEx,    setF16HraEx]    = useState('48000')
+  const [f16Lta,      setF16Lta]      = useState('0')
+  const [f16Pt,       setF16Pt]       = useState('2400')
+  const [f16C80,      setF16C80]      = useState('150000')
+  const [f16D80,      setF16D80]      = useState('25000')
+  const [f16Nps,      setF16Nps]      = useState('0')
+  const [f16Tds1,     setF16Tds1]     = useState('0')
+  const [f16Tds2,     setF16Tds2]     = useState('0')
+  const [f16Tds3,     setF16Tds3]     = useState('0')
+  const [f16Tds4,     setF16Tds4]     = useState('0')
+  const [f16Res,      setF16Res]      = useState<any>(null)
+  const [f16Loading,  setF16Loading]  = useState(false)
+  const [f16Err,      setF16Err]      = useState('')
+  const [f16View,     setF16View]     = useState<'partA'|'partB'|'guide'>('partA')
+  const runForm16 = async () => {
+    setF16Loading(true); setF16Err(''); setF16Res(null)
+    try {
+      setF16Res(await caAction('form_16', {
+        employee_name: f16EmpName, employee_pan: f16EmpPan, employee_designation: f16EmpDesig,
+        employer_name: f16EmpName2, employer_tan: f16Tan,
+        financial_year: f16Fy, assessment_year: f16Fy.split('-').map((p, i) => i === 0 ? String(parseInt(p) + 1) : p).join('-'),
+        gross_salary: parseFloat(f16Gross) || 0,
+        hra_received: parseFloat(f16Hra) || 0, hra_exemption: parseFloat(f16HraEx) || 0,
+        lta: parseFloat(f16Lta) || 0, standard_deduction: 50000,
+        professional_tax: parseFloat(f16Pt) || 0,
+        deduction_80c: parseFloat(f16C80) || 0, deduction_80d: parseFloat(f16D80) || 0,
+        deduction_80ccd: parseFloat(f16Nps) || 0, other_deductions: 0,
+        tds_q1: parseFloat(f16Tds1) || 0, tds_q2: parseFloat(f16Tds2) || 0,
+        tds_q3: parseFloat(f16Tds3) || 0, tds_q4: parseFloat(f16Tds4) || 0,
+      }))
+    } catch (e: any) { setF16Err(e.message) }
+    finally { setF16Loading(false) }
+  }
+
   const toggleIcSource = (s: string) => setIcSources(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
   const toggleIcDed = (d: string) => setIcDeductions(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])
   const runItrChecklist = async () => {
@@ -783,6 +826,7 @@ export default function CAPage() {
           { id: 'itr_checklist',   label: 'ITR Filing Checklist',       icon: '📋' },
           { id: 'salary_slip',     label: 'Salary Slip Generator',      icon: '🧾' },
           { id: 'client_dash',     label: 'Client Dashboard',           icon: '👥' },
+          { id: 'form16',          label: 'Form 16 Generator',          icon: '📄' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3373,6 +3417,175 @@ export default function CAPage() {
             ) : null}
           </div>
         </div>
+      )}
+
+      {/* ── R21: Form 16 Generator ── */}
+      {tab === 'form16' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Form 16 Generator" sub="Part A (TDS) + Part B (Income) — India compliant, AY 2025-26" />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8, fontWeight: 700 }}>EMPLOYEE DETAILS</div>
+            <Input label="Employee Name" value={f16EmpName} onChange={setF16EmpName} placeholder="e.g. Ramesh Kumar" />
+            <Input label="Employee PAN" value={f16EmpPan} onChange={setF16EmpPan} placeholder="e.g. ABCDE1234F" />
+            <Input label="Designation" value={f16EmpDesig} onChange={setF16EmpDesig} placeholder="e.g. Senior Engineer" />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8, marginTop: 8, fontWeight: 700 }}>EMPLOYER DETAILS</div>
+            <Input label="Employer Name" value={f16EmpName2} onChange={setF16EmpName2} placeholder="e.g. Acme Technologies Pvt Ltd" />
+            <Input label="Employer TAN" value={f16Tan} onChange={setF16Tan} placeholder="e.g. BLRA12345B" />
+            <Select label="Financial Year" value={f16Fy} onChange={setF16Fy} options={[
+              { value: '2024-25', label: 'FY 2024-25 (AY 2025-26)' },
+              { value: '2023-24', label: 'FY 2023-24 (AY 2024-25)' },
+            ]} />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8, marginTop: 8, fontWeight: 700 }}>SALARY (₹ ANNUAL)</div>
+            <Input label="Gross Salary" value={f16Gross} onChange={setF16Gross} placeholder="e.g. 600000" />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}><Input label="HRA Received" value={f16Hra} onChange={setF16Hra} placeholder="60000" /></div>
+              <div style={{ flex: 1 }}><Input label="HRA Exemption" value={f16HraEx} onChange={setF16HraEx} placeholder="48000" /></div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}><Input label="LTA" value={f16Lta} onChange={setF16Lta} placeholder="0" /></div>
+              <div style={{ flex: 1 }}><Input label="Professional Tax" value={f16Pt} onChange={setF16Pt} placeholder="2400" /></div>
+            </div>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8, marginTop: 8, fontWeight: 700 }}>DEDUCTIONS (₹)</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}><Input label="80C Investments" value={f16C80} onChange={setF16C80} placeholder="150000" /></div>
+              <div style={{ flex: 1 }}><Input label="80D Medical" value={f16D80} onChange={setF16D80} placeholder="25000" /></div>
+            </div>
+            <Input label="80CCD (NPS Additional)" value={f16Nps} onChange={setF16Nps} placeholder="0" />
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8, marginTop: 8, fontWeight: 700 }}>TDS DEDUCTED QUARTERLY (₹)</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <Input label="Q1 (Apr–Jun)" value={f16Tds1} onChange={setF16Tds1} placeholder="0" />
+              <Input label="Q2 (Jul–Sep)" value={f16Tds2} onChange={setF16Tds2} placeholder="0" />
+              <Input label="Q3 (Oct–Dec)" value={f16Tds3} onChange={setF16Tds3} placeholder="0" />
+              <Input label="Q4 (Jan–Mar)" value={f16Tds4} onChange={setF16Tds4} placeholder="0" />
+            </div>
+            <Btn onClick={runForm16} loading={f16Loading}>📄 Generate Form 16 →</Btn>
+            {f16Err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{f16Err}</div>}
+          </Card>
+          <Card>
+            {f16Res ? (() => {
+              const r = f16Res
+              const fmt = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`
+              const views = [
+                { id: 'partA', label: 'Part A — TDS' },
+                { id: 'partB', label: 'Part B — Income' },
+                { id: 'guide', label: 'Filing Guide' },
+              ] as const
+              return (
+                <div>
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#14532d' }}>Form 16 — {r.employee_name}</div>
+                    <div style={{ fontSize: 12, color: '#166534', marginTop: 2 }}>FY {r.financial_year} · AY {r.assessment_year}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                    {views.map(v => (
+                      <button key={v.id} onClick={() => setF16View(v.id as any)}
+                        style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                          background: f16View === v.id ? '#059669' : '#f3f4f6', color: f16View === v.id ? '#fff' : '#374151' }}>
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {f16View === 'partA' && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>TDS QUARTERS</div>
+                      {r.part_a?.tds_quarters?.map((q: any) => (
+                        <div key={q.quarter} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
+                          <span style={{ color: '#374151' }}>{q.quarter}</span>
+                          <span style={{ fontWeight: 700, color: '#059669' }}>{fmt(q.tds_deducted)}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: 14, fontWeight: 800 }}>
+                        <span style={{ color: '#111827' }}>Total TDS Deducted</span>
+                        <span style={{ color: '#059669' }}>{fmt(r.part_a?.total_tds_deducted || 0)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {f16View === 'partB' && (
+                    <div>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>SALARY COMPUTATION</div>
+                        {[
+                          ['Gross Salary', r.part_b?.salary_particulars?.gross_salary],
+                          ['Less: HRA Exemption', -(r.part_b?.salary_particulars?.allowances_exempt_u10?.hra_exemption || 0)],
+                          ['Less: LTA', -(r.part_b?.salary_particulars?.allowances_exempt_u10?.lta || 0)],
+                          ['Less: Standard Deduction', -(r.part_b?.salary_particulars?.standard_deduction_16ia || 50000)],
+                          ['Less: Professional Tax', -(r.part_b?.salary_particulars?.professional_tax_16iii || 0)],
+                          ['Net Salary (Taxable)', r.part_b?.salary_particulars?.net_salary],
+                        ].map(([label, value]) => (
+                          <div key={label as string} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f9fafb', fontSize: 12 }}>
+                            <span style={{ color: '#374151' }}>{label}</span>
+                            <span style={{ fontWeight: Number(value) < 0 ? 400 : 700, color: Number(value) < 0 ? '#dc2626' : '#111827' }}>
+                              {Number(value) < 0 ? `(${fmt(Math.abs(Number(value)))})` : fmt(Number(value) || 0)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>DEDUCTIONS U/S VI-A</div>
+                        {[
+                          ['80C Investments', r.part_b?.deductions_chapter_via?.['80c_investments']],
+                          ['80D Medical Insurance', r.part_b?.deductions_chapter_via?.['80d_medical_insurance']],
+                          ['80CCD NPS', r.part_b?.deductions_chapter_via?.['80ccd_nps']],
+                          ['Total Deductions', r.part_b?.deductions_chapter_via?.total_deductions],
+                        ].map(([label, value]) => (
+                          <div key={label as string} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f9fafb', fontSize: 12, fontWeight: label === 'Total Deductions' ? 700 : 400 }}>
+                            <span style={{ color: '#374151' }}>{label}</span>
+                            <span style={{ color: '#374151' }}>{fmt(Number(value) || 0)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 8 }}>TAX COMPUTATION (New Regime)</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}><span>Taxable Income</span><span style={{ fontWeight: 700 }}>{fmt(r.part_b?.taxable_income || 0)}</span></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}><span>Gross Tax</span><span>{fmt(r.part_b?.tax_computation?.gross_tax || 0)}</span></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}><span>Rebate u/s 87A</span><span style={{ color: '#059669' }}>({fmt(r.part_b?.tax_computation?.rebate_87a || 0)})</span></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}><span>4% Cess</span><span>{fmt(r.part_b?.tax_computation?.health_edu_cess_4pct || 0)}</span></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800, borderTop: '1px solid #fde68a', paddingTop: 8, marginTop: 4 }}>
+                          <span style={{ color: '#92400e' }}>Total Tax Liability</span>
+                          <span style={{ color: '#92400e' }}>{fmt(r.part_b?.tax_computation?.total_tax_liability || 0)}</span>
+                        </div>
+                      </div>
+                      <div style={{ background: r.part_b?.tds_summary?.excess_tds_refundable > 0 ? '#f0fdf4' : '#fef2f2', border: '1px solid', borderColor: r.part_b?.tds_summary?.excess_tds_refundable > 0 ? '#bbf7d0' : '#fecaca', borderRadius: 8, padding: 12 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: r.part_b?.tds_summary?.excess_tds_refundable > 0 ? '#059669' : '#dc2626', marginBottom: 6 }}>
+                          {r.part_b?.tds_summary?.status}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#374151' }}>TDS Deducted: {fmt(r.part_b?.tds_summary?.total_tds_deducted || 0)}</div>
+                        {r.part_b?.tds_summary?.balance_tax_payable > 0 && <div style={{ fontSize: 12, color: '#dc2626' }}>Additional tax payable: {fmt(r.part_b?.tds_summary?.balance_tax_payable)}</div>}
+                        {r.part_b?.tds_summary?.excess_tds_refundable > 0 && <div style={{ fontSize: 12, color: '#059669' }}>Refund due: {fmt(r.part_b?.tds_summary?.excess_tds_refundable)}</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {f16View === 'guide' && (
+                    <div>
+                      <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                        <div style={{ fontSize: 12, color: '#075985', fontWeight: 700, marginBottom: 6 }}>ITR FILING GUIDE</div>
+                        <div style={{ fontSize: 12, color: '#0c4a6e', marginBottom: 4 }}>Form: {r.itr_filing_guide?.form_to_use}</div>
+                        <div style={{ fontSize: 12, color: '#0c4a6e' }}>Deadline: {r.itr_filing_guide?.deadline}</div>
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>DOCUMENTS NEEDED</div>
+                        {r.itr_filing_guide?.documents_needed?.map((d: string, i: number) => (
+                          <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 4, display: 'flex', gap: 6 }}>
+                            <span style={{ color: '#059669' }}>☐</span> {d}
+                          </div>
+                        ))}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>EMPLOYEE NOTES</div>
+                        {r.employee_notes?.map((n: string, i: number) => (
+                          <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 6, padding: '8px 10px', background: '#f9fafb', borderRadius: 6, borderLeft: '3px solid #059669' }}>{n}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill employee and salary details, then click Generate Form 16 →</div>}
+          </Card>
+        </TwoCol>
       )}
     </PageShell>
   )

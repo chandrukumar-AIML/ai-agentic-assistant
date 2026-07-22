@@ -376,6 +376,29 @@ export default function SocialPage() {
   const [ydErr, setYdErr]           = useState('')
   const [ydView, setYdView]         = useState<'desc'|'tags'|'checklist'>('desc')
 
+  // ── R21: Bulk Post Generator ──
+  const [bpPlatform, setBpPlatform] = useState('instagram')
+  const [bpCount,    setBpCount]    = useState('15')
+  const [bpRes,      setBpRes]      = useState<any>(null)
+  const [bpLoading,  setBpLoading]  = useState(false)
+  const [bpErr,      setBpErr]      = useState('')
+  const [bpSelected, setBpSelected] = useState(0)
+  const runBulk = async () => {
+    const brand = loadBrand()
+    setBpLoading(true); setBpErr(''); setBpRes(null)
+    try {
+      setBpRes(await socialAction('bulk_posts', {
+        company_name: brand.company || '', industry: brand.industry || 'technology',
+        tone: brand.tone || 'professional', target_audience: brand.audience || '',
+        platform: bpPlatform, count: parseInt(bpCount) || 15,
+        brand_keywords: (brand.keywords || '').split(',').map((k: string) => k.trim()).filter(Boolean),
+        usp: brand.usp || '',
+      }))
+      setBpSelected(0)
+    } catch (e: any) { setBpErr(e.message) }
+    finally { setBpLoading(false) }
+  }
+
   // ── R20: Brand Voice Engine ──
   const BRAND_KEY = 'ai_brand_voice'
   const loadBrand = () => { try { return JSON.parse(localStorage.getItem(BRAND_KEY) || '{}') } catch { return {} } }
@@ -808,6 +831,7 @@ export default function SocialPage() {
           { id: 'lcp',          label: 'LinkedIn Company Post',    icon: '🏢' },
           { id: 'brand_voice',  label: 'Brand Voice Engine',       icon: '🎨' },
           { id: 'cal',          label: 'Content Calendar',         icon: '📅' },
+          { id: 'bulk',         label: 'Bulk Post Generator',      icon: '⚡' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3900,6 +3924,81 @@ export default function SocialPage() {
                 </div>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Select platforms and click Generate Full Week →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── R21: Bulk Post Generator ── */}
+      {tab === 'bulk' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="Bulk Post Generator" sub="Generate up to 30 ready-to-post captions in one click" />
+            {(() => {
+              const brand = loadBrand()
+              if (brand.company) return (
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: '#065f46' }}>
+                  ✅ Using brand: <b>{brand.company}</b> · {brand.industry} · {brand.tone}
+                </div>
+              )
+              return <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: '#92400e' }}>⚠️ Set up Brand Voice Engine first for best results.</div>
+            })()}
+            <Select label="Platform" value={bpPlatform} onChange={setBpPlatform} options={[
+              { value: 'instagram', label: 'Instagram' }, { value: 'linkedin', label: 'LinkedIn' },
+              { value: 'twitter', label: 'Twitter / X' }, { value: 'whatsapp', label: 'WhatsApp Broadcast' },
+            ]} />
+            <Select label="How many posts?" value={bpCount} onChange={setBpCount} options={[
+              { value: '5', label: '5 posts (1 week)' }, { value: '10', label: '10 posts (2 weeks)' },
+              { value: '15', label: '15 posts (3 weeks)' }, { value: '20', label: '20 posts (1 month)' },
+              { value: '30', label: '30 posts (6 weeks)' },
+            ]} />
+            <Btn onClick={runBulk} loading={bpLoading}>⚡ Generate {bpCount} Posts →</Btn>
+            {bpErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{bpErr}</div>}
+          </Card>
+          <Card>
+            {bpRes ? (() => {
+              const r = bpRes
+              const posts = r.posts || []
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>⚡ {r.total_posts} {r.platform} posts ready</div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>{r.usage_guide?.schedule}</div>
+                  </div>
+                  {/* Post navigator */}
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
+                    {posts.map((_: any, i: number) => (
+                      <button key={i} onClick={() => setBpSelected(i)}
+                        style={{ flex: '0 0 40px', height: 36, borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                          background: bpSelected === i ? '#10b981' : '#f3f4f6', color: bpSelected === i ? '#fff' : '#374151' }}>
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Selected post */}
+                  {posts[bpSelected] && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700 }}>POST {bpSelected + 1} — {posts[bpSelected].topic.toUpperCase()}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{posts[bpSelected].char_count} chars</div>
+                      </div>
+                      <ResultBox value={posts[bpSelected].caption} />
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        <button onClick={() => setBpSelected(Math.max(0, bpSelected - 1))} disabled={bpSelected === 0}
+                          style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', fontSize: 12, cursor: 'pointer', color: '#374151' }}>← Prev</button>
+                        <button onClick={() => setBpSelected(Math.min(posts.length - 1, bpSelected + 1))} disabled={bpSelected === posts.length - 1}
+                          style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', fontSize: 12, cursor: 'pointer', color: '#374151' }}>Next →</button>
+                        <div style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto', alignSelf: 'center' }}>⏰ Best time: {r.usage_guide?.best_time}</div>
+                      </div>
+                      <div style={{ marginTop: 12, background: '#f9fafb', borderRadius: 8, padding: 10 }}>
+                        {r.pro_tips?.map((t: string, i: number) => (
+                          <div key={i} style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>💡 {t}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Select a platform and count, then click Generate →</div>}
           </Card>
         </TwoCol>
       )}

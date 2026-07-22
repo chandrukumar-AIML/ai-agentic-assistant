@@ -65,6 +65,7 @@ const TABS = [
   { id: 'winback',      label: 'Win-Back Campaign' },
   { id: 'csat_builder',  label: 'CSAT Survey Builder' },
   { id: 'cx360',         label: 'Customer 360' },
+  { id: 'analytics',     label: 'Support Analytics' },
 ]
 
 const WA_TYPES = [
@@ -1323,6 +1324,7 @@ export default function CustomerSupportPage() {
         {tab === 'winback'        && <WinBackTab lang={lang} />}
         {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
         {tab === 'cx360'          && <Customer360Tab lang={lang} />}
+        {tab === 'analytics'      && <SupportAnalyticsTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -3819,6 +3821,267 @@ export function Customer360Tab({ lang }: { lang: string }) {
         })() : !loading && selected === null ? (
           <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 80 }}>Add a customer and click their name to see their 360 view →</div>
         ) : null}
+      </div>
+    </div>
+  )
+}
+
+// ── Round 21: Support Analytics Dashboard ─────────────────────────────────────
+
+const SA_INDUSTRIES = [
+  { value: 'saas', label: 'SaaS / Software' }, { value: 'ecommerce', label: 'E-Commerce' },
+  { value: 'banking', label: 'Banking / Finance' }, { value: 'healthcare', label: 'Healthcare' },
+  { value: 'retail', label: 'Retail' }, { value: 'telecom', label: 'Telecom' },
+]
+const DEFAULT_AGENTS = [
+  { name: 'Priya', resolved: 42, csat: 4.5, avg_res_hrs: 18, fcr: 78 },
+  { name: 'Arjun', resolved: 35, csat: 4.1, avg_res_hrs: 22, fcr: 65 },
+  { name: 'Meera', resolved: 38, csat: 4.8, avg_res_hrs: 14, fcr: 82 },
+]
+
+export function SupportAnalyticsTab({ lang }: { lang: string }) {
+  const [bizName,     setBizName]     = useState('')
+  const [industry,    setIndustry]    = useState('saas')
+  const [weekLabel,   setWeekLabel]   = useState('Week of 21 Jul 2025')
+  const [total,       setTotal]       = useState('120')
+  const [resolved,    setResolved]    = useState('108')
+  const [frt,         setFrt]         = useState('3')
+  const [resTime,     setResTime]     = useState('20')
+  const [csat,        setCsat]        = useState('4.3')
+  const [prevTotal,   setPrevTotal]   = useState('105')
+  const [prevCsat,    setPrevCsat]    = useState('4.1')
+  const [catRaw,      setCatRaw]      = useState('Billing:32,Technical Issue:28,Feature Request:20,Account:15,General Inquiry:25')
+  const [chanRaw,     setChanRaw]     = useState('Email:55,WhatsApp:40,Chat:20,Phone:5')
+  const [agentRaw,    setAgentRaw]    = useState(JSON.stringify(DEFAULT_AGENTS, null, 0))
+  const [res,         setRes]         = useState<any>(null)
+  const [loading,     setLoading]     = useState(false)
+  const [err,         setErr]         = useState('')
+  const [view,        setView]        = useState<'kpis'|'breakdown'|'agents'>('kpis')
+
+  const parseCsv = (raw: string) => {
+    const obj: Record<string, number> = {}
+    raw.split(',').forEach(pair => {
+      const [k, v] = pair.split(':')
+      if (k && v) obj[k.trim()] = parseInt(v.trim()) || 0
+    })
+    return obj
+  }
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null)
+    try {
+      let agents = DEFAULT_AGENTS
+      try { agents = JSON.parse(agentRaw) } catch { agents = DEFAULT_AGENTS }
+      setRes(await csAction('support_analytics', {
+        business_name: bizName, industry, week_label: weekLabel,
+        total_tickets: parseInt(total) || 0,
+        resolved_tickets: parseInt(resolved) || 0,
+        avg_frt_hrs: parseFloat(frt) || 4,
+        avg_resolution_hrs: parseFloat(resTime) || 24,
+        csat_score: parseFloat(csat) || 4.0,
+        ticket_categories: parseCsv(catRaw),
+        channel_data: parseCsv(chanRaw),
+        agent_data: agents,
+        prev_week_tickets: parseInt(prevTotal) || 0,
+        prev_week_csat: parseFloat(prevCsat) || 4.0,
+      }))
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+
+  const TREND = (dir: string, val: number) => {
+    const up = dir === 'up'
+    return <span style={{ fontSize: 12, color: up ? '#dc2626' : '#059669', fontWeight: 700 }}>{up ? '↑' : '↓'} {Math.abs(val)}%</span>
+  }
+  const BENCH = (status: string) => <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 8, background: status === 'better' ? '#d1fae5' : '#fee2e2', color: status === 'better' ? '#065f46' : '#991b1b', fontWeight: 700 }}>{status === 'better' ? '✓ Better' : '✗ Below'}</span>
+
+  return (
+    <div style={{ display: 'flex', gap: 20 }}>
+      <div style={{ flex: '0 0 300px' }}>
+        <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 14 }}>📊 Support Analytics</div>
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 3 }}>Business Name</div>
+            <input value={bizName} onChange={e => setBizName(e.target.value)} placeholder="e.g. TechCorp"
+              style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 5, padding: '6px 8px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box' as any }} />
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 3 }}>Industry</div>
+            <select value={industry} onChange={e => setIndustry(e.target.value)}
+              style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 5, padding: '6px 8px', color: '#e2e8f0', fontSize: 12 }}>
+              {SA_INDUSTRIES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 3 }}>Week</div>
+            <input value={weekLabel} onChange={e => setWeekLabel(e.target.value)}
+              style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 5, padding: '6px 8px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box' as any }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
+            {[['Total Tickets', total, setTotal], ['Resolved', resolved, setResolved], ['FRT (hrs)', frt, setFrt], ['Resolution (hrs)', resTime, setResTime], ['CSAT (1-5)', csat, setCsat], ['Prev Week Tickets', prevTotal, setPrevTotal], ['Prev Week CSAT', prevCsat, setPrevCsat]].map(([l, v, s]: any) => (
+              <div key={l}>
+                <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2 }}>{l}</div>
+                <input type="number" value={v} onChange={(e: any) => s(e.target.value)}
+                  style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 5, padding: '5px 6px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box' as any }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 3 }}>Categories (Name:Count, ...)</div>
+            <input value={catRaw} onChange={e => setCatRaw(e.target.value)}
+              style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 5, padding: '6px 8px', color: '#e2e8f0', fontSize: 11, boxSizing: 'border-box' as any }} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 3 }}>Channels (Name:Count, ...)</div>
+            <input value={chanRaw} onChange={e => setChanRaw(e.target.value)}
+              style={{ width: '100%', background: '#1a1f2e', border: '1px solid #2d3748', borderRadius: 5, padding: '6px 8px', color: '#e2e8f0', fontSize: 11, boxSizing: 'border-box' as any }} />
+          </div>
+          <button onClick={run} disabled={loading}
+            style={{ width: '100%', padding: '10px', borderRadius: 7, border: 'none', background: loading ? '#374151' : '#10b981', color: '#fff', fontWeight: 700, fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer' }}>
+            {loading ? 'Generating…' : 'Generate Analytics Report →'}
+          </button>
+          {err && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{err}</div>}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {res ? (() => {
+          const r = res
+          const SLA_COLOR: Record<string, string> = { green: '#059669', yellow: '#d97706', red: '#dc2626' }
+          const slac = SLA_COLOR[r.kpis?.sla_health] || '#6b7280'
+          const views = [{ id: 'kpis', label: 'KPIs & Benchmarks' }, { id: 'breakdown', label: 'Breakdown' }, { id: 'agents', label: 'Agent Leaderboard' }] as const
+          return (
+            <div>
+              {/* Summary banner */}
+              <div style={{ background: '#0f1117', border: `2px solid ${slac}`, borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: slac, fontWeight: 700, marginBottom: 4 }}>SLA HEALTH: {r.kpis?.sla_health?.toUpperCase()}</div>
+                <div style={{ fontSize: 13, color: '#e2e8f0' }}>{r.summary}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                {views.map(v => (
+                  <button key={v.id} onClick={() => setView(v.id as any)}
+                    style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: view === v.id ? '#10b981' : '#1e2535', color: view === v.id ? '#fff' : '#9ca3af' }}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+
+              {view === 'kpis' && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+                    {[
+                      { label: 'Total Tickets', value: r.kpis?.total_tickets, suffix: '', change: r.wow_change?.ticket_change_pct, dir: r.wow_change?.ticket_trend },
+                      { label: 'Resolution Rate', value: r.kpis?.resolution_rate_pct, suffix: '%', change: null },
+                      { label: 'CSAT Score', value: r.kpis?.csat_pct, suffix: '%', change: r.wow_change?.csat_change, dir: r.wow_change?.csat_trend },
+                      { label: 'First Response', value: r.kpis?.avg_frt_hrs, suffix: 'h', change: null },
+                      { label: 'Resolution Time', value: r.kpis?.avg_resolution_hrs, suffix: 'h', change: null },
+                      { label: 'Open Tickets', value: r.kpis?.open_tickets, suffix: '', change: null },
+                    ].map(kpi => (
+                      <div key={kpi.label} style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 12 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>{kpi.label}</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#e2e8f0' }}>{kpi.value}{kpi.suffix}</div>
+                        {kpi.change !== null && kpi.change !== undefined && (
+                          <div style={{ marginTop: 4 }}>{TREND(kpi.dir || 'up', Math.abs(Number(kpi.change)))}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 10 }}>VS {r.benchmark_comparison?.industry?.toUpperCase()} BENCHMARK</div>
+                    {[
+                      { label: 'First Response Time', yours: `${r.benchmark_comparison?.frt?.yours}h`, bench: `${r.benchmark_comparison?.frt?.benchmark}h`, status: r.benchmark_comparison?.frt?.status },
+                      { label: 'Resolution Time', yours: `${r.benchmark_comparison?.resolution?.yours}h`, bench: `${r.benchmark_comparison?.resolution?.benchmark}h`, status: r.benchmark_comparison?.resolution?.status },
+                      { label: 'CSAT Score', yours: `${r.benchmark_comparison?.csat?.yours}%`, bench: `${r.benchmark_comparison?.csat?.benchmark}%`, status: r.benchmark_comparison?.csat?.status },
+                    ].map(b => (
+                      <div key={b.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #1e2535' }}>
+                        <span style={{ fontSize: 12, color: '#9ca3af' }}>{b.label}</span>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 700 }}>You: {b.yours}</span>
+                          <span style={{ fontSize: 11, color: '#4b5563' }}>Bench: {b.bench}</span>
+                          {BENCH(b.status)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>💡 INSIGHTS</div>
+                    {r.insights?.map((ins: string, i: number) => (
+                      <div key={i} style={{ fontSize: 12, color: '#e2e8f0', marginBottom: 6, padding: '6px 10px', background: '#1a1f2e', borderRadius: 6 }}>{ins}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {view === 'breakdown' && (
+                <div>
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>TICKET CATEGORIES</div>
+                    {r.category_breakdown?.map((cat: any) => (
+                      <div key={cat.category} style={{ marginBottom: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                          <span style={{ fontSize: 12, color: '#e2e8f0' }}>{cat.icon} {cat.category}</span>
+                          <span style={{ fontSize: 12, color: '#9ca3af' }}>{cat.count} ({cat.pct}%)</span>
+                        </div>
+                        <div style={{ height: 6, background: '#1e2535', borderRadius: 3 }}>
+                          <div style={{ height: '100%', borderRadius: 3, background: '#10b981', width: `${cat.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>CHANNEL BREAKDOWN</div>
+                    {r.channel_breakdown?.map((ch: any) => (
+                      <div key={ch.channel} style={{ marginBottom: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                          <span style={{ fontSize: 12, color: '#e2e8f0' }}>{ch.channel}</span>
+                          <span style={{ fontSize: 12, color: '#9ca3af' }}>{ch.count} ({ch.pct}%)</span>
+                        </div>
+                        <div style={{ height: 6, background: '#1e2535', borderRadius: 3 }}>
+                          <div style={{ height: '100%', borderRadius: 3, background: '#3b82f6', width: `${ch.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 10, padding: 14 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>ACTION ITEMS</div>
+                    {r.action_items?.map((a: string, i: number) => (
+                      <div key={i} style={{ fontSize: 12, color: '#e2e8f0', marginBottom: 6, display: 'flex', gap: 6 }}>
+                        <span style={{ color: '#10b981' }}>{i + 1}.</span> {a}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {view === 'agents' && (
+                <div>
+                  <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, marginBottom: 10 }}>AGENT LEADERBOARD — {r.week}</div>
+                  {r.agent_leaderboard?.map((agent: any, i: number) => (
+                    <div key={agent.name} style={{ background: '#0f1117', border: `1px solid ${i === 0 ? '#d97706' : '#1e2535'}`, borderRadius: 10, padding: 14, marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>{i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}{agent.name}</span>
+                        </div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: i === 0 ? '#d97706' : '#10b981' }}>{agent.performance_score}</div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                        {[['Resolved', agent.tickets_resolved], ['CSAT', agent.avg_csat], ['Avg Res.', `${agent.avg_resolution_hrs}h`], ['FCR', `${agent.fcr_pct}%`]].map(([l, v]) => (
+                          <div key={l as string}>
+                            <div style={{ fontSize: 10, color: '#6b7280' }}>{l}</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })() : (
+          <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter this week's support numbers and click Generate Analytics Report →</div>
+        )}
       </div>
     </div>
   )

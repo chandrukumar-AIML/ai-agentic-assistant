@@ -560,6 +560,23 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "support_analytics":
+            return generate_support_analytics(
+                business_name=payload.get("business_name", ""),
+                industry=payload.get("industry", "saas"),
+                week_label=payload.get("week_label", "This Week"),
+                total_tickets=payload.get("total_tickets", 0),
+                resolved_tickets=payload.get("resolved_tickets", 0),
+                avg_frt_hrs=payload.get("avg_frt_hrs", 4),
+                avg_resolution_hrs=payload.get("avg_resolution_hrs", 24),
+                csat_score=payload.get("csat_score", 4.0),
+                ticket_categories=payload.get("ticket_categories", {}),
+                agent_data=payload.get("agent_data", []),
+                channel_data=payload.get("channel_data", {}),
+                prev_week_tickets=payload.get("prev_week_tickets", 0),
+                prev_week_csat=payload.get("prev_week_csat", 4.0),
+            )
+
         elif action == "customer_360":
             return generate_customer_360(
                 customer_name=payload.get("customer_name", ""),
@@ -2788,6 +2805,167 @@ _SENTIMENT_MAP = {
     2: ("Negative",      "#f97316", "Something went wrong. Proactively reach out with solution."),
     1: ("Very Negative", "#ef4444", "High churn risk. Immediate personal outreach required."),
 }
+
+
+# ── Round 21: Support Analytics Dashboard ────────────────────────────────────
+
+_INDUSTRY_BENCHMARKS = {
+    "saas":       {"csat": 85, "frt_hrs": 4,  "resolution_hrs": 24, "fcr": 75},
+    "ecommerce":  {"csat": 80, "frt_hrs": 2,  "resolution_hrs": 12, "fcr": 70},
+    "banking":    {"csat": 78, "frt_hrs": 6,  "resolution_hrs": 48, "fcr": 65},
+    "healthcare": {"csat": 82, "frt_hrs": 8,  "resolution_hrs": 72, "fcr": 68},
+    "retail":     {"csat": 79, "frt_hrs": 3,  "resolution_hrs": 24, "fcr": 72},
+    "telecom":    {"csat": 75, "frt_hrs": 12, "resolution_hrs": 48, "fcr": 60},
+}
+
+_CATEGORY_ICONS = {
+    "Billing":           "💳",
+    "Technical Issue":   "🔧",
+    "Feature Request":   "💡",
+    "Account":           "👤",
+    "Shipping/Delivery": "📦",
+    "General Inquiry":   "❓",
+    "Complaint":         "⚠️",
+    "Returns/Refund":    "↩️",
+}
+
+
+def generate_support_analytics(
+    business_name: str,
+    industry: str,
+    week_label: str,
+    total_tickets: int,
+    resolved_tickets: int,
+    avg_frt_hrs: float,
+    avg_resolution_hrs: float,
+    csat_score: float,
+    ticket_categories: dict,
+    agent_data: list,
+    channel_data: dict,
+    prev_week_tickets: int,
+    prev_week_csat: float,
+) -> dict:
+    biz = business_name or "Your Team"
+    bench = _INDUSTRY_BENCHMARKS.get(industry, _INDUSTRY_BENCHMARKS["saas"])
+
+    # Core metrics
+    open_tickets = max(0, total_tickets - resolved_tickets)
+    resolution_rate = round((resolved_tickets / max(total_tickets, 1)) * 100, 1)
+    csat_pct = round(csat_score * 20, 1)  # Convert 5-scale to %
+
+    # WoW change
+    ticket_change = round(((total_tickets - prev_week_tickets) / max(prev_week_tickets, 1)) * 100, 1)
+    csat_change = round(csat_score - prev_week_csat, 2)
+    ticket_trend = "up" if ticket_change > 0 else "down"
+    csat_trend = "up" if csat_change > 0 else "down"
+
+    # Benchmark comparison
+    frt_vs_bench = "better" if avg_frt_hrs <= bench["frt_hrs"] else "worse"
+    res_vs_bench = "better" if avg_resolution_hrs <= bench["resolution_hrs"] else "worse"
+    csat_vs_bench = "better" if csat_pct >= bench["csat"] else "worse"
+
+    # SLA health
+    sla_health = "green"
+    if avg_frt_hrs > bench["frt_hrs"] * 1.5 or avg_resolution_hrs > bench["resolution_hrs"] * 1.5:
+        sla_health = "red"
+    elif avg_frt_hrs > bench["frt_hrs"] or avg_resolution_hrs > bench["resolution_hrs"]:
+        sla_health = "yellow"
+
+    # Top categories
+    sorted_cats = sorted(ticket_categories.items(), key=lambda x: x[1], reverse=True)
+    category_breakdown = [
+        {
+            "category": cat,
+            "count": count,
+            "pct": round((count / max(total_tickets, 1)) * 100, 1),
+            "icon": _CATEGORY_ICONS.get(cat, "📋"),
+        }
+        for cat, count in sorted_cats[:6]
+    ]
+
+    # Agent leaderboard
+    agent_board = []
+    for agent in (agent_data or []):
+        score = 0
+        score += min(agent.get("csat", 0) * 20, 40)   # max 40 pts from CSAT
+        score += min(agent.get("resolved", 0), 30)      # max 30 pts from volume
+        score += max(0, 20 - agent.get("avg_res_hrs", 24))  # faster = more pts
+        score += 10 if agent.get("fcr", 0) >= 70 else 0     # bonus for good FCR
+        agent_board.append({
+            "name": agent.get("name", "Agent"),
+            "tickets_resolved": agent.get("resolved", 0),
+            "avg_csat": agent.get("csat", 0),
+            "avg_resolution_hrs": agent.get("avg_res_hrs", 24),
+            "fcr_pct": agent.get("fcr", 0),
+            "performance_score": min(100, round(score)),
+        })
+    agent_board.sort(key=lambda x: x["performance_score"], reverse=True)
+
+    # Channel breakdown
+    channel_breakdown = [
+        {"channel": ch, "count": cnt, "pct": round((cnt / max(total_tickets, 1)) * 100, 1)}
+        for ch, cnt in (channel_data or {}).items()
+    ]
+    channel_breakdown.sort(key=lambda x: x["count"], reverse=True)
+
+    # Insights & actions
+    insights = []
+    if ticket_trend == "up" and ticket_change > 20:
+        insights.append(f"⚠️ Ticket volume up {ticket_change}% WoW — investigate root cause, likely a product/process issue.")
+    if csat_vs_bench == "worse":
+        insights.append(f"📉 CSAT ({csat_pct}%) below {industry} benchmark ({bench['csat']}%) — review low-scoring tickets this week.")
+    if frt_vs_bench == "worse":
+        insights.append(f"⏱ First response time ({avg_frt_hrs}h) exceeds benchmark ({bench['frt_hrs']}h) — consider auto-acknowledgement emails.")
+    if res_vs_bench == "better":
+        insights.append(f"✅ Resolution time ({avg_resolution_hrs}h) is better than {industry} benchmark ({bench['resolution_hrs']}h) — great work!")
+    if category_breakdown and category_breakdown[0]["pct"] > 30:
+        top = category_breakdown[0]
+        insights.append(f"🔁 {top['category']} is {top['pct']}% of all tickets — consider a self-serve FAQ or automation for this category.")
+    if not insights:
+        insights.append("✅ All metrics within benchmark range — maintain the momentum!")
+
+    # Weekly summary text
+    summary = f"Week of {week_label}: {total_tickets} tickets ({ticket_change:+.1f}% WoW), {resolution_rate}% resolution rate, CSAT {csat_pct}% ({csat_change:+.2f} vs last week). SLA health: {sla_health.upper()}."
+
+    return {
+        "action": "support_analytics",
+        "business_name": biz,
+        "industry": industry,
+        "week": week_label or "This Week",
+        "summary": summary,
+        "kpis": {
+            "total_tickets": total_tickets,
+            "resolved_tickets": resolved_tickets,
+            "open_tickets": open_tickets,
+            "resolution_rate_pct": resolution_rate,
+            "avg_frt_hrs": avg_frt_hrs,
+            "avg_resolution_hrs": avg_resolution_hrs,
+            "csat_pct": csat_pct,
+            "sla_health": sla_health,
+        },
+        "wow_change": {
+            "ticket_change_pct": ticket_change,
+            "ticket_trend": ticket_trend,
+            "csat_change": csat_change,
+            "csat_trend": csat_trend,
+        },
+        "benchmark_comparison": {
+            "industry": industry,
+            "frt": {"yours": avg_frt_hrs, "benchmark": bench["frt_hrs"], "status": frt_vs_bench},
+            "resolution": {"yours": avg_resolution_hrs, "benchmark": bench["resolution_hrs"], "status": res_vs_bench},
+            "csat": {"yours": csat_pct, "benchmark": bench["csat"], "status": csat_vs_bench},
+        },
+        "category_breakdown": category_breakdown,
+        "agent_leaderboard": agent_board,
+        "channel_breakdown": channel_breakdown,
+        "insights": insights,
+        "action_items": [
+            f"Send this week's CSAT report to all agents by Monday morning.",
+            f"Investigate the top ticket category ({category_breakdown[0]['category'] if category_breakdown else 'N/A'}) — can it be automated?",
+            f"{'Reward' if agent_board else 'Track'} the top-performing agent this week — recognition drives performance.",
+            f"Review all CSAT < 3 tickets personally — find the pattern.",
+        ],
+    }
 
 
 def generate_customer_360(

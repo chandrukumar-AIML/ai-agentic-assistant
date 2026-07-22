@@ -2069,6 +2069,18 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "bulk_posts":
+        return generate_bulk_posts(
+            company_name=payload.get("company_name", ""),
+            industry=payload.get("industry", "technology"),
+            tone=payload.get("tone", "professional"),
+            target_audience=payload.get("target_audience", ""),
+            platform=payload.get("platform", "instagram"),
+            count=payload.get("count", 15),
+            brand_keywords=payload.get("brand_keywords", []),
+            usp=payload.get("usp", ""),
+        )
+
     elif action == "brand_voice_engine":
         return generate_brand_voice_engine(
             company_name=payload.get("company_name", ""),
@@ -2861,6 +2873,152 @@ _POSTING_SCHEDULE = {
     "facebook":  {"best_days": ["Wednesday", "Thursday", "Friday"], "best_times": ["1–4 PM"], "frequency": "1 post/day"},
     "whatsapp":  {"best_days": ["Monday", "Wednesday", "Saturday"], "best_times": ["10–11 AM", "7–8 PM"], "frequency": "2–3 broadcasts/week"},
 }
+
+
+# ── Round 21: Bulk Post Generator ────────────────────────────────────────────
+
+_BULK_FORMATS = {
+    "instagram": {
+        "hooks": ["🔥", "💡", "✅", "🚀", "🎯", "👇", "⚡", "🌟", "💪", "🤔"],
+        "structures": [
+            "{hook} {headline}\n\n{body}\n\n{cta}\n\n{hashtags}",
+            "{hook} {question}\n\n→ {point1}\n→ {point2}\n→ {point3}\n\n{cta}\n\n{hashtags}",
+            "{hook} Here's what nobody tells you about {topic}:\n\n{body}\n\nSave this post 📌\n\n{hashtags}",
+        ],
+    },
+    "linkedin": {
+        "hooks": ["", "", "", "", ""],
+        "structures": [
+            "{headline}\n\n{body}\n\n{cta}\n\n#{tag1} #{tag2} #{tag3}",
+            "Most people get {topic} wrong.\n\nHere's the truth:\n\n{body}\n\nWhat's your take? 👇\n\n#{tag1} #{tag2}",
+            "I've seen {topic} transform businesses.\n\nHere's what works:\n\n→ {point1}\n→ {point2}\n→ {point3}\n\n{cta}\n\n#{tag1} #{tag2}",
+        ],
+    },
+    "twitter": {
+        "structures": [
+            "{headline} 🧵\n\n{body}\n\n#{tag1}",
+            "{hook} {headline}\n\n{body} (1/3)",
+            "Hot take on {topic}: {body}\n\n#{tag1} #{tag2}",
+        ],
+    },
+    "whatsapp": {
+        "structures": [
+            "Hi! 👋\n\n{headline}\n\n{body}\n\nReply YES to know more!",
+            "Quick tip from {company}! 💡\n\n{body}\n\n{cta}",
+        ],
+    },
+}
+
+_BULK_TOPICS = {
+    "technology":    ["AI automation", "cloud security", "digital transformation", "SaaS productivity", "remote team tools", "API integrations", "no-code platforms", "cybersecurity basics", "data privacy", "startup tech stack"],
+    "finance":       ["tax planning tips", "investment basics", "GST compliance", "cash flow management", "working capital", "startup funding", "financial ratios", "budgeting hacks", "TDS rules", "MSME benefits"],
+    "healthcare":    ["preventive care", "patient journey", "telemedicine", "mental wellness", "nutrition tips", "healthcare innovation", "doctor-patient trust", "health insurance", "clinical trials", "medical AI"],
+    "education":     ["learning hacks", "EdTech trends", "exam preparation", "career guidance", "skill development", "online learning", "student success", "campus culture", "teaching innovation", "future of work"],
+    "ecommerce":     ["product photography", "return policy tips", "customer reviews", "festive sale planning", "D2C branding", "packaging design", "quick commerce", "loyalty programs", "cart abandonment", "social commerce"],
+    "food":          ["recipe ideas", "food safety", "sustainable sourcing", "festival specials", "kitchen tips", "food trends 2025", "nutrition facts", "chef secrets", "farm to fork", "zero waste cooking"],
+    "real_estate":   ["home buying tips", "property valuation", "rental yield", "RERA compliance", "home loans", "interior design trends", "smart home tech", "investment zones", "property documents", "NRI investment"],
+    "consulting":    ["client management", "proposal writing", "thought leadership", "billing best practices", "niche expertise", "case study format", "referral strategies", "pricing models", "project delivery", "team scaling"],
+}
+
+_CTAS = [
+    "Follow {company} for more →", "Save this for later 📌", "Share with someone who needs this 👇",
+    "Comment your thoughts below 💬", "DM us to learn more →", "Link in bio for the full guide →",
+    "Tag a friend who needs this 👇", "What's your experience? Tell us below →",
+    "Book a free consultation → [link]", "Subscribe for weekly tips →",
+]
+
+
+def generate_bulk_posts(
+    company_name: str,
+    industry: str,
+    tone: str,
+    target_audience: str,
+    platform: str,
+    count: int,
+    brand_keywords: list,
+    usp: str,
+) -> dict:
+    import random
+    co = company_name or "Your Company"
+    count = min(max(count, 5), 30)
+    topics = _BULK_TOPICS.get(industry, _BULK_TOPICS["technology"])
+    tone_guide = _BRAND_TONE_GUIDES.get(tone, _BRAND_TONE_GUIDES["professional"])
+    fmt = _BULK_FORMATS.get(platform, _BULK_FORMATS["instagram"])
+    structures = fmt["structures"]
+    hooks = fmt.get("hooks", ["💡", "🔥", "✅"])
+    kws = (brand_keywords or ["innovation", "growth", "results"])
+    ctas = _CTAS
+
+    posts = []
+    for i in range(count):
+        topic = topics[i % len(topics)]
+        structure = structures[i % len(structures)]
+        hook = hooks[i % len(hooks)]
+        kw = kws[i % len(kws)]
+        cta = ctas[i % len(ctas)].replace("{company}", co)
+        tag1 = industry.replace(" ", "")
+        tag2 = topic.replace(" ", "").replace("/", "")
+        tag3 = co.replace(" ", "")
+
+        # Generate body based on topic + tone
+        if tone in ["professional", "authoritative"]:
+            headline = f"The smart approach to {topic} for {target_audience or 'businesses'} in 2025"
+            body = f"{co} has seen firsthand how {topic} can transform outcomes. Here's what actually works: focus on {kw}, measure every step, and never stop iterating."
+            point1 = f"Start with {kw} as your north star"
+            point2 = f"Track {topic} metrics weekly, not monthly"
+            point3 = f"Learn from the leaders in {industry}"
+            question = f"Are you getting the most out of {topic}?"
+        elif tone in ["casual", "empathetic"]:
+            headline = f"Real talk about {topic} — what nobody says out loud"
+            body = f"We get it. {topic} can feel overwhelming. But here at {co}, we've helped dozens of {target_audience or 'businesses'} crack the code. The secret? {usp or kw}."
+            point1 = f"Don't overthink it — start small with {topic}"
+            point2 = f"One step at a time beats zero steps forever"
+            point3 = f"The right partner ({co}!) makes all the difference"
+            question = f"Struggling with {topic}? You're not alone."
+        else:
+            headline = f"🚀 Unlocking {topic}: A {industry} perspective"
+            body = f"At {co}, we believe {topic} is the game-changer for {target_audience or 'Indian businesses'}. Here's our take: {usp or f'we put {kw} first in everything we build.'}."
+            point1 = f"{topic.title()} starts with the right mindset"
+            point2 = f"Data + {kw} = results that speak for themselves"
+            point3 = f"The {industry} leaders are already doing this"
+            question = f"What's holding you back from mastering {topic}?"
+
+        hashtags = f"#{tag1} #{tag2} #{tag3} #India #Business"
+
+        caption = structure.format(
+            hook=hook, headline=headline, body=body, cta=cta,
+            hashtags=hashtags, topic=topic, point1=point1, point2=point2, point3=point3,
+            question=question, tag1=tag1, tag2=tag2, tag3=tag3, company=co,
+        )
+
+        posts.append({
+            "id": i + 1,
+            "topic": topic,
+            "platform": platform,
+            "caption": caption,
+            "char_count": len(caption),
+            "tone_used": tone,
+        })
+
+    return {
+        "action": "bulk_posts",
+        "company_name": co,
+        "platform": platform,
+        "industry": industry,
+        "total_posts": len(posts),
+        "posts": posts,
+        "usage_guide": {
+            "schedule": f"Post {min(2, len(posts))} per day to use all {len(posts)} posts over {len(posts) // 2} days",
+            "tip": "Customise the [link] and [number] placeholders before posting.",
+            "best_time": _POSTING_SCHEDULE.get(platform, {}).get("best_times", ["9 AM"])[0],
+        },
+        "pro_tips": [
+            f"Rotate these {len(posts)} posts across a {len(posts) // 2}-day calendar.",
+            "Add one real photo or video to each post — visuals boost reach by 3×.",
+            "A/B test the first 3 captions — keep the format that gets most saves.",
+            "Reply to every comment within 2 hours to trigger the algorithm.",
+        ],
+    }
 
 
 def generate_brand_voice_engine(

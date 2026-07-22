@@ -953,6 +953,35 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "form_16":
+        return generate_form16(
+            employee_name=payload.get("employee_name", ""),
+            employee_pan=payload.get("employee_pan", ""),
+            employee_designation=payload.get("employee_designation", ""),
+            employer_name=payload.get("employer_name", ""),
+            employer_tan=payload.get("employer_tan", ""),
+            employer_pan=payload.get("employer_pan", ""),
+            employer_address=payload.get("employer_address", ""),
+            financial_year=payload.get("financial_year", "2024-25"),
+            assessment_year=payload.get("assessment_year", "2025-26"),
+            gross_salary=payload.get("gross_salary", 0),
+            basic_salary=payload.get("basic_salary", 0),
+            hra_received=payload.get("hra_received", 0),
+            hra_exemption=payload.get("hra_exemption", 0),
+            lta=payload.get("lta", 0),
+            other_allowances=payload.get("other_allowances", 0),
+            standard_deduction=payload.get("standard_deduction", 50000),
+            professional_tax=payload.get("professional_tax", 0),
+            deduction_80c=payload.get("deduction_80c", 0),
+            deduction_80d=payload.get("deduction_80d", 0),
+            deduction_80ccd=payload.get("deduction_80ccd", 0),
+            other_deductions=payload.get("other_deductions", 0),
+            tds_q1=payload.get("tds_q1", 0),
+            tds_q2=payload.get("tds_q2", 0),
+            tds_q3=payload.get("tds_q3", 0),
+            tds_q4=payload.get("tds_q4", 0),
+        )
+
     elif action == "client_compliance_status":
         import datetime
         today = datetime.date.today()
@@ -2542,6 +2571,187 @@ _RISK_FLAGS = {
     "gst_mismatch":       "GSTR-1 vs GSTR-3B mismatch — ITC denial risk for recipients",
     "overdue_invoice":    "Invoices unpaid >45 days — MSME Act violation risk for payers",
 }
+
+
+# ── Round 21: Form 16 Generator ──────────────────────────────────────────────
+
+_FORM16_TAX_SLABS_NEW = [
+    (300000,  0,    "Nil"),
+    (600000,  0.05, "5%"),
+    (900000,  0.10, "10%"),
+    (1200000, 0.15, "15%"),
+    (1500000, 0.20, "20%"),
+    (float('inf'), 0.30, "30%"),
+]
+
+_DEDUCTION_HEADS_80C = ["PPF", "ELSS", "LIC Premium", "Home Loan Principal", "Tuition Fees", "NPS (80CCD1)", "EPF Contribution"]
+_DEDUCTION_80D = "Medical insurance premium"
+_HRA_EXEMPTION_NOTE = "HRA exemption calculated as min of: actual HRA received, 50%/40% of basic (metro/non-metro), rent paid minus 10% of basic"
+
+
+def _compute_tax_new_regime(taxable_income: float) -> dict:
+    slabs = [(300000, 0), (300000, 0.05), (300000, 0.10), (300000, 0.15), (300000, 0.20), (float('inf'), 0.30)]
+    tax = 0.0
+    remaining = max(0, taxable_income)
+    breakdown = []
+    lower = 0
+    for slab_size, rate in slabs:
+        if remaining <= 0:
+            break
+        taxable_in_slab = min(remaining, slab_size)
+        tax_in_slab = taxable_in_slab * rate
+        if taxable_in_slab > 0:
+            breakdown.append({"range": f"₹{lower:,.0f}–₹{lower + taxable_in_slab:,.0f}", "rate": f"{int(rate*100)}%", "tax": round(tax_in_slab)})
+        tax += tax_in_slab
+        remaining -= taxable_in_slab
+        lower += slab_size
+    # Rebate u/s 87A — if total income ≤ 7L, full tax rebate
+    rebate = min(tax, 25000) if taxable_income <= 700000 else 0
+    tax_after_rebate = max(0, tax - rebate)
+    surcharge = 0
+    if taxable_income > 5000000:
+        surcharge = tax_after_rebate * 0.10
+    if taxable_income > 10000000:
+        surcharge = tax_after_rebate * 0.15
+    cess = (tax_after_rebate + surcharge) * 0.04
+    total = tax_after_rebate + surcharge + cess
+    return {
+        "slab_breakdown": breakdown,
+        "gross_tax": round(tax),
+        "rebate_87a": round(rebate),
+        "tax_after_rebate": round(tax_after_rebate),
+        "surcharge": round(surcharge),
+        "health_edu_cess_4pct": round(cess),
+        "total_tax_liability": round(total),
+    }
+
+
+def generate_form16(
+    employee_name: str,
+    employee_pan: str,
+    employee_designation: str,
+    employer_name: str,
+    employer_tan: str,
+    employer_pan: str,
+    employer_address: str,
+    financial_year: str,
+    assessment_year: str,
+    gross_salary: float,
+    basic_salary: float,
+    hra_received: float,
+    hra_exemption: float,
+    lta: float,
+    other_allowances: float,
+    standard_deduction: float,
+    professional_tax: float,
+    deduction_80c: float,
+    deduction_80d: float,
+    deduction_80ccd: float,
+    other_deductions: float,
+    tds_q1: float,
+    tds_q2: float,
+    tds_q3: float,
+    tds_q4: float,
+) -> dict:
+    emp = employee_name or "Employee"
+    fy = financial_year or "2024-25"
+    ay = assessment_year or "2025-26"
+
+    # Part A — TDS summary
+    total_tds = tds_q1 + tds_q2 + tds_q3 + tds_q4
+    part_a = {
+        "title": "PART A — Details of Tax Deducted and Deposited in Central Government Account",
+        "employer_name": employer_name or "Employer",
+        "employer_tan": employer_tan or "—",
+        "employer_pan": employer_pan or "—",
+        "employer_address": employer_address or "—",
+        "employee_name": emp,
+        "employee_pan": employee_pan or "—",
+        "financial_year": fy,
+        "assessment_year": ay,
+        "tds_quarters": [
+            {"quarter": "Q1 (Apr–Jun)", "tds_deducted": round(tds_q1), "tds_deposited": round(tds_q1)},
+            {"quarter": "Q2 (Jul–Sep)", "tds_deducted": round(tds_q2), "tds_deposited": round(tds_q2)},
+            {"quarter": "Q3 (Oct–Dec)", "tds_deducted": round(tds_q3), "tds_deposited": round(tds_q3)},
+            {"quarter": "Q4 (Jan–Mar)", "tds_deducted": round(tds_q4), "tds_deposited": round(tds_q4)},
+        ],
+        "total_tds_deducted": round(total_tds),
+        "total_tds_deposited": round(total_tds),
+    }
+
+    # Part B — Income computation
+    total_exemptions = hra_exemption + lta
+    income_from_salary = gross_salary - total_exemptions - standard_deduction - professional_tax
+    income_from_salary = max(0, income_from_salary)
+
+    total_deductions_vi_a = deduction_80c + deduction_80d + deduction_80ccd + other_deductions
+    total_deductions_vi_a = min(total_deductions_vi_a, 150000 + deduction_80d + deduction_80ccd + other_deductions)
+
+    taxable_income = max(0, income_from_salary - total_deductions_vi_a)
+    tax_computation = _compute_tax_new_regime(taxable_income)
+    balance_tds = max(0, tax_computation["total_tax_liability"] - total_tds)
+    excess_tds = max(0, total_tds - tax_computation["total_tax_liability"])
+
+    part_b = {
+        "title": "PART B — Details of Salary Paid and any other income and tax deducted",
+        "salary_particulars": {
+            "gross_salary": round(gross_salary),
+            "allowances_exempt_u10": {
+                "hra_exemption": round(hra_exemption),
+                "lta": round(lta),
+                "total_exemptions": round(total_exemptions),
+            },
+            "standard_deduction_16ia": round(standard_deduction) if standard_deduction else 50000,
+            "professional_tax_16iii": round(professional_tax),
+            "net_salary": round(income_from_salary),
+        },
+        "deductions_chapter_via": {
+            "80c_investments": round(deduction_80c),
+            "80d_medical_insurance": round(deduction_80d),
+            "80ccd_nps": round(deduction_80ccd),
+            "other_deductions": round(other_deductions),
+            "total_deductions": round(total_deductions_vi_a),
+            "note": "80C limit: ₹1,50,000. 80D: ₹25,000 (₹50,000 for senior citizens). 80CCD(1B): ₹50,000 additional NPS.",
+        },
+        "taxable_income": round(taxable_income),
+        "tax_computation": tax_computation,
+        "tax_relief": {"relief_89": 0, "note": "If salary arrears received, claim relief u/s 89 separately"},
+        "tds_summary": {
+            "total_tax_payable": tax_computation["total_tax_liability"],
+            "total_tds_deducted": round(total_tds),
+            "balance_tax_payable": round(balance_tds),
+            "excess_tds_refundable": round(excess_tds),
+            "status": "Balanced" if balance_tds == 0 and excess_tds == 0 else ("Refund due" if excess_tds > 0 else "Additional tax payable"),
+        },
+    }
+
+    # Guidance
+    notes = [
+        f"File ITR-1 (salary only) or ITR-2 by 31 July {ay.split('-')[0]} to claim excess TDS refund.",
+        "Keep Form 16 safe — needed for home loan applications, visa processing, and ITR filing.",
+        "Cross-check TDS amounts with Form 26AS (https://www.incometax.gov.in) before filing ITR.",
+        f"Standard deduction of ₹50,000 is auto-applied under new tax regime.",
+        "If you have other income (rent, FD interest, capital gains), declare separately in ITR.",
+    ]
+    if balance_tds > 0:
+        notes.append(f"⚠️ Additional tax of ₹{balance_tds:,.0f} is payable. Pay via Challan 280 before filing ITR.")
+    if excess_tds > 0:
+        notes.append(f"✅ Excess TDS of ₹{excess_tds:,.0f} is refundable. File ITR promptly to get the refund.")
+
+    return {
+        "action": "form_16",
+        "financial_year": fy,
+        "assessment_year": ay,
+        "employee_name": emp,
+        "part_a": part_a,
+        "part_b": part_b,
+        "employee_notes": notes,
+        "itr_filing_guide": {
+            "form_to_use": "ITR-1 (Sahaj) — for salary income only. ITR-2 if capital gains/foreign income.",
+            "deadline": f"31 July {ay.split('-')[0]} (without penalty). 31 Dec {ay.split('-')[0]} (with ₹5,000 penalty).",
+            "documents_needed": ["Form 16 (this document)", "Form 26AS", "AIS (Annual Information Statement)", "Bank statements", "Investment proofs for deductions"],
+        },
+    }
 
 
 def generate_client_compliance_status(
