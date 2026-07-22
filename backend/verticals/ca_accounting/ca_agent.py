@@ -953,6 +953,18 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "depreciation_calc":
+        return generate_depreciation_calc(
+            asset_name=payload.get("asset_name", ""),
+            asset_category=payload.get("asset_category", "plant_machinery"),
+            cost=payload.get("cost", 0),
+            purchase_date=payload.get("purchase_date", ""),
+            useful_life_years=payload.get("useful_life_years", 5),
+            salvage_value=payload.get("salvage_value", 0),
+            method=payload.get("method", "slm"),
+            financial_year_start=payload.get("financial_year_start", 2024),
+        )
+
     elif action == "gst_invoice":
         return generate_gst_invoice(
             seller_name=payload.get("seller_name", ""),
@@ -2224,6 +2236,175 @@ _COMMON_HSN_SAC = {
     "9983":   {"desc": "Professional & technical services", "gst": 18},
     "9972":   {"desc": "Real estate services", "gst": 18},
 }
+
+
+# ── Round 17: Depreciation Calculator ────────────────────────────────────────
+
+_ASSET_CATEGORIES = {
+    "plant_machinery":   {"label": "Plant & Machinery",          "it_rate_wdv": 15.0, "companies_act_life": 15, "companies_act_slm": 6.33},
+    "computers":         {"label": "Computers & Software",       "it_rate_wdv": 40.0, "companies_act_life": 3,  "companies_act_slm": 31.67},
+    "furniture":         {"label": "Furniture & Fixtures",       "it_rate_wdv": 10.0, "companies_act_life": 10, "companies_act_slm": 9.50},
+    "vehicles":          {"label": "Motor Vehicles",             "it_rate_wdv": 15.0, "companies_act_life": 8,  "companies_act_slm": 11.88},
+    "buildings":         {"label": "Buildings (Office/Factory)", "it_rate_wdv": 10.0, "companies_act_life": 30, "companies_act_slm": 3.17},
+    "intangibles":       {"label": "Intangible Assets",          "it_rate_wdv": 25.0, "companies_act_life": 10, "companies_act_slm": 9.50},
+    "electrical":        {"label": "Electrical Fittings",        "it_rate_wdv": 10.0, "companies_act_life": 10, "companies_act_slm": 9.50},
+    "office_equipment":  {"label": "Office Equipment",           "it_rate_wdv": 15.0, "companies_act_life": 5,  "companies_act_slm": 19.00},
+}
+
+_DEPRECIATION_NOTES = {
+    "slm": [
+        "SLM (Straight Line Method): Equal depreciation every year — simple and predictable.",
+        "Used under Companies Act 2013 (Schedule II) for financial statements.",
+        "Formula: (Cost − Salvage Value) ÷ Useful Life",
+    ],
+    "wdv": [
+        "WDV (Written Down Value): Higher depreciation in early years — better for tax planning.",
+        "Used under Income Tax Act 1961 for computing taxable income.",
+        "Formula: Opening WDV × IT Rate% each year",
+        "Under IT Act, depreciation is allowed on assets used for ≥180 days in FY (full rate); <180 days = 50% rate.",
+    ],
+    "double_declining": [
+        "Double Declining Balance: Accelerated method — 2× the SLM rate applied on WDV.",
+        "Common in IFRS; not standard under Indian IT Act but useful for management accounts.",
+    ],
+}
+
+
+def generate_depreciation_calc(
+    asset_name: str,
+    asset_category: str,
+    cost: float,
+    purchase_date: str,
+    useful_life_years: int,
+    salvage_value: float,
+    method: str,
+    financial_year_start: int,
+) -> dict:
+    from datetime import date as _date
+
+    cat      = _ASSET_CATEGORIES.get(asset_category, _ASSET_CATEGORIES["plant_machinery"])
+    cost     = float(cost) if cost else 100000.0
+    salvage  = float(salvage_value) if salvage_value else 0.0
+    life     = int(useful_life_years) if useful_life_years else cat["companies_act_life"]
+    fy_start = int(financial_year_start) if financial_year_start else 2024
+
+    # Parse purchase date
+    try:
+        pd = _date.fromisoformat(purchase_date) if purchase_date else _date(fy_start, 4, 1)
+    except Exception:
+        pd = _date(fy_start, 4, 1)
+
+    # Determine if asset was used < 180 days in purchase FY (for IT Act WDV)
+    fy_end = _date(fy_start + 1, 3, 31)
+    days_in_fy = (fy_end - pd).days + 1
+    half_rate = days_in_fy < 180
+
+    schedule = []
+
+    if method == "slm":
+        annual_dep = (cost - salvage) / life if life > 0 else (cost - salvage)
+        dep_rate   = (annual_dep / cost * 100) if cost > 0 else 0
+        wdv = cost
+        for yr in range(life):
+            fy_label = f"FY {fy_start + yr}-{str(fy_start + yr + 1)[-2:]}"
+            dep = annual_dep if yr > 0 else (annual_dep * 0.5 if half_rate else annual_dep)
+            dep = min(dep, max(0, wdv - salvage))
+            wdv = wdv - dep
+            schedule.append({
+                "year": yr + 1,
+                "fy": fy_label,
+                "opening_wdv": round(wdv + dep, 2),
+                "depreciation": round(dep, 2),
+                "closing_wdv": round(wdv, 2),
+                "accumulated_dep": round(cost - wdv, 2),
+            })
+
+    elif method == "wdv":
+        it_rate = cat["it_rate_wdv"] / 100
+        wdv = cost
+        # Run for IT Act useful life (until WDV < 5% of cost)
+        yr = 0
+        while wdv > cost * 0.05 and yr < 40:
+            fy_label = f"FY {fy_start + yr}-{str(fy_start + yr + 1)[-2:]}"
+            rate = (it_rate * 0.5) if (yr == 0 and half_rate) else it_rate
+            dep = wdv * rate
+            dep = min(dep, max(0, wdv - salvage))
+            wdv = wdv - dep
+            yr += 1
+            schedule.append({
+                "year": yr,
+                "fy": fy_label,
+                "opening_wdv": round(wdv + dep, 2),
+                "depreciation": round(dep, 2),
+                "closing_wdv": round(wdv, 2),
+                "accumulated_dep": round(cost - wdv, 2),
+            })
+
+    else:  # double_declining
+        rate = (2 / life) if life > 0 else 0.4
+        wdv = cost
+        for yr in range(life):
+            fy_label = f"FY {fy_start + yr}-{str(fy_start + yr + 1)[-2:]}"
+            dep = wdv * rate
+            dep = min(dep, max(0, wdv - salvage))
+            wdv = wdv - dep
+            schedule.append({
+                "year": yr + 1,
+                "fy": fy_label,
+                "opening_wdv": round(wdv + dep, 2),
+                "depreciation": round(dep, 2),
+                "closing_wdv": round(wdv, 2),
+                "accumulated_dep": round(cost - wdv, 2),
+            })
+
+    total_dep = sum(s["depreciation"] for s in schedule)
+
+    summary = {
+        "asset_name": asset_name or "Asset",
+        "asset_category": cat["label"],
+        "cost": round(cost, 2),
+        "salvage_value": round(salvage, 2),
+        "depreciable_amount": round(cost - salvage, 2),
+        "method": method.upper(),
+        "useful_life_years": life,
+        "purchase_date": str(pd),
+        "half_rate_first_year": half_rate,
+        "it_act_rate_wdv": f"{cat['it_rate_wdv']}%",
+        "companies_act_slm_rate": f"{cat['companies_act_slm']}%",
+        "companies_act_useful_life": f"{cat['companies_act_life']} years",
+        "total_depreciation": round(total_dep, 2),
+        "final_book_value": round(cost - total_dep, 2),
+    }
+
+    # Comparison: show both SLM and WDV year-1 for context
+    slm_y1 = (cost - salvage) / life if life > 0 else 0
+    wdv_y1 = cost * (cat["it_rate_wdv"] / 100)
+    comparison = {
+        "slm_year1": round(slm_y1, 2),
+        "wdv_year1": round(wdv_y1, 2),
+        "wdv_it_rate": cat["it_rate_wdv"],
+        "recommendation": "WDV gives higher deduction in early years — better for tax saving. SLM gives equal deduction — better for stable P&L.",
+    }
+
+    return {
+        "action": "depreciation_calc",
+        "summary": summary,
+        "schedule": schedule,
+        "method_notes": _DEPRECIATION_NOTES.get(method, _DEPRECIATION_NOTES["slm"]),
+        "comparison": comparison,
+        "journal_entry": {
+            "debit": "Depreciation A/c",
+            "credit": "Accumulated Depreciation A/c",
+            "note": "At year end, transfer to P&L: Debit P&L A/c, Credit Depreciation A/c",
+        },
+        "compliance_notes": [
+            "Schedule II of Companies Act 2013 mandates SLM or WDV for financial statements.",
+            "Income Tax Act Section 32 allows WDV at prescribed rates for tax deduction.",
+            "Both methods can be used simultaneously — one for books, one for tax.",
+            f"IT Act WDV rate for {cat['label']}: {cat['it_rate_wdv']}%",
+            f"Companies Act useful life for {cat['label']}: {cat['companies_act_life']} years",
+        ],
+    }
 
 
 def generate_gst_invoice(

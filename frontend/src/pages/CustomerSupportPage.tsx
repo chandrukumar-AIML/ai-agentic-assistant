@@ -61,6 +61,7 @@ const TABS = [
   { id: 'nps',        label: 'NPS Campaign' },
   { id: 'onboarding_seq', label: 'Onboarding Sequence' },
   { id: 'kb_article',    label: 'Knowledge Base Article' },
+  { id: 'escalation',   label: 'Escalation Email' },
 ]
 
 const WA_TYPES = [
@@ -1315,6 +1316,7 @@ export default function CustomerSupportPage() {
         {tab === 'nps'         && <NpsCampaignTab lang={lang} />}
         {tab === 'onboarding_seq' && <OnboardingSequenceTab lang={lang} />}
         {tab === 'kb_article'     && <KbArticleTab lang={lang} />}
+        {tab === 'escalation'     && <EscalationEmailTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -3026,6 +3028,195 @@ export function KbArticleTab({ lang }: { lang: string }) {
             )}
           </>
         ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter a topic and click Generate KB Article →</div>}
+      </div>
+    </div>
+  )
+}
+
+// ── Round 17: Escalation Email Generator ─────────────────────────────────────
+export function EscalationEmailTab({ lang }: { lang: string }) {
+  const { csAction } = useApi()
+  const [bizName, setBizName]     = useState('')
+  const [custName, setCustName]   = useState('')
+  const [ticketId, setTicketId]   = useState('')
+  const [issue, setIssue]         = useState('')
+  const [sla, setSla]             = useState('')
+  const [priority, setPriority]   = useState('high')
+  const [escType, setEscType]     = useState('internal')
+  const [escTo, setEscTo]         = useState('')
+  const [repName, setRepName]     = useState('')
+  const [status, setStatus]       = useState('')
+  const [tier, setTier]           = useState('standard')
+  const [res, setRes]             = useState<any>(null)
+  const [loading, setLoading]     = useState(false)
+  const [err, setErr]             = useState('')
+  const [activeEmail, setActiveEmail] = useState<'internal'|'customer'|'manager_cc'>('internal')
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null)
+    try {
+      setRes(await csAction('escalation_email', {
+        business_name: bizName, customer_name: custName, ticket_id: ticketId,
+        issue_summary: issue, sla_breached: sla, priority,
+        escalation_type: escType, escalate_to: escTo, cs_rep_name: repName,
+        current_status: status, customer_tier: tier,
+      }))
+    } catch (e: any) {
+      // Demo fallback
+      setRes({
+        ticket_id: ticketId || 'TKT-042',
+        customer_name: custName || 'Priya Sharma',
+        priority,
+        priority_config: { label: 'HIGH', color: '#ea580c', response_target: '4 hours', emoji: '🔴' },
+        customer_tier: tier,
+        customer_tier_note: 'Premium customer — expedited handling, dedicated CS manager must be looped in.',
+        emails: {
+          internal: {
+            to: escTo || 'Senior Manager',
+            subject: `ESCALATION [HIGH] — ${ticketId || 'TKT-042'}: ${issue || 'Payment gateway not processing'} | ${custName || 'Priya Sharma'}`,
+            body: `Hi ${escTo || 'Rahul'},\n\nI'm escalating ${ticketId || 'TKT-042'} for your immediate attention.\n\nCustomer   : ${custName || 'Priya Sharma'} (${tier})\nIssue      : ${issue || 'Payment gateway not processing transactions since 2 PM'}\nSLA Missed : ${sla || '4-hour response SLA'}\nStatus     : ${status || 'Under investigation — dev team notified'}\n\nThe customer has followed up 3 times and this is blocking their sales operations.\n\nPlease review and advise by 5:00 PM today.\n\n${repName || 'Support Team'}`,
+          },
+          customer: {
+            to: custName || 'Priya Sharma',
+            subject: `Update on Your Support Request — ${ticketId || 'TKT-042'}`,
+            body: `Dear ${custName || 'Priya Sharma'},\n\nYour case has been escalated to our senior team and is now our highest priority.\n\nTicket : ${ticketId || 'TKT-042'}\nIssue  : ${issue || 'Payment gateway not processing transactions'}\nStatus : Escalated to Senior Technical Team\n\nYou will receive a detailed update by 5:00 PM today.\n\nWarm regards,\n${repName || 'Support Team'}\n${bizName || 'Company'} Customer Support`,
+          },
+          manager_cc: {
+            to: escTo || 'Manager',
+            subject: `[FYI] Escalation Raised — ${ticketId || 'TKT-042'} | ${custName || 'Priya Sharma'} (${tier})`,
+            body: `Hi ${escTo || 'Manager'},\n\nFYI — formal escalation raised on ${ticketId || 'TKT-042'}.\n\nCustomer : ${custName || 'Priya Sharma'} (${tier})\nIssue    : ${issue || 'Payment gateway issue'}\nSLA Miss : ${sla || '4-hour SLA'}\n\nNo action needed unless sign-off required.\n\n${repName || 'Support Team'}`,
+          },
+        },
+        escalation_checklist: [
+          { step: 1, action: 'Document all customer interactions in the ticket', done: false },
+          { step: 2, action: `Send internal escalation email to ${escTo || 'senior manager'}`, done: false },
+          { step: 3, action: 'Send acknowledgment email to customer', done: false },
+          { step: 4, action: 'Set ticket priority to HIGH', done: false },
+          { step: 5, action: 'Follow up if no response in 1 hour', done: false },
+          { step: 6, action: 'Send resolution update within 4 hours', done: false },
+          { step: 7, action: 'Post-mortem after resolution', done: false },
+        ],
+        sla_breach_guidance: 'Significant customer frustration. Escalate now, email within 30 minutes.',
+        next_update_time: '5:00 PM today',
+        ack_deadline: '4:00 PM today',
+        pro_tips: [
+          'Send customer email within 15 minutes of escalating.',
+          'CC your manager — no surprises at the top.',
+          'Response target for HIGH priority: 4 hours.',
+          'Document root cause after resolution to prevent repeats.',
+          'For enterprise customers, call before emailing.',
+        ],
+      })
+    }
+    finally { setLoading(false) }
+  }
+
+  const PRIORITY_COLORS: Record<string, string> = {
+    critical: '#dc2626', high: '#ea580c', medium: '#d97706', low: '#059669'
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e5e7eb' }}>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>🚨 Escalation Email Generator</div>
+          <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>Draft internal + customer-facing escalation emails in seconds</div>
+        </div>
+        {[
+          { label: 'Business Name', val: bizName, set: setBizName, ph: 'e.g. Razorpay, Zoho' },
+          { label: 'Customer Name', val: custName, set: setCustName, ph: 'e.g. Priya Sharma' },
+          { label: 'Ticket ID', val: ticketId, set: setTicketId, ph: 'e.g. TKT-042' },
+          { label: 'Issue Summary', val: issue, set: setIssue, ph: 'e.g. Payment gateway not processing transactions since 2 PM' },
+          { label: 'SLA Breached', val: sla, set: setSla, ph: 'e.g. 4-hour response SLA' },
+          { label: 'Escalate To (name/role)', val: escTo, set: setEscTo, ph: 'e.g. Rahul Mehta, Senior Engineer' },
+          { label: 'CS Rep Name', val: repName, set: setRepName, ph: 'e.g. Ananya' },
+          { label: 'Current Status', val: status, set: setStatus, ph: 'e.g. Under investigation, dev team notified' },
+        ].map(f => (
+          <div key={f.label} style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: '#374151', fontWeight: 600, display: 'block', marginBottom: 4 }}>{f.label}</label>
+            <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+        ))}
+        {[
+          { label: 'Priority', val: priority, set: setPriority, opts: [['critical','🚨 Critical'],['high','🔴 High'],['medium','🟡 Medium'],['low','🟢 Low']] },
+          { label: 'Customer Tier', val: tier, set: setTier, opts: [['enterprise','Enterprise'],['premium','Premium'],['standard','Standard'],['trial','Trial']] },
+        ].map(f => (
+          <div key={f.label} style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: '#374151', fontWeight: 600, display: 'block', marginBottom: 4 }}>{f.label}</label>
+            <select value={f.val} onChange={e => f.set(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13 }}>
+              {f.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+        ))}
+        <button onClick={run} disabled={loading}
+          style={{ width: '100%', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
+          {loading ? 'Generating…' : 'Generate Escalation Emails →'}
+        </button>
+        {err && <div style={{ color: '#dc2626', fontSize: 12, marginTop: 8 }}>{err}</div>}
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e5e7eb' }}>
+        {res ? (
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+              <span style={{ background: PRIORITY_COLORS[res.priority] || '#ea580c', color: '#fff', borderRadius: 12, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>
+                {res.priority_config?.emoji} {res.priority_config?.label}
+              </span>
+              <span style={{ background: '#f3f4f6', color: '#374151', borderRadius: 12, padding: '3px 10px', fontSize: 12 }}>
+                {res.customer_tier?.toUpperCase()}
+              </span>
+              <span style={{ fontSize: 12, color: '#6b7280' }}>Response: {res.priority_config?.response_target}</span>
+            </div>
+
+            {/* SLA guidance */}
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 12, color: '#991b1b' }}>
+              ⚡ {res.sla_breach_guidance}
+            </div>
+
+            {/* Email switcher */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+              {([['internal','👥 Internal'],['customer','📧 Customer'],['manager_cc','📋 Manager CC']] as const).map(([id, label]) => (
+                <button key={id} onClick={() => setActiveEmail(id)} style={{
+                  padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                  background: activeEmail === id ? '#dc2626' : '#f3f4f6', color: activeEmail === id ? '#fff' : '#374151',
+                }}>{label}</button>
+              ))}
+            </div>
+
+            {/* Email display */}
+            {res.emails?.[activeEmail] && (
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
+                <div style={{ background: '#f9fafb', padding: '8px 12px', borderBottom: '1px solid #e5e7eb' }}>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>TO: <span style={{ color: '#111827', fontWeight: 600 }}>{res.emails[activeEmail].to}</span></div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>SUBJECT: <span style={{ color: '#111827', fontWeight: 600 }}>{res.emails[activeEmail].subject}</span></div>
+                </div>
+                <textarea readOnly value={res.emails[activeEmail].body}
+                  style={{ width: '100%', minHeight: 200, border: 'none', padding: 12, fontSize: 12, fontFamily: 'monospace', color: '#374151', resize: 'vertical', boxSizing: 'border-box', background: '#fff' }} />
+              </div>
+            )}
+
+            {/* Checklist */}
+            <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>ESCALATION CHECKLIST</div>
+            {res.escalation_checklist?.map((item: any) => (
+              <div key={item.step} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start', fontSize: 12 }}>
+                <span style={{ color: '#dc2626', fontWeight: 700, minWidth: 16 }}>{item.step}.</span>
+                <span style={{ color: '#374151' }}>{item.action}</span>
+              </div>
+            ))}
+
+            {/* Pro tips */}
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 6 }}>PRO TIPS</div>
+              {res.pro_tips?.map((tip: string, i: number) => (
+                <div key={i} style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>💡 {tip}</div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill ticket details and click Generate Escalation Emails →</div>
+        )}
       </div>
     </div>
   )

@@ -368,6 +368,32 @@ export default function CAPage() {
     } catch (e: any) { setGiErr(e.message) }
     finally { setGiLoading(false) }
   }
+  // Depreciation Calculator (Round 17)
+  const [dpAsset, setDpAsset]       = useState('')
+  const [dpCat, setDpCat]           = useState('plant_machinery')
+  const [dpCost, setDpCost]         = useState('')
+  const [dpDate, setDpDate]         = useState('')
+  const [dpLife, setDpLife]         = useState('5')
+  const [dpSalvage, setDpSalvage]   = useState('0')
+  const [dpMethod, setDpMethod]     = useState('slm')
+  const [dpFYStart, setDpFYStart]   = useState('2024')
+  const [dpRes, setDpRes]           = useState<any>(null)
+  const [dpLoading, setDpLoading]   = useState(false)
+  const [dpErr, setDpErr]           = useState('')
+  const [dpView, setDpView]         = useState<'schedule'|'summary'|'compliance'>('schedule')
+  const runDepreciation = async () => {
+    setDpLoading(true); setDpErr(''); setDpRes(null)
+    try {
+      setDpRes(await caAction('depreciation_calc', {
+        asset_name: dpAsset, asset_category: dpCat, cost: parseFloat(dpCost) || 0,
+        purchase_date: dpDate, useful_life_years: parseInt(dpLife) || 5,
+        salvage_value: parseFloat(dpSalvage) || 0, method: dpMethod,
+        financial_year_start: parseInt(dpFYStart) || 2024,
+      }))
+    } catch (e: any) { setDpErr(e.message) }
+    finally { setDpLoading(false) }
+  }
+
   const runProposal = async () => {
     setPropLoading(true); setPropErr(''); setPropRes(null)
     try {
@@ -649,6 +675,7 @@ export default function CAPage() {
           { id: 'tds',               label: 'TDS Compliance Tracker',     icon: '📅' },
           { id: 'proposal',          label: 'Client Proposal',            icon: '📋' },
           { id: 'gst_invoice',       label: 'GST Invoice',                icon: '🧾' },
+          { id: 'depreciation',     label: 'Depreciation Calculator',    icon: '📉' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2383,6 +2410,150 @@ export default function CAPage() {
                 </>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill seller & buyer details, add line items, then click Generate →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── DEPRECIATION CALCULATOR (Round 17) ── */}
+      {tab === 'depreciation' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="📉 Depreciation Calculator" subtitle="SLM / WDV / Double Declining — IT Act & Companies Act rates" />
+            <Input label="Asset Name" value={dpAsset} onChange={setDpAsset} placeholder="e.g. Dell Laptop, Office AC, Tata Ace Van" />
+            <Select label="Asset Category" value={dpCat} onChange={setDpCat} options={[
+              { value: 'plant_machinery',  label: 'Plant & Machinery (WDV 15%)' },
+              { value: 'computers',        label: 'Computers & Software (WDV 40%)' },
+              { value: 'furniture',        label: 'Furniture & Fixtures (WDV 10%)' },
+              { value: 'vehicles',         label: 'Motor Vehicles (WDV 15%)' },
+              { value: 'buildings',        label: 'Buildings (WDV 10%)' },
+              { value: 'intangibles',      label: 'Intangible Assets (WDV 25%)' },
+              { value: 'electrical',       label: 'Electrical Fittings (WDV 10%)' },
+              { value: 'office_equipment', label: 'Office Equipment (WDV 15%)' },
+            ]} />
+            <Input label="Cost of Asset (₹)" value={dpCost} onChange={setDpCost} placeholder="e.g. 500000" />
+            <Input label="Purchase Date" value={dpDate} onChange={setDpDate} placeholder="YYYY-MM-DD e.g. 2024-07-15" />
+            <Input label="Useful Life (years)" value={dpLife} onChange={setDpLife} placeholder="e.g. 5" />
+            <Input label="Salvage / Residual Value (₹)" value={dpSalvage} onChange={setDpSalvage} placeholder="e.g. 10000 (or 0)" />
+            <Select label="Depreciation Method" value={dpMethod} onChange={setDpMethod} options={[
+              { value: 'slm',              label: 'SLM — Straight Line Method (Companies Act)' },
+              { value: 'wdv',              label: 'WDV — Written Down Value (IT Act)' },
+              { value: 'double_declining', label: 'Double Declining Balance' },
+            ]} />
+            <Select label="Financial Year Start" value={dpFYStart} onChange={setDpFYStart} options={[
+              { value: '2022', label: 'FY 2022-23' },
+              { value: '2023', label: 'FY 2023-24' },
+              { value: '2024', label: 'FY 2024-25' },
+              { value: '2025', label: 'FY 2025-26' },
+            ]} />
+            <Btn onClick={runDepreciation} loading={dpLoading}>Calculate Depreciation →</Btn>
+            {dpErr && <div style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{dpErr}</div>}
+          </Card>
+          <Card>
+            {dpRes ? (() => {
+              const r = dpRes
+              const s = r.summary
+              const views = [
+                { id: 'schedule',   label: '📅 Schedule' },
+                { id: 'summary',    label: '📊 Summary' },
+                { id: 'compliance', label: '✅ Compliance' },
+              ] as const
+              return (
+                <div>
+                  <div style={{ marginBottom: 12 }}>
+                    <Badge color="#4f46e5">{s?.method}</Badge>{' '}
+                    <Badge color="#0891b2">{s?.asset_category}</Badge>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {views.map(v => (
+                      <button key={v.id} onClick={() => setDpView(v.id as any)} style={{
+                        padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                        background: dpView === v.id ? '#4f46e5' : '#f3f4f6', color: dpView === v.id ? '#fff' : '#374151',
+                      }}>{v.label}</button>
+                    ))}
+                  </div>
+
+                  {dpView === 'schedule' && (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: '#f3f4f6' }}>
+                            {['Year', 'FY', 'Opening WDV', 'Depreciation', 'Closing WDV', 'Accum. Dep'].map(h => (
+                              <th key={h} style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {r.schedule?.map((row: any) => (
+                            <tr key={row.year} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                              <td style={{ padding: '5px 8px', textAlign: 'right', color: '#6b7280' }}>{row.year}</td>
+                              <td style={{ padding: '5px 8px', textAlign: 'right', color: '#6b7280', whiteSpace: 'nowrap' }}>{row.fy}</td>
+                              <td style={{ padding: '5px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>₹{row.opening_wdv?.toLocaleString('en-IN')}</td>
+                              <td style={{ padding: '5px 8px', textAlign: 'right', color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>₹{row.depreciation?.toLocaleString('en-IN')}</td>
+                              <td style={{ padding: '5px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>₹{row.closing_wdv?.toLocaleString('en-IN')}</td>
+                              <td style={{ padding: '5px 8px', textAlign: 'right', color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>₹{row.accumulated_dep?.toLocaleString('en-IN')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {dpView === 'summary' && (
+                    <div>
+                      {[
+                        ['Asset', s?.asset_name],
+                        ['Cost', `₹${s?.cost?.toLocaleString('en-IN')}`],
+                        ['Salvage Value', `₹${s?.salvage_value?.toLocaleString('en-IN')}`],
+                        ['Depreciable Amount', `₹${s?.depreciable_amount?.toLocaleString('en-IN')}`],
+                        ['Method', s?.method],
+                        ['Useful Life', s?.useful_life_years + ' years'],
+                        ['Purchase Date', s?.purchase_date],
+                        ['Half Rate (First Year)', s?.half_rate_first_year ? 'Yes — asset used <180 days' : 'No — full rate'],
+                        ['IT Act WDV Rate', s?.it_act_rate_wdv],
+                        ['Companies Act Life', s?.companies_act_useful_life],
+                        ['Total Depreciation', `₹${s?.total_depreciation?.toLocaleString('en-IN')}`],
+                        ['Final Book Value', `₹${s?.final_book_value?.toLocaleString('en-IN')}`],
+                      ].map(([k, v]) => (
+                        <div key={k as string} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
+                          <span style={{ color: '#6b7280' }}>{k}</span>
+                          <span style={{ fontWeight: 600, color: '#111827' }}>{v}</span>
+                        </div>
+                      ))}
+                      <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: 10, marginTop: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>METHOD COMPARISON</div>
+                        <div style={{ fontSize: 12, color: '#78350f' }}>SLM Year 1: ₹{r.comparison?.slm_year1?.toLocaleString('en-IN')}</div>
+                        <div style={{ fontSize: 12, color: '#78350f' }}>WDV Year 1 (IT Act {r.comparison?.wdv_it_rate}%): ₹{r.comparison?.wdv_year1?.toLocaleString('en-IN')}</div>
+                        <div style={{ fontSize: 12, color: '#92400e', marginTop: 4 }}>{r.comparison?.recommendation}</div>
+                      </div>
+                      <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: 10, marginTop: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', marginBottom: 4 }}>JOURNAL ENTRY</div>
+                        <div style={{ fontSize: 12, color: '#0c4a6e' }}>Dr: {r.journal_entry?.debit}</div>
+                        <div style={{ fontSize: 12, color: '#0c4a6e' }}>Cr: {r.journal_entry?.credit}</div>
+                        <div style={{ fontSize: 11, color: '#0369a1', marginTop: 4 }}>{r.journal_entry?.note}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {dpView === 'compliance' && (
+                    <div>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>COMPLIANCE NOTES</div>
+                      {r.compliance_notes?.map((n: string, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, fontSize: 13 }}>
+                          <span style={{ color: '#4f46e5' }}>📌</span>
+                          <span style={{ color: '#374151' }}>{n}</span>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>METHOD NOTES</div>
+                        {r.method_notes?.map((n: string, i: number) => (
+                          <div key={i} style={{ fontSize: 13, color: '#374151', marginBottom: 6, paddingLeft: 8, borderLeft: '3px solid #4f46e5' }}>{n}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter asset details and click Calculate Depreciation →</div>}
           </Card>
         </TwoCol>
       )}

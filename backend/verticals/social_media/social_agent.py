@@ -2069,6 +2069,18 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "reel_script":
+        return generate_reel_script(
+            business_name=payload.get("business_name", ""),
+            business_type=payload.get("business_type", ""),
+            reel_topic=payload.get("reel_topic", ""),
+            reel_goal=payload.get("reel_goal", "awareness"),
+            target_audience=payload.get("target_audience", ""),
+            duration=payload.get("duration", 30),
+            style=payload.get("style", "educational"),
+            language=payload.get("language", "en"),
+        )
+
     elif action == "review_testimonial_kit":
         return generate_review_testimonial_kit(
             business_name=payload.get("business_name", ""),
@@ -2493,6 +2505,241 @@ _SMS_TEMPLATES = {
     "review": "{business_name}: Hi {customer_name}! Thank you for choosing us 😊 We'd love your review: {review_link} — takes 1 min! Thank you 🙏",
     "reminder": "{business_name}: Quick reminder — your review would mean the world to us! {review_link} Thank you {customer_name} 🙏",
 }
+
+
+# ── Round 17: Instagram Reel Script Writer ────────────────────────────────────
+
+_REEL_STYLES = {
+    "educational": {
+        "label": "Educational / Tips",
+        "hook_formula": "Did you know [surprising fact about {topic}]?",
+        "structure": ["Hook (0-3s)", "Problem (3-8s)", "Solution step 1 (8-15s)", "Solution step 2 (15-22s)", "CTA (22-30s)"],
+        "tone": "informative, friendly",
+    },
+    "storytelling": {
+        "label": "Storytelling / Journey",
+        "hook_formula": "From [struggle] to [success] — here's my story.",
+        "structure": ["Hook / before (0-3s)", "The struggle (3-10s)", "The turning point (10-20s)", "The result (20-27s)", "CTA (27-30s)"],
+        "tone": "emotional, authentic",
+    },
+    "product_showcase": {
+        "label": "Product Showcase",
+        "hook_formula": "Wait until you see what [product] can do in 30 seconds.",
+        "structure": ["Product reveal (0-3s)", "Feature 1 demo (3-10s)", "Feature 2 demo (10-18s)", "Result / transformation (18-26s)", "CTA + price/offer (26-30s)"],
+        "tone": "exciting, benefit-focused",
+    },
+    "behind_scenes": {
+        "label": "Behind the Scenes",
+        "hook_formula": "Ever wondered how we make [product/service]? Watch this.",
+        "structure": ["Curiosity hook (0-3s)", "Process step 1 (3-12s)", "Process step 2 (12-20s)", "Final reveal (20-27s)", "CTA (27-30s)"],
+        "tone": "candid, transparent",
+    },
+    "testimonial": {
+        "label": "Customer Testimonial",
+        "hook_formula": "[Customer name] couldn't believe what happened after [action].",
+        "structure": ["Customer intro (0-5s)", "Before state (5-12s)", "The experience (12-22s)", "Result / quote (22-28s)", "CTA (28-30s)"],
+        "tone": "relatable, trust-building",
+    },
+    "trending": {
+        "label": "Trending / Challenge",
+        "hook_formula": "POV: You just discovered [brand/product] 🤯",
+        "structure": ["Trend hook (0-2s)", "Brand connection (2-8s)", "Key message (8-22s)", "Punchline (22-28s)", "CTA (28-30s)"],
+        "tone": "fun, energetic",
+    },
+}
+
+_REEL_GOALS = {
+    "awareness": {"cta": "Follow us for more tips!", "metric": "reach & saves"},
+    "engagement": {"cta": "Comment your thoughts below 👇", "metric": "comments & shares"},
+    "leads": {"cta": "DM us 'INFO' to get started", "metric": "DM inquiries"},
+    "sales": {"cta": "Link in bio — limited offer!", "metric": "link clicks & conversions"},
+    "trust": {"cta": "Save this for later 📌", "metric": "saves & profile visits"},
+}
+
+_REEL_HOOKS = {
+    "educational": [
+        "Nobody tells you this about {topic}...",
+        "{number} things you didn't know about {topic}",
+        "Stop doing this if you want {benefit}",
+        "The truth about {topic} (that experts hide)",
+    ],
+    "storytelling": [
+        "I almost quit, then this happened...",
+        "We went from ₹0 to ₹{revenue} doing this one thing",
+        "This mistake cost us ₹{loss}. Don't repeat it.",
+        "How a small {business_type} from {city} changed everything",
+    ],
+    "product_showcase": [
+        "You won't believe what this does in 30 seconds",
+        "Before vs After using {product} 👀",
+        "We just launched something that changes {topic} forever",
+        "The only {product_type} you'll ever need",
+    ],
+    "behind_scenes": [
+        "How we actually make {product} (no filters)",
+        "A day in our {business_type} — unfiltered",
+        "What really goes on behind the scenes at {business_name}",
+        "This is how {product} is made (step by step)",
+    ],
+    "testimonial": [
+        "She thought it wouldn't work. Then she tried {product}.",
+        "Real customer. Real results. Watch this.",
+        "We asked our customer to review us honestly. Here's what they said.",
+        "{customer_name} couldn't believe the difference.",
+    ],
+    "trending": [
+        "POV: You just found the best {business_type} in {city} 🤯",
+        "Tell me you run a {business_type} without telling me 😂",
+        "Things {business_type} owners know to be true #relatable",
+        "Day in the life of a {business_type} owner in India 🇮🇳",
+    ],
+}
+
+_CAPTION_TEMPLATES = {
+    "educational": "✨ {hook}\n\nHere's what most {audience} don't realise about {topic}:\n\n1️⃣ {point1}\n2️⃣ {point2}\n3️⃣ {point3}\n\nSave this post so you don't forget! 📌\n\n{cta}\n\n{hashtags}",
+    "storytelling": "📖 {hook}\n\n{story_line}\n\nThe lesson? {lesson}\n\nHave you experienced something similar? Drop it in the comments 👇\n\n{cta}\n\n{hashtags}",
+    "product_showcase": "🔥 {hook}\n\n{product_name} — {usp}\n\n✅ {benefit1}\n✅ {benefit2}\n✅ {benefit3}\n\n{cta}\n\n{hashtags}",
+    "behind_scenes": "👀 {hook}\n\nWe're pulling back the curtain on how {business_name} works.\n\nBecause transparency builds trust.\n\n{cta}\n\n{hashtags}",
+    "testimonial": "❤️ Real words from a real customer.\n\n\"{quote}\"\n— {customer}, {customer_city}\n\nReady for results like these? {cta}\n\n{hashtags}",
+    "trending": "😅 {hook}\n\n{business_name} keeping it real for all the {audience} out there.\n\nTag someone who needs to see this! 👇\n\n{cta}\n\n{hashtags}",
+}
+
+_HASHTAG_SETS = {
+    "retail": ["#IndianRetail", "#ShopLocal", "#MadeInIndia", "#SmallBusiness", "#RetailIndia", "#IndianShopping"],
+    "food": ["#FoodBusiness", "#IndianFood", "#FoodEntrepreneur", "#HomeChef", "#FoodStartup", "#FoodLoversIndia"],
+    "services": ["#IndianServices", "#SMEIndia", "#BusinessIndia", "#Entrepreneur", "#StartupIndia", "#ServiceProvider"],
+    "technology": ["#TechIndia", "#StartupIndia", "#IndianTech", "#SaaSIndia", "#TechEntrepreneur", "#DigitalIndia"],
+    "education": ["#EdTech", "#LearningIndia", "#IndianEducation", "#SkillIndia", "#OnlineLearning", "#EduContent"],
+    "health": ["#HealthIndia", "#Wellness", "#IndianHealth", "#FitIndia", "#HealthyLiving", "#WellnessIndia"],
+    "finance": ["#FinanceIndia", "#MoneyTips", "#IndianFinance", "#PersonalFinance", "#FinancialFreedom", "#InvestIndia"],
+    "fashion": ["#IndianFashion", "#FashionIndia", "#OOTD", "#StyleIndia", "#FashionBlogger", "#IndianDesigner"],
+}
+
+_VOICEOVER_GUIDES = {
+    30: {"words": "75-90 words", "pace": "brisk — 2.5 words/second", "pauses": "1 pause after hook"},
+    60: {"words": "130-150 words", "pace": "natural — 2 words/second", "pauses": "2-3 pauses at transitions"},
+    90: {"words": "180-210 words", "pace": "relaxed — 2 words/second", "pauses": "3-4 pauses for emphasis"},
+}
+
+_VISUAL_DIRECTION = {
+    "educational": ["Text overlay on each tip", "Clean background or workspace", "Point-to-camera moments", "Simple B-roll of product/process"],
+    "storytelling": ["Before photo / throwback clip", "Behind-the-scenes footage", "Candid team moments", "Progress shots over time"],
+    "product_showcase": ["Close-up product shots", "Usage demo clips", "Before vs after split screen", "Satisfied customer clip"],
+    "behind_scenes": ["Raw footage — no heavy editing", "Process shots (hands at work)", "Candid team moments", "Time-lapse of production"],
+    "testimonial": ["Customer video clip or photo", "Product in use", "Results / transformation shot", "Happy customer moment"],
+    "trending": ["Trending audio synced to visuals", "Quick cuts every 2-3 seconds", "Text memes / POV overlay", "Reaction clips"],
+}
+
+
+def generate_reel_script(
+    business_name: str,
+    business_type: str,
+    reel_topic: str,
+    reel_goal: str = "awareness",
+    target_audience: str = "",
+    duration: int = 30,
+    style: str = "educational",
+    language: str = "en",
+) -> dict:
+    style_info   = _REEL_STYLES.get(style, _REEL_STYLES["educational"])
+    goal_info    = _REEL_GOALS.get(reel_goal, _REEL_GOALS["awareness"])
+    hooks        = _REEL_HOOKS.get(style, _REEL_HOOKS["educational"])
+    vo_guide     = _VOICEOVER_GUIDES.get(duration, _VOICEOVER_GUIDES[30])
+    visuals      = _VISUAL_DIRECTION.get(style, _VISUAL_DIRECTION["educational"])
+
+    biz  = business_name or "Your Business"
+    biz_type = business_type or "business"
+    topic = reel_topic or "your product"
+    audience = target_audience or "customers"
+
+    hook_filled = hooks[0].replace("{topic}", topic).replace("{business_name}", biz).replace("{business_type}", biz_type).replace("{audience}", audience).replace("{number}", "3").replace("{benefit}", "better results").replace("{revenue}", "10L").replace("{loss}", "50,000").replace("{city}", "India").replace("{product}", topic).replace("{product_type}", topic)
+
+    # Build scene-by-scene script
+    structure = style_info["structure"]
+    scene_scripts = []
+    scene_contents = [
+        f"🎬 HOOK — {hook_filled}",
+        f"📌 Introduce the core problem/topic: {topic} and why it matters to {audience}",
+        f"💡 Key insight or step 1 related to {topic} — keep it visual and punchy",
+        f"✨ Key insight or step 2 / result — show don't tell",
+        f"🚀 CTA: {goal_info['cta']}",
+    ]
+    for i, (scene, content) in enumerate(zip(structure, scene_contents[:len(structure)])):
+        scene_scripts.append({
+            "scene": i + 1,
+            "timing": scene,
+            "voiceover": content,
+            "visual_note": visuals[i % len(visuals)],
+        })
+
+    # Hashtags
+    industry_key = "services"
+    for k in _HASHTAG_SETS:
+        if k in biz_type.lower():
+            industry_key = k
+            break
+    base_tags = _HASHTAG_SETS[industry_key]
+    general_tags = ["#Reels", "#InstagramReels", "#IndianBusiness", "#Entrepreneur", "#BusinessTips"]
+    all_tags = (base_tags + general_tags)[:20]
+    hashtag_str = " ".join(all_tags)
+
+    caption = _CAPTION_TEMPLATES.get(style, _CAPTION_TEMPLATES["educational"]).format(
+        hook=hook_filled,
+        topic=topic,
+        audience=audience,
+        point1=f"Most {audience} don't think about {topic} proactively",
+        point2=f"The right approach to {topic} saves time and money",
+        point3=f"{biz} has cracked the formula — ask us how",
+        story_line=f"When {biz} started, {topic} was our biggest challenge.",
+        lesson=f"Understanding {topic} is the first step to growth.",
+        product_name=topic,
+        usp=f"Built for {audience} in India",
+        benefit1="Saves time", benefit2="Saves money", benefit3="Built for Indian SMEs",
+        business_name=biz,
+        quote=f"I never thought {topic} could be this simple. Thank you {biz}!",
+        customer="Happy Customer", customer_city="Bangalore",
+        cta=goal_info["cta"],
+        hashtags=hashtag_str,
+    )
+
+    # Audio suggestions
+    audio_suggestions = [
+        {"type": "Trending Instrumental", "note": "Search 'trending reels audio India 2025' on Instagram for latest hits"},
+        {"type": "Original Voiceover", "note": f"Record in {style_info['tone']} tone — {vo_guide['pace']}"},
+        {"type": "Text-Only (No Audio)", "note": "Works well for educational content with on-screen text"},
+    ]
+
+    # Pro tips
+    pro_tips = [
+        f"Post between 7-9 PM IST for maximum Indian audience reach",
+        f"First 3 seconds decide everything — nail the hook: '{hook_filled}'",
+        f"Add closed captions — 85% of Reels are watched without sound",
+        f"Use the 'Collab' feature to co-post with complementary brands",
+        f"Target metric for this Reel: {goal_info['metric']}",
+        f"Repurpose this script for YouTube Shorts and LinkedIn Video",
+    ]
+
+    return {
+        "action": "reel_script",
+        "business_name": biz,
+        "reel_topic": topic,
+        "style": style,
+        "style_label": style_info["label"],
+        "duration_seconds": duration,
+        "goal": reel_goal,
+        "target_audience": audience,
+        "hook": hook_filled,
+        "hook_alternatives": [h.replace("{topic}", topic).replace("{business_name}", biz).replace("{business_type}", biz_type).replace("{audience}", audience).replace("{number}", "3").replace("{benefit}", "better results").replace("{revenue}", "10L").replace("{loss}", "50,000").replace("{city}", "India").replace("{product}", topic).replace("{product_type}", topic) for h in hooks[1:]],
+        "script_scenes": scene_scripts,
+        "voiceover_guide": vo_guide,
+        "visual_direction": visuals,
+        "caption": caption,
+        "hashtags": all_tags,
+        "audio_suggestions": audio_suggestions,
+        "cta": goal_info["cta"],
+        "pro_tips": pro_tips,
+        "repurpose_tip": "Same script works for YouTube Shorts (60s version) and LinkedIn Video — adjust CTA per platform.",
+    }
 
 
 def generate_review_testimonial_kit(

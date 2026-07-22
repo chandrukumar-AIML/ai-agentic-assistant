@@ -560,6 +560,21 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "escalation_email":
+            return _escalation_email_generator(
+                business_name=payload.get("business_name", ""),
+                customer_name=payload.get("customer_name", ""),
+                ticket_id=payload.get("ticket_id", ""),
+                issue_summary=payload.get("issue_summary", ""),
+                sla_breached=payload.get("sla_breached", ""),
+                priority=payload.get("priority", "high"),
+                escalation_type=payload.get("escalation_type", "internal"),
+                escalate_to=payload.get("escalate_to", ""),
+                cs_rep_name=payload.get("cs_rep_name", ""),
+                current_status=payload.get("current_status", ""),
+                customer_tier=payload.get("customer_tier", "standard"),
+            )
+
         elif action == "kb_article":
             return _kb_article_generator(
                 business_name=payload.get("business_name", ""),
@@ -2481,6 +2496,244 @@ _SEO_TITLE_FORMULAS = [
     "{action} — Everything you need to know",
     "How to fix {problem} in {product} [{year}]",
 ]
+
+
+# ── Round 17: Escalation Email Generator ─────────────────────────────────────
+
+_PRIORITY_CONFIG = {
+    "critical": {"label": "CRITICAL", "color": "#dc2626", "response_target": "1 hour", "emoji": "🚨"},
+    "high":     {"label": "HIGH",     "color": "#ea580c", "response_target": "4 hours", "emoji": "🔴"},
+    "medium":   {"label": "MEDIUM",   "color": "#d97706", "response_target": "8 hours", "emoji": "🟡"},
+    "low":      {"label": "LOW",      "color": "#059669", "response_target": "24 hours", "emoji": "🟢"},
+}
+
+_CUSTOMER_TIER_NOTES = {
+    "enterprise": "Enterprise customer — requires C-level escalation visibility. Risk: contract renewal at stake.",
+    "premium":    "Premium customer — expedited handling, dedicated CS manager must be looped in.",
+    "standard":   "Standard tier — standard escalation flow applies.",
+    "trial":      "Trial user — fast resolution critical for conversion.",
+}
+
+_INTERNAL_TEMPLATES = {
+    "subject": "ESCALATION [{priority}] — {ticket_id}: {issue_summary} | {customer_name}",
+    "body": """Hi {escalate_to},
+
+I'm escalating {ticket_id} for your immediate attention.
+
+──────────────────────────────────────
+ESCALATION DETAILS
+──────────────────────────────────────
+Customer      : {customer_name} ({customer_tier})
+Ticket        : {ticket_id}
+Priority      : {priority_label} {priority_emoji}
+Issue         : {issue_summary}
+Current Status: {current_status}
+SLA Breached  : {sla_breached}
+Response Target: {response_target}
+──────────────────────────────────────
+
+WHY I'M ESCALATING
+The ticket has exceeded our {sla_breached} SLA and the customer has followed up {followup_count} times. Given the {customer_tier_note}, this requires senior intervention.
+
+WHAT'S BEEN TRIED
+- Reviewed account and issue logs
+- {attempted_steps}
+- Customer notified of delay with apology
+
+WHAT I NEED FROM YOU
+1. Technical review / decision authority on {issue_summary}
+2. Guidance on customer communication if root cause is complex
+3. ETA for resolution to share with customer
+
+I'll keep the ticket updated. Please acknowledge by {ack_deadline}.
+
+Raised by: {cs_rep_name}
+Ref: {ticket_id}
+""",
+}
+
+_CUSTOMER_TEMPLATES = {
+    "subject": "Update on Your Support Request — {ticket_id}",
+    "body": """Dear {customer_name},
+
+Thank you for your patience regarding your support request ({ticket_id}).
+
+I want to personally assure you that your case has been escalated to our senior team and is now being handled with the highest priority.
+
+YOUR CASE DETAILS
+─────────────────
+Ticket No.   : {ticket_id}
+Issue        : {issue_summary}
+Status       : Escalated to Senior Technical Team
+Priority     : {priority_label}
+Next Update  : {next_update_time}
+
+WHAT HAPPENS NEXT
+1. Our senior engineer is reviewing the case right now.
+2. You will receive a detailed update by {next_update_time}.
+3. If this is causing business impact, please reply to this email with details so we can prioritise further.
+
+We sincerely apologise for the delay. Your experience matters to us and we are committed to resolving this as quickly as possible.
+
+If you need to speak with someone immediately, please {immediate_contact}.
+
+Warm regards,
+{cs_rep_name}
+{business_name} Customer Support
+""",
+}
+
+_MANAGER_TEMPLATES = {
+    "subject": "[FYI] Escalation Raised — {ticket_id} | {customer_name} ({customer_tier})",
+    "body": """Hi {escalate_to},
+
+FYI — I've raised a formal escalation on the following case. Copying you for visibility.
+
+Ticket   : {ticket_id}
+Customer : {customer_name} ({customer_tier})
+Issue    : {issue_summary}
+SLA Miss : {sla_breached}
+Action   : Escalated to senior technical team
+
+{customer_tier_risk}
+
+I'll update you once resolved. No action needed unless the team requires your sign-off.
+
+{cs_rep_name}
+""",
+}
+
+_IMMEDIATE_CONTACT = {
+    "enterprise": "call our dedicated enterprise line or contact your account manager directly",
+    "premium":    "reply to this email marked URGENT or call our priority support line",
+    "standard":   "reply to this email and we will prioritise your response",
+    "trial":      "reply to this email and our team will get back to you shortly",
+}
+
+
+def _escalation_email_generator(
+    business_name: str,
+    customer_name: str,
+    ticket_id: str,
+    issue_summary: str,
+    sla_breached: str,
+    priority: str,
+    escalation_type: str,
+    escalate_to: str,
+    cs_rep_name: str,
+    current_status: str,
+    customer_tier: str,
+) -> dict:
+    from datetime import datetime as _dt, timedelta as _td
+
+    priority_cfg   = _PRIORITY_CONFIG.get(priority, _PRIORITY_CONFIG["high"])
+    tier_note      = _CUSTOMER_TIER_NOTES.get(customer_tier, _CUSTOMER_TIER_NOTES["standard"])
+    tier_risk      = f"⚠️ Note: {tier_note}"
+    now            = _dt.now()
+    ack_deadline   = (now + _td(hours=1)).strftime("%I:%M %p today")
+    next_update    = (now + _td(hours=4)).strftime("%I:%M %p today")
+
+    biz     = business_name or "Our Company"
+    cust    = customer_name or "Customer"
+    ticket  = ticket_id or "TKT-001"
+    issue   = issue_summary or "Technical issue reported"
+    status  = current_status or "Under investigation"
+    rep     = cs_rep_name or "Support Team"
+    esc_to  = escalate_to or "Senior Manager"
+    sla     = sla_breached or "4-hour"
+
+    # Internal escalation email
+    internal_subject = _INTERNAL_TEMPLATES["subject"].format(
+        priority=priority_cfg["label"], ticket_id=ticket,
+        issue_summary=issue[:50], customer_name=cust,
+    )
+    internal_body = _INTERNAL_TEMPLATES["body"].format(
+        escalate_to=esc_to, ticket_id=ticket, customer_name=cust,
+        customer_tier=customer_tier.title(), priority_label=priority_cfg["label"],
+        priority_emoji=priority_cfg["emoji"], issue_summary=issue,
+        current_status=status, sla_breached=sla,
+        response_target=priority_cfg["response_target"],
+        followup_count="2+",
+        customer_tier_note=tier_note,
+        attempted_steps=f"Investigated root cause of: {issue}",
+        ack_deadline=ack_deadline, cs_rep_name=rep,
+    )
+
+    # Customer-facing email
+    customer_subject = _CUSTOMER_TEMPLATES["subject"].format(ticket_id=ticket)
+    customer_body = _CUSTOMER_TEMPLATES["body"].format(
+        customer_name=cust, ticket_id=ticket, issue_summary=issue,
+        priority_label=priority_cfg["label"], next_update_time=next_update,
+        immediate_contact=_IMMEDIATE_CONTACT.get(customer_tier, _IMMEDIATE_CONTACT["standard"]),
+        cs_rep_name=rep, business_name=biz,
+    )
+
+    # Manager CC email
+    manager_subject = _MANAGER_TEMPLATES["subject"].format(
+        ticket_id=ticket, customer_name=cust, customer_tier=customer_tier.title()
+    )
+    manager_body = _MANAGER_TEMPLATES["body"].format(
+        escalate_to=esc_to, ticket_id=ticket, customer_name=cust,
+        customer_tier=customer_tier.title(), issue_summary=issue,
+        sla_breached=sla, customer_tier_risk=tier_risk, cs_rep_name=rep,
+    )
+
+    # Escalation checklist
+    checklist = [
+        {"step": 1, "action": "Document all customer interactions so far in the ticket", "done": False},
+        {"step": 2, "action": f"Send internal escalation email to {esc_to}", "done": False},
+        {"step": 3, "action": "Send acknowledgment email to customer", "done": False},
+        {"step": 4, "action": "Set ticket priority to " + priority_cfg["label"], "done": False},
+        {"step": 5, "action": f"Follow up with {esc_to} if no response by {ack_deadline}", "done": False},
+        {"step": 6, "action": f"Send resolution update to customer by {next_update}", "done": False},
+        {"step": 7, "action": "Close loop — post-mortem if critical/high priority", "done": False},
+    ]
+
+    # SLA breach impact
+    sla_impact = {
+        "critical": "Immediate business impact — every minute counts. Skip email, call directly first.",
+        "high":     "Significant customer frustration. Escalate now, email within 30 minutes.",
+        "medium":   "Customer is waiting. Escalate today, email within 2 hours.",
+        "low":      "Proactive escalation — good practice. Email within 4 hours.",
+    }
+
+    return {
+        "action": "escalation_email",
+        "ticket_id": ticket,
+        "customer_name": cust,
+        "priority": priority,
+        "priority_config": priority_cfg,
+        "customer_tier": customer_tier,
+        "customer_tier_note": tier_note,
+        "emails": {
+            "internal": {
+                "to": esc_to,
+                "subject": internal_subject,
+                "body": internal_body,
+            },
+            "customer": {
+                "to": cust,
+                "subject": customer_subject,
+                "body": customer_body,
+            },
+            "manager_cc": {
+                "to": esc_to,
+                "subject": manager_subject,
+                "body": manager_body,
+            },
+        },
+        "escalation_checklist": checklist,
+        "sla_breach_guidance": sla_impact.get(priority, sla_impact["high"]),
+        "next_update_time": next_update,
+        "ack_deadline": ack_deadline,
+        "pro_tips": [
+            "Always send the customer email within 15 minutes of deciding to escalate.",
+            "CC your manager on every escalation — no surprises at the top.",
+            f"Response target for {priority_cfg['label']} priority: {priority_cfg['response_target']}.",
+            "Document root cause after resolution — prevents repeat escalations.",
+            "For enterprise customers, a phone call before email shows urgency.",
+        ],
+    }
 
 
 def _kb_article_generator(

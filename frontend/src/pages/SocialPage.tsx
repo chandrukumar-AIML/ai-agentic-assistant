@@ -338,6 +338,30 @@ export default function SocialPage() {
     } catch (e: any) { setRvErr(e.message) }
     finally { setRvLoading(false) }
   }
+  // Instagram Reel Script (Round 17)
+  const [rlBusiness, setRlBusiness] = useState('')
+  const [rlBizType, setRlBizType]   = useState('')
+  const [rlTopic, setRlTopic]       = useState('')
+  const [rlGoal, setRlGoal]         = useState('awareness')
+  const [rlAudience, setRlAudience] = useState('')
+  const [rlDuration, setRlDuration] = useState('30')
+  const [rlStyle, setRlStyle]       = useState('educational')
+  const [rlRes, setRlRes]           = useState<any>(null)
+  const [rlLoading, setRlLoading]   = useState(false)
+  const [rlErr, setRlErr]           = useState('')
+  const [rlView, setRlView]         = useState<'script'|'caption'|'tips'>('script')
+  const runReel = async () => {
+    setRlLoading(true); setRlErr(''); setRlRes(null)
+    try {
+      setRlRes(await socialAction('reel_script', {
+        business_name: rlBusiness, business_type: rlBizType, reel_topic: rlTopic,
+        reel_goal: rlGoal, target_audience: rlAudience,
+        duration: parseInt(rlDuration), style: rlStyle,
+      }))
+    } catch (e: any) { setRlErr(e.message) }
+    finally { setRlLoading(false) }
+  }
+
   const runArticle = async () => {
     setArtLoading(true); setArtErr(''); setArtRes(null); setArtActiveSection(0)
     try {
@@ -657,6 +681,7 @@ export default function SocialPage() {
           { id: 'podcast',    label: 'Podcast Content Kit',   icon: '🎙️' },
           { id: 'article',    label: 'LinkedIn Article',       icon: '📝' },
           { id: 'review',     label: 'Review & Testimonial Kit', icon: '⭐' },
+          { id: 'reel',       label: 'Instagram Reel Script',   icon: '🎬' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3179,6 +3204,139 @@ export default function SocialPage() {
                 </>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill details and click Generate Review Kit →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── INSTAGRAM REEL SCRIPT WRITER (Round 17) ── */}
+      {tab === 'reel' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="🎬 Reel Script Writer" subtitle="Generate a scene-by-scene Instagram Reel script with caption & hashtags" />
+            <Input label="Business Name" value={rlBusiness} onChange={setRlBusiness} placeholder="e.g. Chai Wala Co." />
+            <Input label="Business Type" value={rlBizType} onChange={setRlBizType} placeholder="e.g. Food & Beverage, SaaS, Retail" />
+            <Input label="Reel Topic" value={rlTopic} onChange={setRlTopic} placeholder="e.g. 5 tips to save tax, Our chai-making process" />
+            <Input label="Target Audience" value={rlAudience} onChange={setRlAudience} placeholder="e.g. small business owners, students" />
+            <Select label="Reel Style" value={rlStyle} onChange={setRlStyle} options={[
+              { value: 'educational',     label: '📚 Educational / Tips' },
+              { value: 'storytelling',    label: '📖 Storytelling / Journey' },
+              { value: 'product_showcase',label: '🛍️ Product Showcase' },
+              { value: 'behind_scenes',   label: '🎥 Behind the Scenes' },
+              { value: 'testimonial',     label: '❤️ Customer Testimonial' },
+              { value: 'trending',        label: '🔥 Trending / POV' },
+            ]} />
+            <Select label="Reel Goal" value={rlGoal} onChange={setRlGoal} options={[
+              { value: 'awareness',  label: '👀 Brand Awareness' },
+              { value: 'engagement', label: '💬 Engagement' },
+              { value: 'leads',      label: '📥 Lead Generation' },
+              { value: 'sales',      label: '💰 Sales / Conversions' },
+              { value: 'trust',      label: '🤝 Trust Building' },
+            ]} />
+            <Select label="Duration" value={rlDuration} onChange={setRlDuration} options={[
+              { value: '30', label: '30 seconds' },
+              { value: '60', label: '60 seconds' },
+              { value: '90', label: '90 seconds' },
+            ]} />
+            <Btn onClick={runReel} loading={rlLoading}>Generate Reel Script →</Btn>
+            {rlErr && <div style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{rlErr}</div>}
+          </Card>
+          <Card>
+            {rlRes ? (() => {
+              const r = rlRes
+              const views = [
+                { id: 'script', label: '🎬 Script' },
+                { id: 'caption', label: '📝 Caption & Tags' },
+                { id: 'tips', label: '💡 Pro Tips' },
+              ] as const
+              return (
+                <div>
+                  <div style={{ marginBottom: 12 }}>
+                    <Badge color="#7c3aed">{r.style_label}</Badge>{' '}
+                    <Badge color="#0891b2">{r.duration_seconds}s</Badge>{' '}
+                    <Badge color="#059669">{r.goal}</Badge>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {views.map(v => (
+                      <button key={v.id} onClick={() => setRlView(v.id as any)} style={{
+                        padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                        background: rlView === v.id ? '#7c3aed' : '#f3f4f6', color: rlView === v.id ? '#fff' : '#374151',
+                      }}>{v.label}</button>
+                    ))}
+                  </div>
+
+                  {rlView === 'script' && (
+                    <div>
+                      <div style={{ background: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                        <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 700, marginBottom: 4 }}>HOOK</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#1f2937' }}>"{r.hook}"</div>
+                        {r.hook_alternatives?.length > 0 && (
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Alternative hooks:</div>
+                            {r.hook_alternatives.map((h: string, i: number) => (
+                              <div key={i} style={{ fontSize: 12, color: '#4b5563', marginBottom: 2 }}>• "{h}"</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8, fontWeight: 600 }}>SCENE-BY-SCENE SCRIPT</div>
+                      {r.script_scenes?.map((scene: any) => (
+                        <div key={scene.scene} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed' }}>Scene {scene.scene}</span>
+                            <span style={{ fontSize: 11, color: '#6b7280', background: '#f3f4f6', borderRadius: 10, padding: '2px 8px' }}>{scene.timing}</span>
+                          </div>
+                          <div style={{ fontSize: 13, color: '#1f2937', marginBottom: 4 }}>{scene.voiceover}</div>
+                          <div style={{ fontSize: 11, color: '#0891b2' }}>📷 {scene.visual_note}</div>
+                        </div>
+                      ))}
+                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, marginTop: 8 }}>
+                        <div style={{ fontSize: 11, color: '#059669', fontWeight: 700, marginBottom: 4 }}>VOICEOVER GUIDE</div>
+                        <div style={{ fontSize: 12, color: '#374151' }}>Target: {r.voiceover_guide?.words} · Pace: {r.voiceover_guide?.pace}</div>
+                        <div style={{ fontSize: 12, color: '#374151' }}>Pauses: {r.voiceover_guide?.pauses}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {rlView === 'caption' && (
+                    <div>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 6 }}>CAPTION</div>
+                      <ResultBox value={r.caption} />
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, margin: '12px 0 6px' }}>HASHTAGS ({r.hashtags?.length})</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {r.hashtags?.map((tag: string, i: number) => (
+                          <span key={i} style={{ background: '#ede9fe', color: '#7c3aed', borderRadius: 12, padding: '3px 10px', fontSize: 12 }}>{tag}</span>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 16 }}>
+                        <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 6 }}>AUDIO SUGGESTIONS</div>
+                        {r.audio_suggestions?.map((a: any, i: number) => (
+                          <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 8, marginBottom: 6 }}>
+                            <span style={{ fontWeight: 600, fontSize: 12 }}>{a.type}</span>
+                            <div style={{ fontSize: 12, color: '#6b7280' }}>{a.note}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {rlView === 'tips' && (
+                    <div>
+                      <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 8 }}>PRO TIPS</div>
+                      {r.pro_tips?.map((tip: string, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, fontSize: 13 }}>
+                          <span style={{ color: '#7c3aed', fontWeight: 700 }}>💡</span>
+                          <span style={{ color: '#374151' }}>{tip}</span>
+                        </div>
+                      ))}
+                      <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: 10, marginTop: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>♻️ REPURPOSE TIP</div>
+                        <div style={{ fontSize: 12, color: '#78350f' }}>{r.repurpose_tip}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill details and click Generate Reel Script →</div>}
           </Card>
         </TwoCol>
       )}
