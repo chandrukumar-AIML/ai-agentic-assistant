@@ -1,44 +1,26 @@
-// frontend/src/App.tsx
 import { useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
-import ChatPage from './pages/ChatPage'
 import SocialPage from './pages/SocialPage'
 import CAPage from './pages/CAPage'
 import CustomerSupportPage from './pages/CustomerSupportPage'
-import BillingPage from './pages/BillingPage'
-import IntegrationsPage from './pages/IntegrationsPage'
-import KnowledgeBasePage from './pages/KnowledgeBasePage'
 import SettingsPage from './pages/SettingsPage'
-import WebhooksPage from './pages/WebhooksPage'
-import AdminPage from './pages/AdminPage'
 import { getMe, UserProfile } from './lib/api'
 
 export type PageId =
-  | 'dashboard' | 'chat'
+  | 'dashboard'
   | 'social' | 'ca-accounting' | 'customer-support'
-  | 'billing' | 'integrations' | 'knowledge-base' | 'settings' | 'webhooks' | 'admin'
+  | 'settings'
 
 const PAGE_MAP: Record<PageId, React.ReactNode> = {
   dashboard:          <DashboardPage />,
-  chat:               <ChatPage />,
   social:             <SocialPage />,
   'ca-accounting':    <CAPage />,
   'customer-support': <CustomerSupportPage />,
-  billing:            <BillingPage />,
-  integrations:       <IntegrationsPage />,
-  'knowledge-base':   <KnowledgeBasePage />,
   settings:           <SettingsPage />,
-  webhooks:           <WebhooksPage />,
-  admin:              <AdminPage />,
 }
-
-const ALWAYS_ALLOWED: PageId[] = [
-  'dashboard', 'chat', 'billing', 'settings', 'integrations',
-  'social', 'ca-accounting', 'customer-support',
-]
 
 function readCachedProfile(): UserProfile | null {
   try {
@@ -48,12 +30,12 @@ function readCachedProfile(): UserProfile | null {
 }
 
 export default function App() {
-  const [authed,           setAuthed]           = useState(!!sessionStorage.getItem('aaa_token'))
-  const [showLogin,        setShowLogin]         = useState(false)
-  const [page,             setPage]              = useState<PageId>('dashboard')
-  const [sidebarCollapsed, setSidebarCollapsed]  = useState(() => typeof window !== 'undefined' && window.innerWidth < 860)
-  const [profile,          setProfile]           = useState<UserProfile | null>(readCachedProfile())
-  const [demoMode,         setDemoMode]          = useState(false)
+  const [authed,           setAuthed]          = useState(!!sessionStorage.getItem('aaa_token'))
+  const [showLogin,        setShowLogin]        = useState(false)
+  const [page,             setPage]             = useState<PageId>('dashboard')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== 'undefined' && window.innerWidth < 860)
+  const [profile,          setProfile]          = useState<UserProfile | null>(readCachedProfile())
+  const [demoMode,         setDemoMode]         = useState(false)
 
   useEffect(() => {
     const onResize = () => { if (window.innerWidth < 860) setSidebarCollapsed(true) }
@@ -76,16 +58,6 @@ export default function App() {
     return () => { active = false }
   }, [authed])
 
-  const isAdmin      = profile?.role === 'admin'
-  const allowedTools = profile?.allowed_tools ?? []
-
-  const canAccess = (id: PageId): boolean =>
-    isAdmin || ALWAYS_ALLOWED.includes(id) || allowedTools.includes(id)
-
-  useEffect(() => {
-    if (authed && profile && page !== 'admin' && !canAccess(page)) setPage('dashboard')
-  }, [authed, profile, page])
-
   const handleLogout = () => {
     sessionStorage.removeItem('aaa_token')
     sessionStorage.removeItem('aaa_profile')
@@ -97,21 +69,16 @@ export default function App() {
     return <LandingPage onSignIn={() => setShowLogin(true)} />
   }
 
-  const activePage: PageId =
-    page === 'admin' ? (isAdmin ? 'admin' : 'dashboard')
-    : canAccess(page) ? page
-    : 'dashboard'
-
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0f1117', overflow: 'hidden' }}>
       <Sidebar
-        current={activePage}
+        current={page}
         onNavigate={setPage}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(c => !c)}
-        isAdmin={isAdmin}
-        allowedTools={allowedTools}
-        alwaysAllowed={ALWAYS_ALLOWED}
+        isAdmin={profile?.role === 'admin'}
+        allowedTools={profile?.allowed_tools ?? []}
+        alwaysAllowed={['dashboard','social','ca-accounting','customer-support','settings']}
         profile={profile}
         onLogout={handleLogout}
       />
@@ -124,7 +91,7 @@ export default function App() {
             DEMO MODE — AI responses are instant sample data. Add an API key to switch on real generation.
           </div>
         )}
-        {PAGE_MAP[activePage]}
+        {PAGE_MAP[page]}
       </main>
     </div>
   )

@@ -1,7 +1,6 @@
 // frontend/src/components/Sidebar.tsx
 import { PageId } from '../App'
 import { UserProfile } from '../lib/api'
-import NotificationBell from './NotificationBell'
 
 interface NavItem {
   id: PageId
@@ -9,21 +8,14 @@ interface NavItem {
   icon: string
   badge?: string
   group: string
-  adminOnly?: boolean
 }
 
 const NAV: NavItem[] = [
-  { id: 'dashboard',        label: 'Dashboard',         icon: 'D',  group: 'Overview' },
-  { id: 'chat',             label: 'AI Chat',            icon: 'C',  group: 'Overview' },
-  { id: 'social',           label: 'Social Media',       icon: 'SM', group: 'Core Agents' },
-  { id: 'ca-accounting',    label: 'CA & Accounting',    icon: 'CA', group: 'Core Agents' },
-  { id: 'customer-support', label: 'Customer Support',   icon: 'CS', group: 'Core Agents' },
-  { id: 'billing',          label: 'Billing & Plans',    icon: 'B',  badge: 'LIVE', group: 'Settings' },
-  { id: 'knowledge-base',   label: 'Knowledge Base',     icon: 'KB', badge: 'RAG',  group: 'Settings' },
-  { id: 'integrations',     label: 'Integrations',       icon: 'I',  badge: 'LIVE', group: 'Settings' },
-  { id: 'webhooks',         label: 'Webhooks',           icon: 'WH', group: 'Settings' },
-  { id: 'admin',            label: 'Admin Panel',        icon: 'AD', badge: 'ADM',  group: 'Settings', adminOnly: true },
-  { id: 'settings',         label: 'Settings',           icon: 'S',  group: 'Settings' },
+  { id: 'dashboard',        label: 'Dashboard',        icon: 'D',  group: 'Overview' },
+  { id: 'social',           label: 'Social Media',     icon: 'SM', group: 'Core Agents' },
+  { id: 'ca-accounting',    label: 'CA & Accounting',  icon: 'CA', group: 'Core Agents' },
+  { id: 'customer-support', label: 'Customer Support', icon: 'CS', group: 'Core Agents' },
+  { id: 'settings',         label: 'Settings',         icon: 'S',  group: 'Settings' },
 ]
 
 interface Props {
@@ -43,7 +35,6 @@ export default function Sidebar({
   isAdmin = false, allowedTools = [], alwaysAllowed = [], profile = null, onLogout,
 }: Props) {
   const canSee = (item: NavItem): boolean => {
-    if (item.adminOnly) return isAdmin
     if (isAdmin) return true
     return alwaysAllowed.includes(item.id) || allowedTools.includes(item.id)
   }
@@ -101,7 +92,6 @@ export default function Sidebar({
           </div>
         )}
         <div style={{ display: collapsed ? 'none' : 'flex', alignItems: 'center', gap: 4 }}>
-          <NotificationBell />
           <button onClick={onToggle} style={{
             background: 'none', border: 'none', cursor: 'pointer',
             color: '#4b5563', fontSize: 14, padding: 2,
