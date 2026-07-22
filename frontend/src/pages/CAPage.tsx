@@ -832,6 +832,7 @@ export default function CAPage() {
           { id: 'partnership_deed', label: 'Partnership Deed',           icon: '🤝' },
           { id: 'startup_guide',   label: 'Startup India Guide',        icon: '🚀' },
           { id: 'directors_report', label: "Director's Report",          icon: '📑' },
+          { id: 'mca_calendar',    label: 'MCA/ROC Calendar',           icon: '🗓️' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3597,6 +3598,7 @@ export default function CAPage() {
       {tab === 'partnership_deed' && <PartnershipDeedTab />}
       {tab === 'startup_guide'    && <StartupGuideTab />}
       {tab === 'directors_report' && <DirectorsReportTab />}
+      {tab === 'mca_calendar'    && <McaCalendarTab />}
     </PageShell>
   )
 }
@@ -3604,6 +3606,128 @@ export default function CAPage() {
 // ── R23: Advance Tax Calculator ──────────────────────────────────────────────
 const AT_YEARS = ['2025-26','2026-27','2024-25']
 const AT_TYPES = [{value:'individual',label:'Individual'},{value:'huf',label:'HUF'},{value:'firm',label:'Firm/LLP'},{value:'company',label:'Company'}]
+
+// ── R27: MCA / ROC Filing Calendar ───────────────────────────────────────────
+function McaCalendarTab() {
+  const [mcCompany, setMcCompany] = useState('')
+  const [mcEntity,  setMcEntity]  = useState('private_limited')
+  const [mcMsme,    setMcMsme]    = useState(false)
+  const [mcDep,     setMcDep]     = useState(false)
+  const [mcNew,     setMcNew]     = useState(false)
+  const [mcRes,     setMcRes]     = useState<any>(null)
+  const [mcLoading, setMcLoading] = useState(false)
+  const [mcErr,     setMcErr]     = useState('')
+
+  const generate = async () => {
+    if (!mcCompany.trim()) { setMcErr('Enter company name'); return }
+    setMcLoading(true); setMcErr(''); setMcRes(null)
+    try {
+      const r = await caAction('mca_roc_calendar', {
+        company_name: mcCompany, entity_type: mcEntity,
+        has_msme_vendors: mcMsme, has_deposits: mcDep, is_newly_incorporated: mcNew,
+      })
+      setMcRes(r)
+    } catch (e: any) { setMcErr(e.message || 'Error') }
+    finally { setMcLoading(false) }
+  }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">🗓️ MCA / ROC Filing Calendar</h2>
+      <p className="tool-desc">Complete annual ROC filing calendar with due dates, penalties, and monthly tax reminders for Indian companies.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Company Name</label>
+          <input value={mcCompany} onChange={e=>setMcCompany(e.target.value)} placeholder="ABC Pvt Ltd" /></div>
+        <div className="form-group"><label>Entity Type</label>
+          <select value={mcEntity} onChange={e=>setMcEntity(e.target.value)}>
+            {[['private_limited','Private Limited'],['llp','LLP'],['opc','OPC'],['public','Public Limited']].map(([v,l]) =>
+              <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+        <div className="form-group full" style={{display:'flex',gap:'1.5rem',alignItems:'center',flexWrap:'wrap'}}>
+          {([['mcMsme','MSME Vendors?',mcMsme,setMcMsme],['mcDep','Accepts Deposits?',mcDep,setMcDep],['mcNew','Newly Incorporated?',mcNew,setMcNew]] as any[]).map(([key,label,val,setter]) => (
+            <label key={key} style={{display:'flex',alignItems:'center',gap:'0.4rem',cursor:'pointer'}}>
+              <input type="checkbox" checked={val} onChange={(e: any)=>setter(e.target.checked)} />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {mcErr && <div className="error-box">{mcErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={mcLoading}>
+        {mcLoading ? 'Generating…' : 'Generate Filing Calendar'}
+      </button>
+
+      {mcRes && (
+        <div className="result-box">
+          <h3>{mcRes.company_name} — ROC Filing Calendar</h3>
+
+          <div className="ca-section">
+            <h4>📋 ROC / MCA Filings</h4>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.83rem'}}>
+                <thead><tr style={{background:'var(--bg-secondary)'}}>
+                  {['Form','Description','Due Date','Applicable To','Penalty','Risk'].map(h =>
+                    <th key={h} style={{padding:'0.4rem',textAlign:'left',whiteSpace:'nowrap'}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {(mcRes.roc_filings||[]).map((f: any, i: number) => (
+                    <tr key={i} style={{borderTop:'1px solid var(--border-color)',background:f.high_risk?'rgba(239,68,68,0.06)':''}}>
+                      <td style={{padding:'0.4rem',fontWeight:600,whiteSpace:'nowrap'}}>{f.form}</td>
+                      <td style={{padding:'0.4rem'}}>{f.desc}</td>
+                      <td style={{padding:'0.4rem',fontSize:'0.8rem'}}>{f.due}</td>
+                      <td style={{padding:'0.4rem',fontSize:'0.8rem',color:'var(--text-muted)'}}>{f.applicable}</td>
+                      <td style={{padding:'0.4rem',fontSize:'0.8rem',color:'#ef4444'}}>{f.penalty}</td>
+                      <td style={{padding:'0.4rem'}}>{f.high_risk && <span style={{background:'#ef4444',color:'white',padding:'1px 6px',borderRadius:'8px',fontSize:'0.7rem'}}>HIGH</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>🔴 Penalty Summary</h4>
+            {Object.entries(mcRes.penalty_summary||{}).map(([k,v]: any) => (
+              <p key={k}><strong style={{textTransform:'capitalize'}}>{k.replace(/_/g,' ')}:</strong> {v}</p>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>📅 GST Monthly Reminders</h4>
+            <ul>{(mcRes.gst_reminders||[]).map((g: string, i: number) => <li key={i}>{g}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>📆 Month-by-Month Tax Calendar</h4>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:'0.6rem'}}>
+              {(mcRes.tax_calendar||[]).map((m: any) => (
+                <div key={m.month} style={{background:'var(--bg-secondary)',padding:'0.6rem',borderRadius:'8px'}}>
+                  <strong style={{color:'var(--accent)'}}>{m.month}</strong>
+                  <ul style={{margin:'0.3rem 0 0',paddingLeft:'1rem',fontSize:'0.8rem'}}>
+                    {m.due_dates.map((d: string, i: number) => <li key={i}>{d}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>✅ Best Practices</h4>
+            <ul>{(mcRes.best_practices||[]).map((b: string, i: number) => <li key={i}>{b}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>CA Notes</h4>
+            <ul>{(mcRes.ca_notes||[]).map((n: string, i: number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R26: Director's Report Generator ─────────────────────────────────────────
 function DirectorsReportTab() {

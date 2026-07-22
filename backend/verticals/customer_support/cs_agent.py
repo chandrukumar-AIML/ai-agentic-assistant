@@ -560,6 +560,20 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "voc_report":
+            return generate_voc_report(
+                company_name=payload.get("company_name", ""),
+                period=payload.get("period", "Q1 FY 2025-26"),
+                total_responses=payload.get("total_responses", 0),
+                nps_score=payload.get("nps_score", 0.0),
+                csat_score=payload.get("csat_score", 0.0),
+                top_positive_themes=payload.get("top_positive_themes", []),
+                top_negative_themes=payload.get("top_negative_themes", []),
+                data_sources=payload.get("data_sources", []),
+                verbatim_samples=payload.get("verbatim_samples", []),
+                language=language,
+            )
+
         elif action == "review_response":
             return generate_review_response_kit(
                 business_name=payload.get("business_name", ""),
@@ -3171,6 +3185,152 @@ _REVIEW_TEMPLATES = {
     "negative_quality":  "{starter} Quality is our #1 priority, and we failed here. We'd like to {resolution} immediately. {closer}",
     "negative_support":  "{starter} Our support team should have resolved this faster — that's on us. {resolution} {closer}",
 }
+
+
+# ── R27: Voice of Customer Report ────────────────────────────────────────────
+
+_VOC_DATA_SOURCES = [
+    "Customer support tickets (CRM)",
+    "Post-purchase CSAT surveys",
+    "NPS (Net Promoter Score) surveys",
+    "Product reviews (Google, Amazon, Flipkart)",
+    "Social media mentions and comments",
+    "Live chat transcripts",
+    "Return/refund reasons",
+    "User interviews / focus groups",
+    "App store reviews (Play Store / App Store)",
+    "Exit surveys (cancelled subscribers)",
+]
+
+_VOC_THEMES = {
+    "product_quality":    {"label": "Product Quality",      "examples": ["Durable", "Poor build", "Meets expectations", "Defective on arrival"]},
+    "pricing":            {"label": "Pricing & Value",       "examples": ["Too expensive", "Worth the money", "Affordable", "Better alternatives exist"]},
+    "delivery":           {"label": "Delivery & Logistics",  "examples": ["Late delivery", "Packaging damage", "Fast shipping", "Wrong item"]},
+    "customer_support":   {"label": "Customer Support",      "examples": ["Unhelpful agent", "Quick resolution", "Rude staff", "Proactive follow-up"]},
+    "onboarding":         {"label": "Onboarding Experience", "examples": ["Confusing setup", "Easy to start", "Poor documentation", "Great tutorial"]},
+    "features":           {"label": "Features & Usability",  "examples": ["Missing feature X", "Intuitive UI", "Too complex", "Works as expected"]},
+    "returns":            {"label": "Returns & Refunds",      "examples": ["Slow refund", "Easy return", "Refund denied", "Hassle-free"]},
+    "communication":      {"label": "Communication",         "examples": ["Not informed of delay", "Good update emails", "Spam", "Timely reminders"]},
+}
+
+_VOC_NPS_BANDS = {
+    "promoters":  {"range": "9–10", "action": "Ask for referrals and reviews; create advocacy program"},
+    "passives":   {"range": "7–8",  "action": "Identify what would move them to 9–10; offer loyalty perks"},
+    "detractors": {"range": "0–6",  "action": "Immediate outreach within 48h; understand root cause; recover relationship"},
+}
+
+_VOC_ACTION_FRAMEWORK = [
+    {"priority": "P1 — Fix Now",    "criteria": "Recurring negative theme in >15% of feedback",   "owner": "Product / Ops",    "timeline": "2–4 weeks"},
+    {"priority": "P2 — Plan",       "criteria": "Negative theme in 5–15% of feedback",             "owner": "Team Lead",        "timeline": "Next quarter"},
+    {"priority": "P3 — Monitor",    "criteria": "Sporadic negative feedback or positive to amplify","owner": "CS Manager",       "timeline": "Ongoing"},
+    {"priority": "P4 — Share",      "criteria": "Strong positive feedback / praise",               "owner": "Marketing",        "timeline": "Amplify immediately"},
+]
+
+
+def generate_voc_report(
+    company_name: str,
+    period: str = "Q1 FY 2025-26",
+    total_responses: int = 0,
+    nps_score: float = 0.0,
+    csat_score: float = 0.0,
+    top_positive_themes: list = None,
+    top_negative_themes: list = None,
+    data_sources: list = None,
+    verbatim_samples: list = None,
+    language: str = "en",
+) -> dict:
+    top_positive_themes = top_positive_themes or ["product_quality", "delivery"]
+    top_negative_themes = top_negative_themes or ["customer_support", "pricing"]
+    data_sources = data_sources or ["Customer support tickets (CRM)", "Post-purchase CSAT surveys"]
+    verbatim_samples = verbatim_samples or []
+
+    # NPS breakdown
+    nps_band = "promoters" if nps_score >= 9 else ("passives" if nps_score >= 7 else "detractors")
+    nps_label = "Excellent" if nps_score >= 50 else ("Good" if nps_score >= 30 else ("Needs Improvement" if nps_score >= 0 else "Critical"))
+
+    # Build theme analysis
+    theme_analysis = []
+    for theme_key in top_positive_themes:
+        td = _VOC_THEMES.get(theme_key, {"label": theme_key, "examples": []})
+        theme_analysis.append({
+            "theme":     td["label"],
+            "sentiment": "positive",
+            "examples":  td["examples"][:2],
+            "action":    "Amplify in marketing — use as proof point",
+        })
+    for theme_key in top_negative_themes:
+        td = _VOC_THEMES.get(theme_key, {"label": theme_key, "examples": []})
+        theme_analysis.append({
+            "theme":     td["label"],
+            "sentiment": "negative",
+            "examples":  td["examples"][:2],
+            "action":    f"Escalate to {['Product','Ops','CS','Logistics'][hash(theme_key)%4]} team for root cause analysis",
+        })
+
+    # Prioritised action items
+    action_items = []
+    for i, neg in enumerate(top_negative_themes):
+        td = _VOC_THEMES.get(neg, {"label": neg})
+        priority = _VOC_ACTION_FRAMEWORK[min(i, 1)]  # first two get P1/P2
+        action_items.append({
+            "theme":    td["label"],
+            "priority": priority["priority"],
+            "owner":    priority["owner"],
+            "timeline": priority["timeline"],
+            "action":   f"Investigate and resolve root cause of '{td['label']}' complaints",
+        })
+    for pos in top_positive_themes[:1]:
+        td = _VOC_THEMES.get(pos, {"label": pos})
+        action_items.append({
+            "theme":    td["label"],
+            "priority": "P4 — Share",
+            "owner":    "Marketing",
+            "timeline": "Immediately",
+            "action":   f"Feature '{td['label']}' praise in social proof, ads, and website",
+        })
+
+    return {
+        "company_name":       company_name,
+        "period":             period,
+        "total_responses":    total_responses,
+        "data_sources_used":  data_sources,
+        "executive_summary": {
+            "nps_score":     nps_score,
+            "nps_label":     nps_label,
+            "nps_action":    _VOC_NPS_BANDS[nps_band]["action"],
+            "csat_score":    csat_score,
+            "csat_label":    "Strong" if csat_score >= 4.2 else ("Acceptable" if csat_score >= 3.5 else "Needs Urgent Attention"),
+            "top_praise":    [_VOC_THEMES.get(t, {"label":t})["label"] for t in top_positive_themes],
+            "top_concerns":  [_VOC_THEMES.get(t, {"label":t})["label"] for t in top_negative_themes],
+        },
+        "nps_breakdown":      _VOC_NPS_BANDS,
+        "theme_analysis":     theme_analysis,
+        "verbatim_samples":   verbatim_samples,
+        "action_plan":        action_items,
+        "action_framework":   _VOC_ACTION_FRAMEWORK,
+        "data_sources_all":   _VOC_DATA_SOURCES,
+        "recommended_metrics": {
+            "NPS":   {"desc":"Net Promoter Score", "target":">40 (Good) / >70 (World class)"},
+            "CSAT":  {"desc":"Customer Satisfaction Score", "target":">4.2/5 or >85%"},
+            "CES":   {"desc":"Customer Effort Score", "target":"<3 (lower is easier)"},
+            "FCR":   {"desc":"First Contact Resolution", "target":">80%"},
+            "Churn": {"desc":"Monthly churn rate", "target":"<2% for SaaS / <5% for e-com"},
+        },
+        "next_steps": [
+            f"Share report with all department heads within 3 days",
+            f"Assign owners to each action item in the plan",
+            f"Schedule follow-up VOC review in 90 days",
+            f"Close the loop with Detractors (NPS 0–6) within 48 hours",
+            f"Publish internal highlights — what customers love about {company_name}",
+        ],
+        "cs_notes": [
+            "VOC reports are most powerful when shared cross-functionally — not just CS",
+            "Segment VOC by customer tier (new vs loyal vs churned) for richer insights",
+            "NPS alone is not enough — always pair with open-ended 'why' question",
+            "Run VOC quarterly at minimum; monthly for high-growth or high-churn businesses",
+            "Close the loop with every Detractor — personal outreach recovers ~30% of at-risk customers",
+        ],
+    }
 
 
 def generate_review_response_kit(

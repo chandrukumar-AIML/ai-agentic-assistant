@@ -2069,6 +2069,16 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "story_highlights":
+        return generate_story_highlights_plan(
+            brand_name=payload.get("brand_name", ""),
+            industry=payload.get("industry", "general"),
+            brand_colors=payload.get("brand_colors", ""),
+            num_highlights=payload.get("num_highlights", 8),
+            cover_style=payload.get("cover_style", "minimal"),
+            language=language,
+        )
+
     elif action == "meme_caption":
         return generate_meme_caption(
             brand_name=payload.get("brand_name", ""),
@@ -3164,6 +3174,124 @@ _MEME_CAPTION_FORMATS = {
         ("Sending emails manually", "Using templates", "Using automation", "AI writes them for you"),
     ],
 }
+
+
+# ── R27: Story Highlights Planner ────────────────────────────────────────────
+
+_SH_COVER_STYLES = {
+    "minimal":    {"desc": "Clean icon on solid background", "tools": "Canva, Adobe Express"},
+    "gradient":   {"desc": "Brand gradient with icon overlay", "tools": "Canva"},
+    "photograph": {"desc": "Real photo as cover with text", "tools": "VSCO, Lightroom"},
+    "illustrated":{"desc": "Custom illustrated icon style", "tools": "Procreate, Canva"},
+    "branded":    {"desc": "Logo-forward with accent color", "tools": "Canva, Figma"},
+}
+
+_SH_STANDARD_CATEGORIES = {
+    "about":      {"icon": "🏠", "stories": ["Founder story","Team intro","Office/workspace","Our mission","Behind the scenes"], "caption": "Everything about us"},
+    "products":   {"icon": "🛍️", "stories": ["Product demos","Unboxing","Features walkthrough","New arrivals","How to use"], "caption": "What we make"},
+    "reviews":    {"icon": "⭐", "stories": ["Customer reviews","Before & after","UGC reposts","Ratings screenshots","Video testimonials"], "caption": "What they say"},
+    "faqs":       {"icon": "❓", "stories": ["Pricing FAQ","Shipping FAQ","Return policy","How to order","Contact FAQ"], "caption": "Got questions?"},
+    "offers":     {"icon": "🔥", "stories": ["Ongoing deals","Flash sales","Coupon codes","Bundle offers","Seasonal offers"], "caption": "Latest deals"},
+    "process":    {"icon": "⚙️", "stories": ["How we make it","Quality checks","Packaging","Delivery process","After-sales"], "caption": "How it works"},
+    "team":       {"icon": "👥", "stories": ["Founder intro","Team members","Day in the life","Culture moments","Hiring"], "caption": "Our people"},
+    "events":     {"icon": "📅", "stories": ["Live events","Webinars","Exhibitions","Award ceremonies","Meetups"], "caption": "Events"},
+    "tips":       {"icon": "💡", "stories": ["How-to guides","Pro tips","Hacks","Did you know","Industry trends"], "caption": "Tips & tricks"},
+    "press":      {"icon": "📰", "stories": ["News features","Podcast appearances","Awards","Media coverage","Collaborations"], "caption": "In the news"},
+    "reels":      {"icon": "🎬", "stories": ["Best reels","Trending videos","Behind the reel","BTS","Collab reels"], "caption": "Watch & enjoy"},
+    "contact":    {"icon": "📞", "stories": ["WhatsApp link","Email ID","Store location","Working hours","How to reach us"], "caption": "Reach us"},
+}
+
+_SH_INDUSTRY_EXTRAS = {
+    "fashion":   ["sizing_guide","styling_tips","lookbook","collection","care_instructions"],
+    "food":      ["menu","chef_specials","ingredients","delivery_zones","combo_deals"],
+    "fitness":   ["workout_plans","transformation","schedule","challenges","nutrition"],
+    "education": ["courses","student_wins","curriculum","faculty","placement"],
+    "realestate":["projects","floor_plans","site_visits","emi_calculator","testimonials"],
+    "beauty":    ["tutorials","before_after","ingredients","skincare_routine","reviews"],
+    "b2b":       ["case_studies","clients","pricing","integration","demo_booking"],
+}
+
+_SH_CONTENT_CALENDAR = {
+    "weekly":  ["Monday Motivation", "Product spotlight mid-week", "Customer story Friday", "Weekend offer"],
+    "monthly": ["Month theme announcement", "Big reveal / launch", "Review roundup", "Month wrap-up"],
+}
+
+
+def generate_story_highlights_plan(
+    brand_name: str,
+    industry: str = "general",
+    brand_colors: str = "",
+    num_highlights: int = 8,
+    cover_style: str = "minimal",
+    language: str = "en",
+) -> dict:
+    # Pick relevant categories
+    base_cats = list(_SH_STANDARD_CATEGORIES.keys())
+    industry_extras = _SH_INDUSTRY_EXTRAS.get(industry, [])
+
+    # Pick top N highlights
+    selected = base_cats[:num_highlights]
+
+    highlights = []
+    for cat in selected:
+        cat_data = _SH_STANDARD_CATEGORIES[cat]
+        highlights.append({
+            "name":          cat.replace("_"," ").title(),
+            "cover_icon":    cat_data["icon"],
+            "cover_caption": cat_data["caption"],
+            "story_ideas":   cat_data["stories"],
+            "story_count_recommended": 5,
+            "refresh_frequency": "Monthly" if cat in ("offers","events") else "Quarterly",
+        })
+
+    # Industry-specific add-ons
+    extras = []
+    for extra in industry_extras[:max(0, num_highlights - len(selected))]:
+        extras.append({
+            "name": extra.replace("_"," ").title(),
+            "cover_icon": "📌",
+            "cover_caption": extra.replace("_"," ").title(),
+            "story_ideas": [f"Create {extra.replace('_',' ')} content tailored to {brand_name}"],
+            "story_count_recommended": 3,
+            "refresh_frequency": "Monthly",
+        })
+
+    cover_info = _SH_COVER_STYLES.get(cover_style, _SH_COVER_STYLES["minimal"])
+
+    return {
+        "brand_name":     brand_name,
+        "industry":       industry,
+        "cover_style":    cover_style,
+        "cover_style_desc": cover_info["desc"],
+        "design_tools":   cover_info["tools"],
+        "brand_colors":   brand_colors or "Use your primary and secondary brand colors",
+        "total_highlights": len(highlights) + len(extras),
+        "highlights":     highlights,
+        "industry_extras": extras,
+        "cover_design_tips": [
+            "All covers should look uniform — same background color family",
+            "Use 1 icon per cover — avoid cluttered text",
+            "Size: 1080×1920px (Stories format), but display as circle on profile",
+            "Test how it looks as a circle before publishing",
+            f"Recommended tools: {cover_info['tools']}",
+            "Keep icon centered — circle crop cuts the edges",
+        ],
+        "content_calendar": _SH_CONTENT_CALENDAR,
+        "strategy_tips": [
+            "First 4–6 highlights are most visible — put your most important ones there",
+            "Name highlights with 1–2 short words — long names get cut off on mobile",
+            "Pin your 'Offers' highlight — it drives direct sales",
+            "'Reviews' highlight is your social proof — keep it fresh monthly",
+            "Archive Stories before they expire (24h) — use Instagram's Archive feature",
+            "Story Highlights are permanent — update covers when rebranding",
+            "Use consistent emoji in names: 🔥 Deals, ⭐ Reviews — looks polished",
+        ],
+        "highlight_refresh_plan": {
+            "weekly":   "Add new Stories to Offers, Events, Reels",
+            "monthly":  "Refresh Reviews, Tips, Process with new content",
+            "quarterly":"Audit all highlights — remove outdated stories, update covers if brand changed",
+        },
+    }
 
 
 def generate_meme_caption(

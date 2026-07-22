@@ -71,6 +71,7 @@ const TABS = [
   { id: 'agent_training', label: 'Agent Training' },
   { id: 'sla_policy',      label: 'SLA Policy' },
   { id: 'review_response', label: 'Review Responses' },
+  { id: 'voc_report',      label: 'Voice of Customer' },
 ]
 
 const WA_TYPES = [
@@ -1332,6 +1333,7 @@ export default function CustomerSupportPage() {
         {tab === 'agent_training'    && <AgentTrainingTab lang={lang} />}
         {tab === 'sla_policy'        && <SlaPolicyTab lang={lang} />}
         {tab === 'review_response'   && <ReviewResponseTab lang={lang} />}
+        {tab === 'voc_report'        && <VocReportTab lang={lang} />}
         {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
         {tab === 'cx360'          && <Customer360Tab lang={lang} />}
         {tab === 'analytics'      && <SupportAnalyticsTab lang={lang} />}
@@ -4101,6 +4103,221 @@ export function SupportAnalyticsTab({ lang }: { lang: string }) {
 const CB_INDUSTRIES = ['ecommerce','services','education','health','real_estate','restaurant','finance','retail']
 const CB_PLATFORMS  = [{value:'whatsapp',label:'WhatsApp Business'},{value:'website',label:'Website Chat'},{value:'instagram',label:'Instagram DM'}]
 const CB_TONES      = ['friendly','professional','formal']
+
+// ── R27: Voice of Customer Report ─────────────────────────────────────────────
+export function VocReportTab({ lang }: { lang: string }) {
+  const [vcCompany,  setVcCompany]  = useState('')
+  const [vcPeriod,   setVcPeriod]   = useState('Q1 FY 2025-26')
+  const [vcTotal,    setVcTotal]    = useState('')
+  const [vcNps,      setVcNps]      = useState('')
+  const [vcCsat,     setVcCsat]     = useState('')
+  const [vcPosTh,    setVcPosTh]    = useState<string[]>(['product_quality','delivery'])
+  const [vcNegTh,    setVcNegTh]    = useState<string[]>(['customer_support','pricing'])
+  const [vcSources,  setVcSources]  = useState<string[]>(['Customer support tickets (CRM)','Post-purchase CSAT surveys'])
+  const [vcVerbs,    setVcVerbs]    = useState('')
+  const [vcRes,      setVcRes]      = useState<any>(null)
+  const [vcLoading,  setVcLoading]  = useState(false)
+  const [vcErr,      setVcErr]      = useState('')
+
+  const allThemes = ['product_quality','pricing','delivery','customer_support','onboarding','features','returns','communication']
+  const allSources = ['Customer support tickets (CRM)','Post-purchase CSAT surveys','NPS surveys','Product reviews','Social media mentions','Live chat transcripts','Return/refund reasons','App store reviews','Exit surveys']
+
+  const toggleTheme = (t: string, pos: boolean) => {
+    if (pos) setVcPosTh(x => x.includes(t) ? x.filter(v=>v!==t) : [...x,t])
+    else     setVcNegTh(x => x.includes(t) ? x.filter(v=>v!==t) : [...x,t])
+  }
+  const toggleSource = (s: string) => setVcSources(x => x.includes(s) ? x.filter(v=>v!==s) : [...x,s])
+
+  const generate = async () => {
+    if (!vcCompany.trim()) { setVcErr('Enter company name'); return }
+    setVcLoading(true); setVcErr(''); setVcRes(null)
+    try {
+      const r = await csAction('voc_report', {
+        company_name: vcCompany, period: vcPeriod,
+        total_responses: parseInt(vcTotal)||0,
+        nps_score: parseFloat(vcNps)||0, csat_score: parseFloat(vcCsat)||0,
+        top_positive_themes: vcPosTh, top_negative_themes: vcNegTh,
+        data_sources: vcSources,
+        verbatim_samples: vcVerbs.split('\n').map(v=>v.trim()).filter(Boolean),
+      }, lang)
+      setVcRes(r)
+    } catch (e: any) { setVcErr(e.message || 'Error') }
+    finally { setVcLoading(false) }
+  }
+
+  const npsColor = (score: number) => score >= 50 ? '#22c55e' : score >= 30 ? '#eab308' : '#ef4444'
+  const csatColor = (score: number) => score >= 4.2 ? '#22c55e' : score >= 3.5 ? '#eab308' : '#ef4444'
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">🎯 Voice of Customer Report</h2>
+      <p className="tool-desc">Synthesise NPS, CSAT, and qualitative feedback into a structured VoC report with prioritised action plan.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Company Name</label>
+          <input value={vcCompany} onChange={e=>setVcCompany(e.target.value)} placeholder="Your Company" /></div>
+        <div className="form-group"><label>Report Period</label>
+          <input value={vcPeriod} onChange={e=>setVcPeriod(e.target.value)} placeholder="Q1 FY 2025-26" /></div>
+        <div className="form-group"><label>Total Responses</label>
+          <input type="number" value={vcTotal} onChange={e=>setVcTotal(e.target.value)} placeholder="e.g. 450" /></div>
+        <div className="form-group"><label>NPS Score (-100 to 100)</label>
+          <input type="number" min={-100} max={100} value={vcNps} onChange={e=>setVcNps(e.target.value)} placeholder="e.g. 42" /></div>
+        <div className="form-group"><label>CSAT Score (out of 5)</label>
+          <input type="number" step={0.1} min={1} max={5} value={vcCsat} onChange={e=>setVcCsat(e.target.value)} placeholder="e.g. 4.1" /></div>
+      </div>
+
+      <div className="ca-section">
+        <h4>Positive Themes (what customers praise)</h4>
+        <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+          {allThemes.map(t => (
+            <label key={t} style={{display:'flex',alignItems:'center',gap:'0.3rem',cursor:'pointer',padding:'3px 8px',background:vcPosTh.includes(t)?'rgba(34,197,94,0.15)':'var(--bg-secondary)',borderRadius:'6px'}}>
+              <input type="checkbox" checked={vcPosTh.includes(t)} onChange={()=>toggleTheme(t,true)} />
+              {t.replace(/_/g,' ')}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="ca-section">
+        <h4>Negative Themes (pain points)</h4>
+        <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+          {allThemes.map(t => (
+            <label key={t} style={{display:'flex',alignItems:'center',gap:'0.3rem',cursor:'pointer',padding:'3px 8px',background:vcNegTh.includes(t)?'rgba(239,68,68,0.15)':'var(--bg-secondary)',borderRadius:'6px'}}>
+              <input type="checkbox" checked={vcNegTh.includes(t)} onChange={()=>toggleTheme(t,false)} />
+              {t.replace(/_/g,' ')}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="ca-section">
+        <h4>Data Sources Used</h4>
+        <div style={{display:'flex',gap:'0.5rem',flexWrap:'wrap'}}>
+          {allSources.map(s => (
+            <label key={s} style={{display:'flex',alignItems:'center',gap:'0.3rem',cursor:'pointer',padding:'3px 8px',background:vcSources.includes(s)?'rgba(99,102,241,0.15)':'var(--bg-secondary)',borderRadius:'6px',fontSize:'0.85rem'}}>
+              <input type="checkbox" checked={vcSources.includes(s)} onChange={()=>toggleSource(s)} />
+              {s}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="form-group full">
+        <label>Verbatim Customer Quotes (one per line, optional)</label>
+        <textarea rows={4} value={vcVerbs} onChange={e=>setVcVerbs(e.target.value)}
+          placeholder={"\"Delivery was super fast, loved it!\"\n\"Support took 3 days to respond — very frustrating.\""} />
+      </div>
+
+      {vcErr && <div className="error-box">{vcErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={vcLoading}>
+        {vcLoading ? 'Generating…' : 'Generate VoC Report'}
+      </button>
+
+      {vcRes && (
+        <div className="result-box">
+          <h3>{vcRes.company_name} — Voice of Customer Report</h3>
+          <p><strong>Period:</strong> {vcRes.period} | <strong>Responses:</strong> {vcRes.total_responses?.toLocaleString()}</p>
+
+          <div className="form-grid" style={{marginBottom:'1rem'}}>
+            <div style={{background:'var(--bg-secondary)',padding:'1rem',borderRadius:'8px',textAlign:'center'}}>
+              <p style={{margin:0,fontSize:'0.8rem',color:'var(--text-muted)'}}>NPS Score</p>
+              <p style={{margin:'0.25rem 0 0',fontSize:'2rem',fontWeight:700,color:npsColor(parseFloat(vcNps)||0)}}>{vcRes.executive_summary?.nps_score}</p>
+              <p style={{margin:0,fontSize:'0.8rem'}}>{vcRes.executive_summary?.nps_label}</p>
+            </div>
+            <div style={{background:'var(--bg-secondary)',padding:'1rem',borderRadius:'8px',textAlign:'center'}}>
+              <p style={{margin:0,fontSize:'0.8rem',color:'var(--text-muted)'}}>CSAT Score</p>
+              <p style={{margin:'0.25rem 0 0',fontSize:'2rem',fontWeight:700,color:csatColor(parseFloat(vcCsat)||0)}}>{vcRes.executive_summary?.csat_score}</p>
+              <p style={{margin:0,fontSize:'0.8rem'}}>{vcRes.executive_summary?.csat_label}</p>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>🎯 NPS Action</h4>
+            <p>{vcRes.executive_summary?.nps_action}</p>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.85rem'}}>
+                <thead><tr style={{background:'var(--bg-secondary)'}}>
+                  {['Segment','Score Range','Action'].map(h => <th key={h} style={{padding:'0.4rem',textAlign:'left'}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {Object.entries(vcRes.nps_breakdown||{}).map(([seg,d]: any) => (
+                    <tr key={seg} style={{borderTop:'1px solid var(--border-color)'}}>
+                      <td style={{padding:'0.4rem',textTransform:'capitalize',fontWeight:600}}>{seg}</td>
+                      <td style={{padding:'0.4rem'}}>{d.range}</td>
+                      <td style={{padding:'0.4rem',fontSize:'0.8rem'}}>{d.action}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>📊 Theme Analysis</h4>
+            {(vcRes.theme_analysis||[]).map((t: any, i: number) => (
+              <div key={i} style={{display:'flex',gap:'0.75rem',alignItems:'flex-start',marginBottom:'0.5rem',padding:'0.5rem',background:'var(--bg-secondary)',borderRadius:'6px',borderLeft:`3px solid ${t.sentiment==='positive'?'#22c55e':'#ef4444'}`}}>
+                <span style={{fontSize:'1rem'}}>{t.sentiment==='positive'?'✅':'⚠️'}</span>
+                <div>
+                  <strong>{t.theme}</strong>
+                  <p style={{margin:'0.2rem 0 0',fontSize:'0.82rem',color:'var(--text-muted)'}}>{t.examples?.join(' · ')}</p>
+                  <p style={{margin:'0.2rem 0 0',fontSize:'0.82rem'}}>{t.action}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {vcRes.verbatim_samples?.length > 0 && (
+            <div className="ca-section">
+              <h4>💬 Customer Verbatims</h4>
+              {vcRes.verbatim_samples.map((v: string, i: number) => (
+                <blockquote key={i} style={{borderLeft:'3px solid var(--accent)',paddingLeft:'0.75rem',margin:'0.4rem 0',fontStyle:'italic',color:'var(--text-muted)'}}>{v}</blockquote>
+              ))}
+            </div>
+          )}
+
+          <div className="ca-section">
+            <h4>🚀 Prioritised Action Plan</h4>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.85rem'}}>
+                <thead><tr style={{background:'var(--bg-secondary)'}}>
+                  {['Theme','Priority','Owner','Timeline','Action'].map(h => <th key={h} style={{padding:'0.4rem',textAlign:'left'}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {(vcRes.action_plan||[]).map((a: any, i: number) => (
+                    <tr key={i} style={{borderTop:'1px solid var(--border-color)'}}>
+                      <td style={{padding:'0.4rem',fontWeight:500}}>{a.theme}</td>
+                      <td style={{padding:'0.4rem'}}><span style={{background:a.priority.includes('P1')?'#ef4444':a.priority.includes('P2')?'#f97316':a.priority.includes('P4')?'#22c55e':'#eab308',color:'white',padding:'1px 6px',borderRadius:'8px',fontSize:'0.75rem'}}>{a.priority}</span></td>
+                      <td style={{padding:'0.4rem'}}>{a.owner}</td>
+                      <td style={{padding:'0.4rem',fontSize:'0.8rem'}}>{a.timeline}</td>
+                      <td style={{padding:'0.4rem',fontSize:'0.82rem'}}>{a.action}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>📏 Recommended Metrics</h4>
+            {Object.entries(vcRes.recommended_metrics||{}).map(([k,v]: any) => (
+              <p key={k}><strong>{k} — {v.desc}:</strong> Target {v.target}</p>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>📋 Next Steps</h4>
+            <ul>{(vcRes.next_steps||[]).map((n: string, i: number) => <li key={i}>{n}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>CS Notes</h4>
+            <ul>{(vcRes.cs_notes||[]).map((n: string, i: number) => <li key={i}>⚠️ {n}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R26: Product Review Response Kit ─────────────────────────────────────────
 export function ReviewResponseTab({ lang }: { lang: string }) {

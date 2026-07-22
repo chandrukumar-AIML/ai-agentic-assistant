@@ -835,7 +835,8 @@ export default function SocialPage() {
           { id: 'bio_opt',      label: 'Bio Optimizer',            icon: '✍️' },
           { id: 'comment_reply',  label: 'Comment Replies',          icon: '💬' },
           { id: 'facebook_post',  label: 'Facebook Post',            icon: '📘' },
-          { id: 'meme_caption',   label: 'Meme Caption',             icon: '😂' },
+          { id: 'meme_caption',      label: 'Meme Caption',          icon: '😂' },
+          { id: 'story_highlights',  label: 'Story Highlights',      icon: '✨' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -1441,7 +1442,8 @@ export default function SocialPage() {
       {tab === 'bio_opt'    && <BioOptimizerTab />}
       {tab === 'comment_reply' && <CommentReplyTab />}
       {tab === 'facebook_post' && <FacebookPostTab />}
-      {tab === 'meme_caption'  && <MemeCaptionTab />}
+      {tab === 'meme_caption'     && <MemeCaptionTab />}
+      {tab === 'story_highlights' && <StoryHighlightsTab />}
 
       {/* ── ANALYTICS ── */}
       {tab === 'analytics' && (
@@ -3980,6 +3982,109 @@ export default function SocialPage() {
 const BO_TONES    = ['professional','creative','energetic','warm']
 const BO_PLATFORMS = ['instagram','linkedin','twitter','youtube']
 const BO_INDUSTRIES = ['technology','finance','marketing','education','health','ecommerce','consulting','creative']
+
+// ── R27: Story Highlights Planner ─────────────────────────────────────────────
+export function StoryHighlightsTab() {
+  const [shBrand,   setShBrand]   = useState('')
+  const [shInd,     setShInd]     = useState('general')
+  const [shColors,  setShColors]  = useState('')
+  const [shCount,   setShCount]   = useState(8)
+  const [shStyle,   setShStyle]   = useState('minimal')
+  const [shRes,     setShRes]     = useState<any>(null)
+  const [shLoading, setShLoading] = useState(false)
+  const [shErr,     setShErr]     = useState('')
+
+  const industries = ['general','fashion','food','fitness','education','realestate','beauty','b2b']
+  const styles     = ['minimal','gradient','photograph','illustrated','branded']
+
+  const generate = async () => {
+    if (!shBrand.trim()) { setShErr('Enter brand name'); return }
+    setShLoading(true); setShErr(''); setShRes(null)
+    try {
+      const r = await socialAction('story_highlights', {
+        brand_name: shBrand, industry: shInd, brand_colors: shColors,
+        num_highlights: shCount, cover_style: shStyle,
+      })
+      setShRes(r)
+    } catch (e: any) { setShErr(e.message || 'Error') }
+    finally { setShLoading(false) }
+  }
+
+  return (
+    <div className="tool-panel">
+      <h2 className="tool-title">✨ Story Highlights Planner</h2>
+      <p className="tool-desc">Plan your Instagram Story Highlights — covers, categories, content ideas, and refresh schedule.</p>
+
+      <div className="form-grid">
+        <div className="form-group"><label>Brand Name</label>
+          <input value={shBrand} onChange={e=>setShBrand(e.target.value)} placeholder="Your Brand" /></div>
+        <div className="form-group"><label>Industry</label>
+          <select value={shInd} onChange={e=>setShInd(e.target.value)}>
+            {industries.map(i => <option key={i} value={i}>{i.charAt(0).toUpperCase()+i.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Cover Style</label>
+          <select value={shStyle} onChange={e=>setShStyle(e.target.value)}>
+            {styles.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+          </select>
+        </div>
+        <div className="form-group"><label>Number of Highlights</label>
+          <input type="number" min={4} max={12} value={shCount} onChange={e=>setShCount(Number(e.target.value))} /></div>
+        <div className="form-group full"><label>Brand Colors (optional)</label>
+          <input value={shColors} onChange={e=>setShColors(e.target.value)} placeholder="e.g. Navy blue #1a237e, Gold #ffd700" /></div>
+      </div>
+
+      {shErr && <div className="error-box">{shErr}</div>}
+      <button className="btn-primary" onClick={generate} disabled={shLoading}>
+        {shLoading ? 'Generating…' : 'Generate Highlights Plan'}
+      </button>
+
+      {shRes && (
+        <div className="result-box">
+          <h3>{shRes.brand_name} — Story Highlights Plan</h3>
+          <p><strong>Cover Style:</strong> {shRes.cover_style_desc} | <strong>Tools:</strong> {shRes.design_tools}</p>
+          <p><strong>Brand Colors:</strong> {shRes.brand_colors}</p>
+
+          <div className="ca-section">
+            <h4>Highlights ({shRes.total_highlights} total)</h4>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:'0.75rem'}}>
+              {[...(shRes.highlights||[]), ...(shRes.industry_extras||[])].map((h: any, i: number) => (
+                <div key={i} style={{background:'var(--bg-secondary)',padding:'0.75rem',borderRadius:'8px',borderLeft:`3px solid var(--accent)`}}>
+                  <div style={{display:'flex',gap:'0.5rem',alignItems:'center',marginBottom:'0.4rem'}}>
+                    <span style={{fontSize:'1.2rem'}}>{h.cover_icon}</span>
+                    <strong>{h.name}</strong>
+                    <span style={{fontSize:'0.75rem',color:'var(--text-muted)',marginLeft:'auto'}}>↻ {h.refresh_frequency}</span>
+                  </div>
+                  <p style={{fontSize:'0.8rem',color:'var(--text-muted)',margin:'0 0 0.4rem'}}>{h.cover_caption}</p>
+                  <ul style={{margin:0,paddingLeft:'1rem',fontSize:'0.82rem'}}>
+                    {h.story_ideas.map((idea: string, j: number) => <li key={j}>{idea}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="ca-section">
+            <h4>🎨 Cover Design Tips</h4>
+            <ul>{(shRes.cover_design_tips||[]).map((t: string, i: number) => <li key={i}>{t}</li>)}</ul>
+          </div>
+
+          <div className="ca-section">
+            <h4>📅 Refresh Plan</h4>
+            {Object.entries(shRes.highlight_refresh_plan||{}).map(([freq, action]: any) => (
+              <p key={freq}><strong style={{textTransform:'capitalize'}}>{freq}:</strong> {action}</p>
+            ))}
+          </div>
+
+          <div className="ca-section">
+            <h4>💡 Strategy Tips</h4>
+            <ul>{(shRes.strategy_tips||[]).map((t: string, i: number) => <li key={i}>{t}</li>)}</ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── R26: Meme Caption Generator ───────────────────────────────────────────────
 export function MemeCaptionTab() {

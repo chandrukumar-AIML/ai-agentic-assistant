@@ -953,6 +953,17 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "mca_roc_calendar":
+        return generate_mca_roc_calendar(
+            company_name=payload.get("company_name", ""),
+            entity_type=payload.get("entity_type", "private_limited"),
+            fy_end_month=payload.get("fy_end_month", "March"),
+            has_msme_vendors=payload.get("has_msme_vendors", False),
+            has_deposits=payload.get("has_deposits", False),
+            is_newly_incorporated=payload.get("is_newly_incorporated", False),
+            language=language,
+        )
+
     elif action == "directors_report":
         return generate_directors_report(
             company_name=payload.get("company_name", ""),
@@ -3038,6 +3049,118 @@ _DR_RISK_CATEGORIES = [
     {"risk": "Technology Risk",   "mitigation": "Cybersecurity policy, data backup, IT audits"},
     {"risk": "Human Resource Risk","mitigation": "Competitive remuneration, succession planning, training"},
 ]
+
+
+# ── R27: MCA / ROC Filing Calendar ───────────────────────────────────────────
+
+_ROC_FILINGS = [
+    # Form, Description, Due Date, Applicable To, Penalty
+    {"form":"MGT-7 / MGT-7A", "desc":"Annual Return",                      "due":"Within 60 days of AGM (usually by 29 Nov for 31 Mar FY)",     "applicable":"All companies",                    "penalty":"₹100/day per form"},
+    {"form":"AOC-4 / AOC-4 XBRL","desc":"Financial Statements",             "due":"Within 30 days of AGM (usually by 29 Oct for 31 Mar FY)",     "applicable":"All companies",                    "penalty":"₹100/day per form"},
+    {"form":"ADT-1",          "desc":"Auditor Appointment",                 "due":"Within 15 days of AGM",                                       "applicable":"All companies on auditor change",  "penalty":"₹100/day"},
+    {"form":"DIR-3 KYC",      "desc":"Director KYC",                        "due":"30 September every year",                                     "applicable":"All directors with DIN",           "penalty":"₹5,000 per director"},
+    {"form":"DPT-3",          "desc":"Return of Deposits",                  "due":"30 June every year",                                          "applicable":"Companies with deposits/loans",    "penalty":"₹500–₹5,000/day"},
+    {"form":"MSME-1",         "desc":"MSME Outstanding Payments",           "due":"30 April (Oct–Mar period) / 31 Oct (Apr–Sep period)",          "applicable":"Companies with MSME vendor dues>45 days","penalty":"₹25,000–₹3 lakh"},
+    {"form":"BEN-2",          "desc":"Beneficial Owner Declaration",        "due":"Within 30 days of receipt of BEN-1",                          "applicable":"Companies with significant beneficial owners","penalty":"₹1,000/day"},
+    {"form":"INC-20A",        "desc":"Business Commencement",               "due":"Within 180 days of CoI",                                      "applicable":"New companies (Pvt Ltd / OPC)",    "penalty":"₹50,000 company + ₹1,000/day directors"},
+    {"form":"PAS-6",          "desc":"Reconciliation of Share Capital Audit","due":"60 days from end of each half-year",                          "applicable":"Unlisted public companies",         "penalty":"₹1,000/day"},
+    {"form":"LLP-11",         "desc":"LLP Annual Return",                   "due":"30 May every year",                                           "applicable":"LLPs",                             "penalty":"₹100/day"},
+    {"form":"Form 8 (LLP)",   "desc":"LLP Statement of Accounts",           "due":"30 October every year",                                       "applicable":"LLPs",                             "penalty":"₹100/day"},
+    {"form":"MGT-14",         "desc":"Board/Member Resolutions",            "due":"Within 30 days of passing resolution",                        "applicable":"Public companies / listed cos",     "penalty":"₹1,000/day"},
+    {"form":"INC-22A (ACTIVE)","desc":"Active Company Tagging",             "due":"One-time compliance (check if done)",                         "applicable":"Companies incorporated before 2017","penalty":"₹10,000"},
+]
+
+_TAX_CALENDAR = [
+    {"month":"April",    "due_dates":["7 Apr: TDS payment (Mar)", "15 Apr: ESI/PF challan (Mar)", "30 Apr: MSME-1 (Oct–Mar)"]},
+    {"month":"May",      "due_dates":["7 May: TDS payment (Apr)", "15 May: ESI/PF challan (Apr)", "30 May: LLP Annual Return (Form 11)", "31 May: TDS Return (Q4 Jan–Mar)"]},
+    {"month":"June",     "due_dates":["7 Jun: TDS payment (May)", "15 Jun: Advance Tax Instalment 1 (15%)", "15 Jun: ESI/PF challan (May)", "30 Jun: DPT-3 Return of Deposits"]},
+    {"month":"July",     "due_dates":["7 Jul: TDS payment (Jun)", "15 Jul: TDS Certificate (Q1)", "15 Jul: ESI/PF challan (Jun)", "31 Jul: ITR (non-audit individuals)", "31 Jul: TDS Return (Q1 Apr–Jun)"]},
+    {"month":"August",   "due_dates":["7 Aug: TDS payment (Jul)", "15 Aug: ESI/PF challan (Jul)"]},
+    {"month":"September","due_dates":["7 Sep: TDS payment (Aug)", "15 Sep: Advance Tax Instalment 2 (45% cumulative)", "15 Sep: ESI/PF challan (Aug)", "30 Sep: DIR-3 KYC", "30 Sep: AGM deadline (31 Mar FY)"]},
+    {"month":"October",  "due_dates":["7 Oct: TDS payment (Sep)", "15 Oct: TDS Certificate (Q2)", "15 Oct: ESI/PF challan (Sep)", "29 Oct: AOC-4 Financial Statements (if AGM on 30 Sep)", "31 Oct: ITR (audit cases)", "31 Oct: LLP Form 8", "31 Oct: MSME-1 (Apr–Sep)"]},
+    {"month":"November", "due_dates":["7 Nov: TDS payment (Oct)", "15 Nov: ESI/PF challan (Oct)", "29 Nov: MGT-7 Annual Return (if AGM on 30 Sep)", "30 Nov: TDS Return (Q2 Jul–Sep)"]},
+    {"month":"December", "due_dates":["7 Dec: TDS payment (Nov)", "15 Dec: Advance Tax Instalment 3 (75% cumulative)", "15 Dec: ESI/PF challan (Nov)"]},
+    {"month":"January",  "due_dates":["7 Jan: TDS payment (Dec)", "15 Jan: TDS Certificate (Q3)", "15 Jan: ESI/PF challan (Dec)", "31 Jan: TDS Return (Q3 Oct–Dec)"]},
+    {"month":"February", "due_dates":["7 Feb: TDS payment (Jan)", "15 Feb: ESI/PF challan (Jan)"]},
+    {"month":"March",    "due_dates":["7 Mar: TDS payment (Feb)", "15 Mar: Advance Tax Instalment 4 (100%)", "15 Mar: ESI/PF challan (Feb)", "31 Mar: Invest for tax-saving (80C, 80D, NPS etc.)"]},
+]
+
+_HIGH_RISK_FILINGS = ["DIR-3 KYC", "INC-20A", "AOC-4 / AOC-4 XBRL", "MGT-7 / MGT-7A", "DPT-3"]
+
+
+def generate_mca_roc_calendar(
+    company_name: str,
+    entity_type: str = "private_limited",
+    fy_end_month: str = "March",
+    has_msme_vendors: bool = False,
+    has_deposits: bool = False,
+    is_newly_incorporated: bool = False,
+    language: str = "en",
+) -> dict:
+    # Filter relevant filings
+    filings = []
+    for f in _ROC_FILINGS:
+        applicable = f["applicable"].lower()
+        include = True
+
+        # Skip LLP-specific for companies
+        if entity_type in ("private_limited","opc","public") and "llp" in applicable:
+            include = False
+        # Skip company-specific for LLPs
+        if entity_type == "llp" and "llp" not in applicable and "all companies" not in applicable:
+            include = False
+        if not has_msme_vendors and "msme" in applicable:
+            include = False
+        if not has_deposits and "deposit" in applicable.lower():
+            include = False
+        if not is_newly_incorporated and ("new compan" in applicable or "incorporated before" in applicable):
+            include = False
+
+        if include:
+            filings.append({
+                **f,
+                "high_risk": f["form"] in _HIGH_RISK_FILINGS,
+            })
+
+    # GST monthly reminders
+    gst_reminders = [
+        "11th of each month: GSTR-1 (outward supplies)",
+        "13th of each month: GSTR-2B auto-populated (ITC reconciliation)",
+        "20th of each month: GSTR-3B (summary + payment)",
+        "Quarterly GSTR-1 (QRMP scheme): 13th of month after quarter end",
+    ]
+
+    return {
+        "company_name":    company_name,
+        "entity_type":     entity_type,
+        "fy_end_month":    fy_end_month,
+        "roc_filings":     filings,
+        "tax_calendar":    _TAX_CALENDAR,
+        "gst_reminders":   gst_reminders,
+        "high_risk_forms": _HIGH_RISK_FILINGS,
+        "penalty_summary": {
+            "late_filing_general": "₹100 per day per form (no cap for most forms)",
+            "dir_3_kyc":           "₹5,000 per director if DIN marked deactivated",
+            "inc_20a":             "₹50,000 company + ₹1,000/day for directors until filed",
+            "dpt_3":               "₹500–₹5,000 per day; personal liability on officers",
+        },
+        "best_practices": [
+            "Maintain a compliance tracker with due dates and responsible person",
+            "Set calendar reminders 15 days before each due date",
+            "File AOC-4 and MGT-7 together — they share most data",
+            "DIR-3 KYC is annual — missing it deactivates your DIN",
+            "MSME-1 is semi-annual — check vendor registration before filing",
+            "Pre-pay advance tax to avoid 234B/C interest",
+            "Reconcile GSTR-2B with books monthly to maximise ITC",
+        ],
+        "ca_notes": [
+            "ROC due dates shift if AGM is held before 30 Sep — recalculate accordingly",
+            "Strike-off companies still have pending filing obligations — check before closure",
+            "LLP annual filings (Form 11 and Form 8) have different deadlines from Pvt Ltd",
+            "XBRL filing required for companies with turnover >₹500 Cr or listed companies",
+            "Condonation of delay for overdue filings available via CFSS schemes periodically",
+        ],
+    }
 
 
 def generate_directors_report(
