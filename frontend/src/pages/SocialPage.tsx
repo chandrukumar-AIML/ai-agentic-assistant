@@ -315,6 +315,29 @@ export default function SocialPage() {
   const [artErr, setArtErr]         = useState('')
   const [artActiveSection, setArtActiveSection] = useState(0)
   const [artView, setArtView]       = useState<'sections'|'titles'|'seo'>('sections')
+  // Review & Testimonial Kit (Round 16)
+  const [rvBusiness, setRvBusiness] = useState('')
+  const [rvBizType, setRvBizType]   = useState('')
+  const [rvOwner, setRvOwner]       = useState('')
+  const [rvProduct, setRvProduct]   = useState('')
+  const [rvPlatform, setRvPlatform] = useState('google')
+  const [rvCustType, setRvCustType] = useState('b2c')
+  const [rvTone, setRvTone]         = useState('warm')
+  const [rvRes, setRvRes]           = useState<any>(null)
+  const [rvLoading, setRvLoading]   = useState(false)
+  const [rvErr, setRvErr]           = useState('')
+  const [rvTab, setRvTab]           = useState<'whatsapp'|'email'|'sms'|'strategy'>('whatsapp')
+  const runReview = async () => {
+    setRvLoading(true); setRvErr(''); setRvRes(null)
+    try {
+      setRvRes(await socialAction('review_testimonial_kit', {
+        business_name: rvBusiness, business_type: rvBizType, owner_name: rvOwner,
+        product_service: rvProduct, review_platform: rvPlatform,
+        customer_type: rvCustType, tone: rvTone,
+      }))
+    } catch (e: any) { setRvErr(e.message) }
+    finally { setRvLoading(false) }
+  }
   const runArticle = async () => {
     setArtLoading(true); setArtErr(''); setArtRes(null); setArtActiveSection(0)
     try {
@@ -633,6 +656,7 @@ export default function SocialPage() {
           { id: 'twitter',    label: 'Twitter Thread',        icon: '🧵' },
           { id: 'podcast',    label: 'Podcast Content Kit',   icon: '🎙️' },
           { id: 'article',    label: 'LinkedIn Article',       icon: '📝' },
+          { id: 'review',     label: 'Review & Testimonial Kit', icon: '⭐' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2999,6 +3023,162 @@ export default function SocialPage() {
                 </>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill the form and click Build Twitter Thread →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── REVIEW & TESTIMONIAL KIT (Round 16) ── */}
+      {tab === 'review' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="⭐ Review & Testimonial Kit" sub="WhatsApp + Email + SMS templates to collect Google reviews & testimonials from happy customers" />
+            <Input label="Business Name" value={rvBusiness} onChange={setRvBusiness} placeholder="e.g. Ravi Textiles, TechSpark Solutions" />
+            <Input label="Business Type" value={rvBizType} onChange={setRvBizType} placeholder="e.g. clothing store, IT services, restaurant" />
+            <Input label="Owner / Sender Name" value={rvOwner} onChange={setRvOwner} placeholder="e.g. Ravi Sharma" />
+            <Input label="Product / Service Delivered" value={rvProduct} onChange={setRvProduct} placeholder="e.g. custom school uniforms, website development" />
+            <Select label="Review Platform" value={rvPlatform} onChange={setRvPlatform} options={[
+              { label: 'Google Reviews (highest SEO impact)', value: 'google' },
+              { label: 'JustDial (B2C India)', value: 'justdial' },
+              { label: 'IndiaMart (B2B suppliers)', value: 'indiamart' },
+              { label: 'Facebook Reviews', value: 'facebook' },
+              { label: 'Trustpilot (D2C / SaaS)', value: 'trustpilot' },
+            ]} />
+            <Select label="Customer Type" value={rvCustType} onChange={setRvCustType} options={[
+              { label: 'B2C — Individual customers', value: 'b2c' },
+              { label: 'B2B — Business clients', value: 'b2b' },
+            ]} />
+            <Select label="Tone" value={rvTone} onChange={setRvTone} options={[
+              { label: 'Warm & Personal (recommended for Indian SMBs)', value: 'warm' },
+              { label: 'Professional & Formal', value: 'professional' },
+            ]} />
+            <Btn onClick={runReview} disabled={rvLoading}>{rvLoading ? 'Building Kit…' : '⭐ Generate Review Kit'}</Btn>
+            {rvErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{rvErr}</div>}
+          </Card>
+          <Card>
+            {rvRes ? (() => {
+              const r = rvRes
+              const subTabs: {key: typeof rvTab, label: string}[] = [
+                { key: 'whatsapp', label: '💬 WhatsApp' },
+                { key: 'email',    label: '📧 Email' },
+                { key: 'sms',      label: '📱 SMS' },
+                { key: 'strategy', label: '📋 Strategy' },
+              ]
+              return (
+                <>
+                  {/* Platform badge */}
+                  <div style={{ background: '#0f172a', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #22c55e40' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 18 }}>{r.platform?.emoji}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{r.platform?.name}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>{r.platform?.impact}</div>
+                    <div style={{ fontSize: 10, color: '#4b5563', marginTop: 6, fontStyle: 'italic' }}>Review link: {r.review_link_placeholder}</div>
+                  </div>
+
+                  {/* Sub-tabs */}
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
+                    {subTabs.map(st => (
+                      <span key={st.key} onClick={() => setRvTab(st.key)} style={{
+                        padding: '4px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+                        background: rvTab === st.key ? '#4f46e5' : '#1e2535',
+                        color: rvTab === st.key ? '#fff' : '#6b7280',
+                        fontWeight: rvTab === st.key ? 700 : 400,
+                      }}>{st.label}</span>
+                    ))}
+                  </div>
+
+                  {/* WhatsApp */}
+                  {rvTab === 'whatsapp' && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#22c55e', marginBottom: 8, fontWeight: 700 }}>REVIEW REQUEST — WHATSAPP</div>
+                      <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, fontSize: 12, color: '#d1d5db', whiteSpace: 'pre-wrap', lineHeight: 1.8, marginBottom: 12, border: '1px solid #1e2535' }}>
+                        {r.whatsapp_templates?.review_request}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#f59e0b', marginBottom: 8, fontWeight: 700 }}>POST-SUPPORT FOLLOW-UP — WHATSAPP</div>
+                      <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, fontSize: 12, color: '#d1d5db', whiteSpace: 'pre-wrap', lineHeight: 1.8, border: '1px solid #1e2535' }}>
+                        {r.whatsapp_templates?.post_support}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#6b7280', marginTop: 8, fontStyle: 'italic' }}>💡 Replace [Customer Name] and [Your review link] before sending</div>
+                    </div>
+                  )}
+
+                  {/* Email */}
+                  {rvTab === 'email' && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#22c55e', marginBottom: 6, fontWeight: 700 }}>REVIEW REQUEST EMAIL — SUBJECT OPTIONS</div>
+                      {(r.email_templates?.review_request?.subject_options || []).map((s: string, i: number) => (
+                        <div key={i} style={{ background: '#1e2535', borderRadius: 4, padding: '6px 10px', fontSize: 11, color: '#d1d5db', marginBottom: 4 }}>
+                          <span style={{ color: '#6b7280', marginRight: 6 }}>#{i+1}</span>{s}
+                        </div>
+                      ))}
+                      <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, fontSize: 12, color: '#d1d5db', whiteSpace: 'pre-wrap', lineHeight: 1.8, marginTop: 10, marginBottom: 14, border: '1px solid #1e2535' }}>
+                        {r.email_templates?.review_request?.body}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#f59e0b', marginBottom: 6, fontWeight: 700 }}>TESTIMONIAL REQUEST EMAIL — SUBJECT OPTIONS</div>
+                      {(r.email_templates?.testimonial_request?.subject_options || []).map((s: string, i: number) => (
+                        <div key={i} style={{ background: '#1e2535', borderRadius: 4, padding: '6px 10px', fontSize: 11, color: '#d1d5db', marginBottom: 4 }}>
+                          <span style={{ color: '#6b7280', marginRight: 6 }}>#{i+1}</span>{s}
+                        </div>
+                      ))}
+                      <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, fontSize: 12, color: '#d1d5db', whiteSpace: 'pre-wrap', lineHeight: 1.8, marginTop: 10, border: '1px solid #1e2535' }}>
+                        {r.email_templates?.testimonial_request?.body}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SMS */}
+                  {rvTab === 'sms' && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#22c55e', marginBottom: 8, fontWeight: 700 }}>INITIAL SMS REQUEST</div>
+                      <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, fontSize: 12, color: '#d1d5db', whiteSpace: 'pre-wrap', lineHeight: 1.8, marginBottom: 14, border: '1px solid #1e2535' }}>
+                        {r.sms_templates?.review}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#f59e0b', marginBottom: 8, fontWeight: 700 }}>FOLLOW-UP SMS (Day 3 if no response)</div>
+                      <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, fontSize: 12, color: '#d1d5db', whiteSpace: 'pre-wrap', lineHeight: 1.8, border: '1px solid #1e2535' }}>
+                        {r.sms_templates?.reminder}
+                      </div>
+                      <div style={{ marginTop: 14 }}>
+                        <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 6, fontWeight: 700 }}>TESTIMONIAL FORMATS TO COLLECT</div>
+                        {Object.entries(r.testimonial_formats || {}).map(([k, v]: [string, any]) => (
+                          <div key={k} style={{ padding: '6px 0', borderBottom: '1px solid #111827' }}>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: '#d1d5db', textTransform: 'capitalize' }}>{k.replace('_',' ')}: </span>
+                            <span style={{ fontSize: 11, color: '#6b7280' }}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Strategy */}
+                  {rvTab === 'strategy' && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#22c55e', marginBottom: 8, fontWeight: 700 }}>4-STEP FOLLOW-UP SEQUENCE</div>
+                      {(r.follow_up_sequence || []).map((step: any) => (
+                        <div key={step.step} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid #111827' }}>
+                          <div style={{ background: '#4f46e5', borderRadius: 4, padding: '2px 8px', fontSize: 10, fontWeight: 700, color: '#fff', height: 'fit-content', whiteSpace: 'nowrap' }}>Step {step.step}</div>
+                          <div>
+                            <div style={{ fontSize: 10, color: '#6b7280' }}>{step.timing}</div>
+                            <div style={{ fontSize: 11, color: '#d1d5db' }}>{step.action}</div>
+                          </div>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 14 }}>
+                        <div style={{ fontSize: 10, color: '#f59e0b', marginBottom: 6, fontWeight: 700 }}>💡 PRO TIPS</div>
+                        {(r.pro_tips || []).map((tip: string, i: number) => (
+                          <div key={i} style={{ fontSize: 11, color: '#94a3b8', padding: '4px 0', borderBottom: '1px solid #111827' }}>• {tip}</div>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 14 }}>
+                        <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 6, fontWeight: 700 }}>🎁 INCENTIVE IDEAS (use ethically)</div>
+                        {(r.incentive_ideas || []).map((idea: string, i: number) => (
+                          <div key={i} style={{ fontSize: 11, color: '#d1d5db', padding: '4px 0' }}>• {idea}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill details and click Generate Review Kit →</div>}
           </Card>
         </TwoCol>
       )}

@@ -331,6 +331,43 @@ export default function CAPage() {
   const [propErr, setPropErr]           = useState('')
   const [propView, setPropView]         = useState<'proposal'|'letter'|'checklist'>('proposal')
   const toggleService = (s: string) => setPropServices(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  // GST Invoice Generator (Round 16)
+  const DEMO_GST_ITEMS = [
+    { description: 'Professional consulting services', hsn_sac: '998314', qty: 10, unit: 'Hours', rate: 2000, gst_pct: 18 },
+    { description: 'Project management fee', hsn_sac: '998312', qty: 1, unit: 'Lump Sum', rate: 15000, gst_pct: 18 },
+  ]
+  const [giSeller, setGiSeller]     = useState('')
+  const [giSGstin, setGiSGstin]     = useState('')
+  const [giSAddr, setGiSAddr]       = useState('')
+  const [giSState, setGiSState]     = useState('karnataka')
+  const [giBuyer, setGiBuyer]       = useState('')
+  const [giBGstin, setGiBGstin]     = useState('')
+  const [giBAddr, setGiBAddr]       = useState('')
+  const [giBState, setGiBState]     = useState('karnataka')
+  const [giNumber, setGiNumber]     = useState('')
+  const [giDate, setGiDate]         = useState('')
+  const [giItemsJson, setGiItemsJson] = useState(JSON.stringify(DEMO_GST_ITEMS, null, 2))
+  const [giRC, setGiRC]             = useState(false)
+  const [giTerms, setGiTerms]       = useState('30_days')
+  const [giNotes, setGiNotes]       = useState('')
+  const [giRes, setGiRes]           = useState<any>(null)
+  const [giLoading, setGiLoading]   = useState(false)
+  const [giErr, setGiErr]           = useState('')
+  const [giView, setGiView]         = useState<'invoice'|'tax'|'compliance'>('invoice')
+  const runGstInvoice = async () => {
+    setGiLoading(true); setGiErr(''); setGiRes(null)
+    let items: any[] = []
+    try { if (giItemsJson.trim()) items = JSON.parse(giItemsJson) } catch { setGiErr('Invalid JSON in items'); setGiLoading(false); return }
+    try {
+      setGiRes(await caAction('gst_invoice', {
+        seller_name: giSeller, seller_gstin: giSGstin, seller_address: giSAddr, seller_state: giSState,
+        buyer_name: giBuyer, buyer_gstin: giBGstin, buyer_address: giBAddr, buyer_state: giBState,
+        invoice_number: giNumber, invoice_date: giDate, items,
+        reverse_charge: giRC, payment_terms: giTerms, notes: giNotes,
+      }))
+    } catch (e: any) { setGiErr(e.message) }
+    finally { setGiLoading(false) }
+  }
   const runProposal = async () => {
     setPropLoading(true); setPropErr(''); setPropRes(null)
     try {
@@ -611,6 +648,7 @@ export default function CAPage() {
           { id: 'loan',              label: 'MSME Loan Eligibility',      icon: '🏦' },
           { id: 'tds',               label: 'TDS Compliance Tracker',     icon: '📅' },
           { id: 'proposal',          label: 'Client Proposal',            icon: '📋' },
+          { id: 'gst_invoice',       label: 'GST Invoice',                icon: '🧾' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -2130,6 +2168,221 @@ export default function CAPage() {
                 </>
               )
             })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill details and click Generate Proposal →</div>}
+          </Card>
+        </TwoCol>
+      )}
+
+      {/* ── GST INVOICE GENERATOR (Round 16) ── */}
+      {tab === 'gst_invoice' && (
+        <TwoCol>
+          <Card>
+            <SectionHead title="🧾 GST Invoice Generator" sub="GST-compliant invoice with auto CGST/SGST/IGST, HSN codes & amount in words" />
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>SELLER DETAILS</div>
+            <Input label="Seller / Your Business Name" value={giSeller} onChange={setGiSeller} placeholder="e.g. Sharma Consulting Pvt Ltd" />
+            <Input label="Seller GSTIN" value={giSGstin} onChange={setGiSGstin} placeholder="e.g. 29AABCS1429B1ZB" />
+            <Input label="Seller Address" value={giSAddr} onChange={setGiSAddr} placeholder="e.g. 42, MG Road, Bengaluru - 560001" />
+            <Select label="Seller State" value={giSState} onChange={setGiSState} options={[
+              {label:'Karnataka',value:'karnataka'},{label:'Maharashtra',value:'maharashtra'},
+              {label:'Tamil Nadu',value:'tamil_nadu'},{label:'Delhi',value:'delhi'},
+              {label:'Gujarat',value:'gujarat'},{label:'Rajasthan',value:'rajasthan'},
+              {label:'Telangana',value:'telangana'},{label:'Uttar Pradesh',value:'uttar_pradesh'},
+              {label:'West Bengal',value:'west_bengal'},{label:'Kerala',value:'kerala'},
+              {label:'Punjab',value:'punjab'},{label:'Haryana',value:'haryana'},
+            ]} />
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6, marginTop: 8 }}>BUYER DETAILS</div>
+            <Input label="Buyer / Customer Name" value={giBuyer} onChange={setGiBuyer} placeholder="e.g. ABC Manufacturing Pvt Ltd" />
+            <Input label="Buyer GSTIN (leave blank for B2C)" value={giBGstin} onChange={setGiBGstin} placeholder="e.g. 27AABCM1234A1ZX" />
+            <Input label="Buyer Address" value={giBAddr} onChange={setGiBAddr} placeholder="e.g. 10, Andheri East, Mumbai - 400069" />
+            <Select label="Buyer State" value={giBState} onChange={setGiBState} options={[
+              {label:'Karnataka',value:'karnataka'},{label:'Maharashtra',value:'maharashtra'},
+              {label:'Tamil Nadu',value:'tamil_nadu'},{label:'Delhi',value:'delhi'},
+              {label:'Gujarat',value:'gujarat'},{label:'Rajasthan',value:'rajasthan'},
+              {label:'Telangana',value:'telangana'},{label:'Uttar Pradesh',value:'uttar_pradesh'},
+              {label:'West Bengal',value:'west_bengal'},{label:'Kerala',value:'kerala'},
+              {label:'Punjab',value:'punjab'},{label:'Haryana',value:'haryana'},
+            ]} />
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6, marginTop: 8 }}>INVOICE DETAILS</div>
+            <Input label="Invoice Number (leave blank to auto-generate)" value={giNumber} onChange={setGiNumber} placeholder="e.g. INV/2025-26/07/001" />
+            <Input label="Invoice Date (DD-MM-YYYY, blank = today)" value={giDate} onChange={setGiDate} placeholder="e.g. 22-07-2025" />
+            <Select label="Payment Terms" value={giTerms} onChange={setGiTerms} options={[
+              {label:'Net 30 days',value:'30_days'},{label:'Net 15 days',value:'15_days'},
+              {label:'Net 7 days',value:'7_days'},{label:'Immediate',value:'immediate'},
+              {label:'Net 45 days',value:'45_days'},{label:'100% Advance',value:'advance'},
+            ]} />
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Line Items (JSON — description, hsn_sac, qty, unit, rate, gst_pct)</label>
+              <textarea value={giItemsJson} onChange={e => setGiItemsJson(e.target.value)} rows={7}
+                style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 11, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'monospace' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <input type="checkbox" id="giRC" checked={giRC} onChange={e => setGiRC(e.target.checked)} />
+              <label htmlFor="giRC" style={{ fontSize: 12, color: '#9ca3af', cursor: 'pointer' }}>Reverse Charge Applicable (buyer pays GST)</label>
+            </div>
+            <Input label="Notes (optional)" value={giNotes} onChange={setGiNotes} placeholder="e.g. Goods once sold will not be taken back" />
+            <Btn onClick={runGstInvoice} disabled={giLoading}>{giLoading ? 'Generating…' : '🧾 Generate GST Invoice'}</Btn>
+            {giErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{giErr}</div>}
+          </Card>
+          <Card>
+            {giRes ? (() => {
+              const r = giRes
+              return (
+                <>
+                  {/* Header */}
+                  <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, marginBottom: 12, border: '1px solid #4f46e540' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>TAX INVOICE</div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>{r.invoice_number}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 12, color: '#9ca3af' }}>{r.invoice_date}</div>
+                        <div style={{ fontSize: 10, color: r.supply_type?.includes('Inter') ? '#f59e0b' : '#22c55e' }}>{r.supply_type}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 10, color: '#6b7280' }}>FROM</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#d1d5db' }}>{r.seller?.name}</div>
+                        <div style={{ fontSize: 10, color: '#4b5563' }}>GSTIN: {r.seller?.gstin}</div>
+                        <div style={{ fontSize: 10, color: '#4b5563' }}>{r.seller?.state}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, color: '#6b7280' }}>TO</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#d1d5db' }}>{r.buyer?.name}</div>
+                        <div style={{ fontSize: 10, color: '#4b5563' }}>GSTIN: {r.buyer?.gstin}</div>
+                        <div style={{ fontSize: 10, color: '#4b5563' }}>{r.buyer?.state}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* View switcher */}
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+                    {(['invoice','tax','compliance'] as const).map(v => (
+                      <span key={v} onClick={() => setGiView(v)} style={{
+                        padding: '4px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+                        background: giView === v ? '#4f46e5' : '#1e2535',
+                        color: giView === v ? '#fff' : '#6b7280', fontWeight: giView === v ? 700 : 400,
+                      }}>{v === 'invoice' ? '🧾 Line Items' : v === 'tax' ? '🧮 Tax Summary' : '✅ Compliance'}</span>
+                    ))}
+                  </div>
+
+                  {/* Invoice view */}
+                  {giView === 'invoice' && (
+                    <div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                          <thead>
+                            <tr style={{ background: '#1e2535' }}>
+                              {['#','Description','HSN/SAC','Qty','Rate','Taxable','GST%','GST Amt','Total'].map(h => (
+                                <th key={h} style={{ padding: '6px 8px', textAlign: 'left', color: '#9ca3af', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(r.line_items || []).map((item: any, i: number) => (
+                              <tr key={i} style={{ borderBottom: '1px solid #111827' }}>
+                                <td style={{ padding: '6px 8px', color: '#6b7280' }}>{i+1}</td>
+                                <td style={{ padding: '6px 8px', color: '#d1d5db' }}>{item.description}</td>
+                                <td style={{ padding: '6px 8px', color: '#6b7280', fontVariantNumeric: 'tabular-nums' }}>{item.hsn_sac}</td>
+                                <td style={{ padding: '6px 8px', color: '#d1d5db', fontVariantNumeric: 'tabular-nums' }}>{item.qty} {item.unit}</td>
+                                <td style={{ padding: '6px 8px', color: '#d1d5db', fontVariantNumeric: 'tabular-nums' }}>₹{item.rate?.toLocaleString('en-IN')}</td>
+                                <td style={{ padding: '6px 8px', color: '#d1d5db', fontVariantNumeric: 'tabular-nums' }}>₹{item.taxable_value?.toLocaleString('en-IN')}</td>
+                                <td style={{ padding: '6px 8px', color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>{item.gst_pct}%</td>
+                                <td style={{ padding: '6px 8px', color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>₹{(item.igst_amt || item.cgst_amt + item.sgst_amt)?.toLocaleString('en-IN')}</td>
+                                <td style={{ padding: '6px 8px', color: '#22c55e', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>₹{item.total?.toLocaleString('en-IN')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div style={{ marginTop: 12, background: '#0f172a', borderRadius: 6, padding: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, color: '#9ca3af' }}>Subtotal (Taxable Value)</span>
+                          <span style={{ fontSize: 12, color: '#d1d5db', fontVariantNumeric: 'tabular-nums' }}>₹{r.subtotal?.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, color: '#f59e0b' }}>Total GST</span>
+                          <span style={{ fontSize: 12, color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>₹{r.total_gst?.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid #1e2535' }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>Grand Total</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>₹{r.grand_total?.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div style={{ marginTop: 8, fontSize: 11, color: '#6b7280', fontStyle: 'italic' }}>
+                          {r.amount_in_words}
+                        </div>
+                        <div style={{ marginTop: 6, fontSize: 10, color: '#4b5563' }}>
+                          Payment Terms: {r.payment_terms} · Reverse Charge: {r.reverse_charge}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tax summary view */}
+                  {giView === 'tax' && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 8, fontWeight: 700 }}>TAX COMPUTATION SUMMARY</div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                        <thead>
+                          <tr style={{ background: '#1e2535' }}>
+                            {['Tax Type','Taxable Value','Tax Amount'].map(h => (
+                              <th key={h} style={{ padding: '6px 8px', textAlign: 'left', color: '#9ca3af', fontWeight: 600 }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(r.tax_summary || []).map((t: any, i: number) => (
+                            <tr key={i} style={{ borderBottom: '1px solid #111827' }}>
+                              <td style={{ padding: '6px 8px', color: '#d1d5db', fontWeight: 600 }}>{t.type}</td>
+                              <td style={{ padding: '6px 8px', color: '#9ca3af', fontVariantNumeric: 'tabular-nums' }}>₹{t.taxable?.toLocaleString('en-IN')}</td>
+                              <td style={{ padding: '6px 8px', color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>₹{t.amount?.toLocaleString('en-IN')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginTop: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#e2e8f0', marginBottom: 6 }}>HSN / SAC SUMMARY</div>
+                        {Object.entries(r.hsn_sac_reference || {}).map(([code, info]: [string, any]) => (
+                          <div key={code} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #111827' }}>
+                            <span style={{ fontSize: 11, color: '#6b7280' }}>SAC {code}</span>
+                            <span style={{ fontSize: 11, color: '#d1d5db' }}>{info.desc}</span>
+                            <span style={{ fontSize: 11, color: '#f59e0b' }}>{info.gst}% GST</span>
+                          </div>
+                        ))}
+                        {Object.keys(r.hsn_sac_reference || {}).length === 0 && (
+                          <div style={{ fontSize: 11, color: '#4b5563' }}>HSN/SAC reference not found for custom codes — verify manually</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Compliance view */}
+                  {giView === 'compliance' && (
+                    <div>
+                      <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 8, fontWeight: 700 }}>COMPLIANCE FLAGS</div>
+                      {(r.compliance_flags || []).filter(Boolean).map((flag: string, i: number) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, padding: '8px', borderRadius: 6, marginBottom: 6, background: '#0f172a', border: '1px solid #1e2535' }}>
+                          <span style={{ fontSize: 12 }}>{flag.includes('No') || flag.includes('not') ? '⚠️' : '✅'}</span>
+                          <span style={{ fontSize: 11, color: '#d1d5db' }}>{flag}</span>
+                        </div>
+                      ))}
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: 10, color: '#f59e0b', marginBottom: 6, fontWeight: 700 }}>FILING REQUIREMENTS</div>
+                        {[
+                          'Report this invoice in GSTR-1 by 11th of next month',
+                          `${r.supply_type?.includes('Inter') ? 'IGST collected must be paid via GSTR-3B' : 'CGST + SGST collected must be paid via GSTR-3B'}`,
+                          'Buyer can claim ITC only if GSTIN is provided and invoice is uploaded in GSTR-1',
+                          'Retain invoice copy for 8 years (as per GST record-keeping rules)',
+                          'E-invoice mandatory if annual turnover > ₹5 Cr (upload on IRP portal)',
+                        ].map((req, i) => (
+                          <div key={i} style={{ fontSize: 11, color: '#94a3b8', padding: '4px 0', borderBottom: '1px solid #111827' }}>📌 {req}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill seller & buyer details, add line items, then click Generate →</div>}
           </Card>
         </TwoCol>
       )}

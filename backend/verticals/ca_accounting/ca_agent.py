@@ -953,6 +953,24 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "gst_invoice":
+        return generate_gst_invoice(
+            seller_name=payload.get("seller_name", ""),
+            seller_gstin=payload.get("seller_gstin", ""),
+            seller_address=payload.get("seller_address", ""),
+            seller_state=payload.get("seller_state", "karnataka"),
+            buyer_name=payload.get("buyer_name", ""),
+            buyer_gstin=payload.get("buyer_gstin", ""),
+            buyer_address=payload.get("buyer_address", ""),
+            buyer_state=payload.get("buyer_state", "karnataka"),
+            invoice_number=payload.get("invoice_number", ""),
+            invoice_date=payload.get("invoice_date", ""),
+            items=payload.get("items", []),
+            reverse_charge=payload.get("reverse_charge", False),
+            payment_terms=payload.get("payment_terms", "30 days"),
+            notes=payload.get("notes", ""),
+        )
+
     elif action == "client_proposal":
         return generate_client_proposal(
             firm_name=payload.get("firm_name", ""),
@@ -2147,6 +2165,201 @@ _PROPOSAL_SECTIONS = [
     "why_us",
     "next_steps",
 ]
+
+
+_INDIAN_STATES = {
+    "andhra_pradesh": "Andhra Pradesh", "arunachal_pradesh": "Arunachal Pradesh",
+    "assam": "Assam", "bihar": "Bihar", "chhattisgarh": "Chhattisgarh",
+    "goa": "Goa", "gujarat": "Gujarat", "haryana": "Haryana",
+    "himachal_pradesh": "Himachal Pradesh", "jharkhand": "Jharkhand",
+    "karnataka": "Karnataka", "kerala": "Kerala", "madhya_pradesh": "Madhya Pradesh",
+    "maharashtra": "Maharashtra", "manipur": "Manipur", "meghalaya": "Meghalaya",
+    "mizoram": "Mizoram", "nagaland": "Nagaland", "odisha": "Odisha",
+    "punjab": "Punjab", "rajasthan": "Rajasthan", "sikkim": "Sikkim",
+    "tamil_nadu": "Tamil Nadu", "telangana": "Telangana", "tripura": "Tripura",
+    "uttar_pradesh": "Uttar Pradesh", "uttarakhand": "Uttarakhand",
+    "west_bengal": "West Bengal", "delhi": "Delhi (NCT)",
+    "jammu_kashmir": "Jammu & Kashmir", "ladakh": "Ladakh",
+    "chandigarh": "Chandigarh", "puducherry": "Puducherry",
+}
+
+_GST_INVOICE_NOTES = [
+    "This is a computer-generated invoice.",
+    "Subject to jurisdiction of courts in seller's city.",
+    "Payment within due date helps avoid interest under GST.",
+    "E-way bill required for goods movement > ₹50,000.",
+    "Goods once sold will not be taken back.",
+]
+
+_PAYMENT_TERMS_MAP = {
+    "immediate":  "Payment due immediately upon receipt",
+    "7_days":     "Net 7 — Payment due within 7 days of invoice date",
+    "15_days":    "Net 15 — Payment due within 15 days of invoice date",
+    "30_days":    "Net 30 — Payment due within 30 days of invoice date",
+    "45_days":    "Net 45 — Payment due within 45 days of invoice date",
+    "advance":    "100% advance payment required before delivery",
+}
+
+_COMMON_HSN_SAC = {
+    # Goods HSN
+    "9403":  {"desc": "Office furniture", "gst": 18},
+    "8471":  {"desc": "Computers & laptops", "gst": 18},
+    "8517":  {"desc": "Mobile phones", "gst": 12},
+    "6403":  {"desc": "Footwear", "gst": 18},
+    "6204":  {"desc": "Readymade garments", "gst": 12},
+    "1901":  {"desc": "Food preparations", "gst": 18},
+    "3004":  {"desc": "Medicines", "gst": 12},
+    "2710":  {"desc": "Petroleum products", "gst": 18},
+    # Services SAC
+    "998314": {"desc": "IT / Software services", "gst": 18},
+    "998312": {"desc": "Management consulting", "gst": 18},
+    "998313": {"desc": "Engineering services", "gst": 18},
+    "997212": {"desc": "Commercial property rental", "gst": 18},
+    "996311": {"desc": "Restaurant / food services", "gst": 5},
+    "9971":   {"desc": "Financial & banking services", "gst": 18},
+    "9993":   {"desc": "Health & education services", "gst": 0},
+    "9954":   {"desc": "Construction services", "gst": 12},
+    "998231": {"desc": "Accounting / CA services", "gst": 18},
+    "998221": {"desc": "Legal services", "gst": 18},
+    "9983":   {"desc": "Professional & technical services", "gst": 18},
+    "9972":   {"desc": "Real estate services", "gst": 18},
+}
+
+
+def generate_gst_invoice(
+    seller_name: str,
+    seller_gstin: str,
+    seller_address: str,
+    seller_state: str,
+    buyer_name: str,
+    buyer_gstin: str,
+    buyer_address: str,
+    buyer_state: str,
+    invoice_number: str,
+    invoice_date: str,
+    items: list,
+    reverse_charge: bool = False,
+    payment_terms: str = "30_days",
+    notes: str = "",
+) -> dict:
+    from datetime import date as _date
+    today      = _date.today()
+    inv_num    = invoice_number  or f"INV/{today.year}-{str(today.year+1)[2:]}/{str(today.month).zfill(2)}/001"
+    inv_date   = invoice_date    or today.strftime("%d-%m-%Y")
+    seller     = seller_name     or "Your Business Name"
+    s_gstin    = seller_gstin    or "29XXXXX0000X0XX"
+    s_state    = _INDIAN_STATES.get(seller_state, seller_state.title())
+    buyer      = buyer_name      or "Customer Name"
+    b_gstin    = buyer_gstin     or ""
+    b_state    = _INDIAN_STATES.get(buyer_state, buyer_state.title())
+    is_igst    = seller_state.lower() != buyer_state.lower()  # interstate = IGST
+
+    # Use demo items if none provided
+    if not items:
+        items = [
+            {"description": "Professional consulting services", "hsn_sac": "998314", "qty": 10, "unit": "Hours", "rate": 2000, "gst_pct": 18},
+            {"description": "Project management fee", "hsn_sac": "998312", "qty": 1, "unit": "Lump Sum", "rate": 15000, "gst_pct": 18},
+        ]
+
+    # Calculate line items
+    line_items = []
+    subtotal = 0.0
+    total_gst = 0.0
+
+    for item in items:
+        desc    = item.get("description", "Item")
+        hsn     = item.get("hsn_sac", "9983")
+        qty     = float(item.get("qty", 1))
+        unit    = item.get("unit", "Nos")
+        rate    = float(item.get("rate", 0))
+        gst_pct = float(item.get("gst_pct", 18))
+
+        taxable = round(qty * rate, 2)
+        gst_amt = round(taxable * gst_pct / 100, 2)
+        total   = round(taxable + gst_amt, 2)
+        subtotal   += taxable
+        total_gst  += gst_amt
+
+        if is_igst:
+            tax_breakdown = {"igst_pct": gst_pct, "igst_amt": gst_amt, "cgst_pct": 0, "cgst_amt": 0, "sgst_pct": 0, "sgst_amt": 0}
+        else:
+            half = gst_pct / 2
+            tax_breakdown = {"igst_pct": 0, "igst_amt": 0, "cgst_pct": half, "cgst_amt": round(gst_amt/2, 2), "sgst_pct": half, "sgst_amt": round(gst_amt/2, 2)}
+
+        line_items.append({
+            "description": desc, "hsn_sac": hsn, "qty": qty, "unit": unit,
+            "rate": rate, "taxable_value": taxable, "gst_pct": gst_pct,
+            **tax_breakdown, "total": total,
+        })
+
+    subtotal    = round(subtotal, 2)
+    total_gst   = round(total_gst, 2)
+    grand_total = round(subtotal + total_gst, 2)
+
+    # Tax summary
+    if is_igst:
+        tax_summary = [{"type": "IGST", "taxable": subtotal, "rate": "", "amount": total_gst}]
+    else:
+        cgst = round(total_gst / 2, 2)
+        sgst = round(total_gst / 2, 2)
+        tax_summary = [
+            {"type": "CGST", "taxable": subtotal, "rate": "", "amount": cgst},
+            {"type": f"SGST ({s_state})", "taxable": subtotal, "rate": "", "amount": sgst},
+        ]
+
+    # Amount in words (simple)
+    rupees = int(grand_total)
+    paise  = round((grand_total - rupees) * 100)
+
+    def _num_to_words(n: int) -> str:
+        ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
+                "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen",
+                "Seventeen","Eighteen","Nineteen"]
+        tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
+        if n == 0: return "Zero"
+        if n < 20: return ones[n]
+        if n < 100: return tens[n//10] + (" " + ones[n%10] if n%10 else "")
+        if n < 1000: return ones[n//100] + " Hundred" + (" " + _num_to_words(n%100) if n%100 else "")
+        if n < 100000: return _num_to_words(n//1000) + " Thousand" + (" " + _num_to_words(n%1000) if n%1000 else "")
+        if n < 10000000: return _num_to_words(n//100000) + " Lakh" + (" " + _num_to_words(n%100000) if n%100000 else "")
+        return _num_to_words(n//10000000) + " Crore" + (" " + _num_to_words(n%10000000) if n%10000000 else "")
+
+    amount_words = _num_to_words(rupees) + " Rupees"
+    if paise: amount_words += f" and {_num_to_words(paise)} Paise"
+    amount_words += " Only"
+
+    pt_label = _PAYMENT_TERMS_MAP.get(payment_terms, payment_terms)
+
+    return {
+        "action":         "gst_invoice",
+        "invoice_number": inv_num,
+        "invoice_date":   inv_date,
+        "supply_type":    "Inter-State (IGST)" if is_igst else f"Intra-State (CGST + SGST — {s_state})",
+        "reverse_charge": "Yes" if reverse_charge else "No",
+        "seller": {
+            "name": seller, "gstin": s_gstin,
+            "address": seller_address or "[Seller Address]", "state": s_state,
+        },
+        "buyer": {
+            "name": buyer, "gstin": b_gstin or "Unregistered / Consumer",
+            "address": buyer_address or "[Buyer Address]", "state": b_state,
+        },
+        "line_items":      line_items,
+        "subtotal":        subtotal,
+        "total_gst":       total_gst,
+        "grand_total":     grand_total,
+        "amount_in_words": amount_words,
+        "tax_summary":     tax_summary,
+        "payment_terms":   pt_label,
+        "notes":           notes or _GST_INVOICE_NOTES[0],
+        "compliance_flags": [
+            f"{'IGST' if is_igst else 'CGST+SGST'} applicable — {'Inter' if is_igst else 'Intra'}-state supply",
+            "Reverse Charge: Yes — buyer to pay GST directly" if reverse_charge else "Reverse Charge: No",
+            "E-way bill mandatory if goods value > ₹50,000 and distance > 50 km" if any(i.get("qty", 1) > 0 for i in items) else "",
+            f"GSTIN of buyer {'verified' if b_gstin else 'not provided — ITC cannot be claimed by buyer'}",
+        ],
+        "hsn_sac_reference": {k: v for k, v in _COMMON_HSN_SAC.items() if k in [i.get("hsn_sac","") for i in items]},
+    }
 
 
 def generate_client_proposal(

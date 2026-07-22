@@ -2069,6 +2069,17 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "review_testimonial_kit":
+        return generate_review_testimonial_kit(
+            business_name=payload.get("business_name", ""),
+            business_type=payload.get("business_type", ""),
+            owner_name=payload.get("owner_name", ""),
+            product_service=payload.get("product_service", ""),
+            review_platform=payload.get("review_platform", "google"),
+            customer_type=payload.get("customer_type", "b2c"),
+            tone=payload.get("tone", "warm"),
+        )
+
     elif action == "linkedin_article":
         return generate_linkedin_article(
             topic=payload.get("topic", ""),
@@ -2347,6 +2358,239 @@ _SEO_TIPS = [
     "Internal link: mention other articles or posts you've written on related topics",
     "Optimal publish time for maximum indexing: Tuesday-Thursday 7-9 AM IST",
 ]
+
+
+_REVIEW_CHANNELS = {
+    "google":      {"name": "Google Reviews", "url_hint": "g.page/your-business/review", "emoji": "⭐", "impact": "Highest SEO impact — boosts local search ranking"},
+    "justdial":    {"name": "JustDial", "url_hint": "justdial.com/your-listing", "emoji": "📋", "impact": "Critical for Indian B2C discovery — service & retail"},
+    "indiamart":   {"name": "IndiaMart", "url_hint": "indiamart.com/your-profile", "emoji": "🏭", "impact": "Essential for B2B suppliers & manufacturers"},
+    "facebook":    {"name": "Facebook Reviews", "url_hint": "facebook.com/your-page/reviews", "emoji": "👍", "impact": "Social proof for FB ads — boosts ad CTR"},
+    "trustpilot":  {"name": "Trustpilot", "url_hint": "trustpilot.com/evaluate/your-domain", "emoji": "✅", "impact": "High-trust badge for D2C & SaaS brands"},
+}
+
+_REVIEW_TIMING = {
+    "post_delivery":   "Send 24-48 hours after delivery/service completion — peak satisfaction window",
+    "post_onboarding": "Send after first successful use — customer has experienced value",
+    "milestone":       "Send after 30-day usage milestone — loyalty peak",
+    "post_support":    "Send 2 hours after support ticket resolved — relief + gratitude combo",
+}
+
+_TESTIMONIAL_FORMATS = {
+    "written":  "Short written testimonial (2-4 sentences) — share on website, social, proposals",
+    "video":    "30-60 second video via WhatsApp — highest conversion impact, authentic",
+    "case_study": "Structured before/after story — ideal for B2B sales conversations",
+    "star_rating": "Quick 1-click star rating — maximum response rate, low friction",
+}
+
+_REVIEW_FOLLOW_UP = [
+    {"step": 1, "timing": "Day 0",  "action": "Send initial request via WhatsApp (most opened channel in India)"},
+    {"step": 2, "timing": "Day 3",  "action": "Follow-up SMS if no response — keep it short, add review link directly"},
+    {"step": 3, "timing": "Day 7",  "action": "Personal call or voice note from owner — highest conversion"},
+    {"step": 4, "timing": "Day 14", "action": "Final gentle reminder email — mention how much reviews help small businesses"},
+]
+
+_INCENTIVE_IDEAS = [
+    "5-10% discount on next purchase (disclose per platform rules)",
+    "Early access to new product/feature",
+    "Free add-on service with next booking",
+    "Entry into monthly lucky draw (keep the prize meaningful)",
+    "Shoutout on your social media page (works well for proud SMB owners)",
+]
+
+_WHATSAPP_TEMPLATES = {
+    "b2c_warm": """{greeting} {customer_name}! 🙏
+
+Thank you for choosing {business_name} — we're so glad you loved your experience with {product_service}!
+
+We'd be really grateful if you could spare 2 minutes to leave us a review on {platform_name}. Your words help other customers like you find us, and they mean the world to our small team 😊
+
+👉 {review_link}
+
+It takes less than 2 minutes and helps us grow!
+
+With gratitude,
+{owner_name}
+{business_name}""",
+
+    "b2b_professional": """Hi {customer_name},
+
+Hope you're doing well! It was a pleasure working with {business_name} on {product_service}.
+
+As we continue to grow, reviews from valued clients like you make a significant difference. Would you mind sharing your experience on {platform_name}?
+
+👉 {review_link}
+
+If you'd prefer to share detailed feedback privately, simply reply to this message — we read every response personally.
+
+Thank you for your trust,
+{owner_name}
+{business_name}""",
+
+    "post_support": """Hi {customer_name}!
+
+Glad we could resolve your concern today 😊 Our team works hard to make sure every customer is happy.
+
+If you had a good experience with our support, a quick review would mean a lot to us:
+👉 {review_link}
+
+Takes less than a minute! Thank you 🙏
+{business_name} Team""",
+}
+
+_EMAIL_TEMPLATES = {
+    "review_request": {
+        "subject_options": [
+            "Your opinion matters to us, {customer_name}!",
+            "Quick favour? Tell others about your experience 🙏",
+            "How was your experience with {business_name}?",
+            "2 minutes to help {business_name} grow — thank you!",
+        ],
+        "body": """Hi {customer_name},
+
+Thank you for being a valued customer of {business_name}!
+
+We hope you're enjoying {product_service}. Your experience and feedback are incredibly important to us — and to other customers who are looking for trusted businesses like ours.
+
+Would you mind leaving a quick review on {platform_name}? It only takes 2 minutes and helps us serve more customers like you.
+
+⭐ Leave a Review: {review_link}
+
+Your honest feedback helps us improve and helps other customers make informed decisions.
+
+Warm regards,
+{owner_name}
+{business_name}
+{owner_phone}""",
+    },
+    "testimonial_request": {
+        "subject_options": [
+            "Can we feature your success story, {customer_name}?",
+            "Would you share what {business_name} did for you?",
+            "Your story could help others — share your experience?",
+        ],
+        "body": """Hi {customer_name},
+
+We love seeing our customers succeed, and we'd love to share YOUR story!
+
+Would you be willing to share a short testimonial about your experience with {product_service}? It can be:
+
+✍️ A written quote (2-4 sentences)
+🎥 A short 30-second WhatsApp video
+📝 A Google/JustDial review
+
+Either way works perfectly for us! If you're open to it, simply:
+- Reply to this email with your written testimonial, OR
+- Send a WhatsApp voice note/video to {owner_phone}, OR
+- Leave a review here: {review_link}
+
+With much gratitude,
+{owner_name}
+{business_name}""",
+    },
+}
+
+_SMS_TEMPLATES = {
+    "review": "{business_name}: Hi {customer_name}! Thank you for choosing us 😊 We'd love your review: {review_link} — takes 1 min! Thank you 🙏",
+    "reminder": "{business_name}: Quick reminder — your review would mean the world to us! {review_link} Thank you {customer_name} 🙏",
+}
+
+
+def generate_review_testimonial_kit(
+    business_name: str,
+    business_type: str,
+    owner_name: str,
+    product_service: str,
+    review_platform: str = "google",
+    customer_type: str = "b2c",
+    tone: str = "warm",
+) -> dict:
+    company   = business_name or "Your Business"
+    owner     = owner_name or "The Team"
+    product   = product_service or "our products/services"
+    biz_type  = business_type or "retail"
+    platform  = _REVIEW_CHANNELS.get(review_platform, _REVIEW_CHANNELS["google"])
+    wa_key    = "b2b_professional" if customer_type == "b2b" else "b2c_warm"
+
+    review_link = f"[Your {platform['name']} link here — add from your Google Business / JustDial dashboard]"
+
+    # Fill WhatsApp templates
+    wa_template = _WHATSAPP_TEMPLATES[wa_key]
+    wa_filled = wa_template.replace("{customer_name}", "[Customer Name]") \
+        .replace("{business_name}", company) \
+        .replace("{product_service}", product) \
+        .replace("{platform_name}", platform["name"]) \
+        .replace("{review_link}", review_link) \
+        .replace("{owner_name}", owner) \
+        .replace("{greeting}", "Namaste" if tone == "warm" else "Hello")
+
+    wa_support = _WHATSAPP_TEMPLATES["post_support"] \
+        .replace("{customer_name}", "[Customer Name]") \
+        .replace("{review_link}", review_link) \
+        .replace("{business_name}", company)
+
+    # Email templates
+    email_review_subjs = [s.replace("{customer_name}", "[Customer Name]").replace("{business_name}", company)
+                          for s in _EMAIL_TEMPLATES["review_request"]["subject_options"]]
+    email_review_body  = _EMAIL_TEMPLATES["review_request"]["body"] \
+        .replace("{customer_name}", "[Customer Name]") \
+        .replace("{business_name}", company) \
+        .replace("{product_service}", product) \
+        .replace("{platform_name}", platform["name"]) \
+        .replace("{review_link}", review_link) \
+        .replace("{owner_name}", owner) \
+        .replace("{owner_phone}", "[Your WhatsApp number]")
+
+    email_test_subjs = [s.replace("{customer_name}", "[Customer Name]").replace("{business_name}", company)
+                        for s in _EMAIL_TEMPLATES["testimonial_request"]["subject_options"]]
+    email_test_body  = _EMAIL_TEMPLATES["testimonial_request"]["body"] \
+        .replace("{customer_name}", "[Customer Name]") \
+        .replace("{business_name}", company) \
+        .replace("{product_service}", product) \
+        .replace("{review_link}", review_link) \
+        .replace("{owner_name}", owner) \
+        .replace("{owner_phone}", "[Your WhatsApp number]")
+
+    # SMS
+    sms_review    = _SMS_TEMPLATES["review"].replace("{business_name}", company).replace("{customer_name}", "[Name]").replace("{review_link}", review_link)
+    sms_reminder  = _SMS_TEMPLATES["reminder"].replace("{business_name}", company).replace("{customer_name}", "[Name]").replace("{review_link}", review_link)
+
+    return {
+        "action":          "review_testimonial_kit",
+        "business_name":   company,
+        "platform":        platform,
+        "review_link_placeholder": review_link,
+        "whatsapp_templates": {
+            "review_request": wa_filled,
+            "post_support":   wa_support,
+        },
+        "email_templates": {
+            "review_request": {
+                "subject_options": email_review_subjs,
+                "body": email_review_body,
+            },
+            "testimonial_request": {
+                "subject_options": email_test_subjs,
+                "body": email_test_body,
+            },
+        },
+        "sms_templates": {
+            "review":    sms_review,
+            "reminder":  sms_reminder,
+        },
+        "follow_up_sequence": _REVIEW_FOLLOW_UP,
+        "testimonial_formats": _TESTIMONIAL_FORMATS,
+        "incentive_ideas": _INCENTIVE_IDEAS,
+        "timing_guide": _REVIEW_TIMING,
+        "pro_tips": [
+            f"India-specific: WhatsApp has 90%+ open rate vs 20% for email — always lead with WhatsApp",
+            f"Best time to send: 7-9 PM IST (post-dinner, highest phone usage in India)",
+            f"{platform['name']}: {platform['impact']}",
+            "Never ask for '5 stars' explicitly — just ask for 'honest feedback' to avoid policy violations",
+            "Personalise the customer's name — personalised requests get 3x higher response rates",
+            "Video testimonials via WhatsApp convert best for B2B proposals and social proof ads",
+            "Follow up at least once — 70% of reviews come from the 2nd or 3rd nudge",
+        ],
+    }
 
 
 def generate_linkedin_article(

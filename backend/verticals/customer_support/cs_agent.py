@@ -560,6 +560,17 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "kb_article":
+            return _kb_article_generator(
+                business_name=payload.get("business_name", ""),
+                product_name=payload.get("product_name", ""),
+                article_topic=payload.get("article_topic", ""),
+                article_type=payload.get("article_type", "how_to"),
+                industry=payload.get("industry", "saas"),
+                audience=payload.get("audience", "end_user"),
+                tone=payload.get("tone", "friendly"),
+            )
+
         elif action == "onboarding_sequence":
             return _onboarding_sequence_builder(
                 business_name=payload.get("business_name", ""),
@@ -2421,6 +2432,174 @@ _SUCCESS_METRICS_BY_INDUSTRY = {
     "logistics":  ["First shipment created", "Integration connected", "Label printed", "Tracking shared with customer"],
     "general":    ["Core workflow completed", "Integration connected", "First output created", "Team member invited"],
 }
+
+
+_KB_ARTICLE_TYPES = {
+    "how_to":       {"label": "How-To Guide",       "structure": ["Overview", "Prerequisites", "Step-by-Step Instructions", "Tips & Tricks", "Troubleshooting", "Related Articles"]},
+    "troubleshoot": {"label": "Troubleshooting",    "structure": ["Problem Description", "Common Causes", "Quick Fix (Try First)", "Step-by-Step Fix", "When to Contact Support", "Related Articles"]},
+    "faq":          {"label": "FAQ Article",         "structure": ["Top Questions", "Detailed Answers", "Still Need Help?", "Related Articles"]},
+    "concept":      {"label": "Concept Explainer",  "structure": ["What Is It?", "Why It Matters", "How It Works", "Key Terms", "Examples", "Related Articles"]},
+    "policy":       {"label": "Policy / Terms",     "structure": ["Policy Summary", "What This Means For You", "Exceptions", "How to Request Changes", "Contact Us"]},
+    "release_note": {"label": "Release / Update Note", "structure": ["What's New", "Key Changes", "How to Access", "Known Issues", "Feedback"]},
+}
+
+_KB_TONES = {
+    "friendly":     "Warm, helpful, conversational — like a knowledgeable friend explaining",
+    "professional": "Clear, precise, formal — suitable for enterprise/B2B audiences",
+    "simple":       "Plain English, minimal jargon — for non-technical users and India SMB audience",
+}
+
+_AUDIENCE_CONTEXT = {
+    "end_user":  "Written for end users — avoid technical jargon, use screenshots/steps language",
+    "admin":     "Written for admins/power users — can include technical detail, config options",
+    "developer": "Written for developers — include code snippets, API references, technical specs",
+    "business":  "Written for business owners / decision makers — focus on outcomes and ROI",
+}
+
+_INDUSTRY_KB_EXAMPLES = {
+    "saas":      ["How to reset your password", "Setting up two-factor authentication", "How to invite team members", "Understanding your billing statement", "Exporting your data"],
+    "ecommerce": ["How to track your order", "Return and refund policy", "How to update delivery address", "Payment methods accepted", "How to apply a coupon code"],
+    "fintech":   ["How to add a bank account", "Understanding transaction fees", "KYC verification process", "How to raise a dispute", "Setting spending limits"],
+    "healthcare":["Booking an appointment", "How to access your reports", "Insurance claim process", "Cancellation policy", "Telemedicine how-to guide"],
+    "logistics": ["How to schedule a pickup", "Tracking your shipment", "What to do if your package is delayed", "How to file a damage claim", "Prohibited items list"],
+    "retail":    ["Size guide and fit chart", "How to place a bulk order", "Loyalty points — how they work", "Store pickup process", "How to register for GST invoice"],
+}
+
+_RELATED_ARTICLE_TEMPLATES = {
+    "saas":      ["Account Setup Guide", "Billing & Payments FAQ", "Integrations Overview", "Data Export & Privacy", "Team Management"],
+    "ecommerce": ["Shipping Policy", "Returns & Refunds", "Payment Options", "Order Tracking Guide", "Loyalty Program FAQ"],
+    "fintech":   ["Security & KYC", "Transaction Limits", "Support Escalation Process", "Dispute Resolution", "App Troubleshooting"],
+    "healthcare":["Patient Privacy Policy", "Insurance Partners", "Emergency Contacts", "Prescription Uploads", "Lab Reports Access"],
+    "logistics": ["Prohibited Items", "Insurance for Shipments", "International Shipping", "Business Account Benefits", "API Integration"],
+    "retail":    ["Product Care Guide", "Authenticity Guarantee", "B2B / Bulk Orders", "Loyalty Program", "Store Locator"],
+}
+
+_SEO_TITLE_FORMULAS = [
+    "How to {action} in {product} — Step-by-Step Guide",
+    "{action}: Complete Guide for {audience}",
+    "Why {problem} happens and how to fix it | {product} Help",
+    "{action} — Everything you need to know",
+    "How to fix {problem} in {product} [{year}]",
+]
+
+
+def _kb_article_generator(
+    business_name: str,
+    product_name: str,
+    article_topic: str,
+    article_type: str = "how_to",
+    industry: str = "saas",
+    audience: str = "end_user",
+    tone: str = "friendly",
+) -> dict:
+    company   = business_name or "Your Business"
+    product   = product_name  or "our platform"
+    topic     = article_topic or "Getting Started"
+    art_cfg   = _KB_ARTICLE_TYPES.get(article_type, _KB_ARTICLE_TYPES["how_to"])
+    ind_exmpl = _INDUSTRY_KB_EXAMPLES.get(industry, _INDUSTRY_KB_EXAMPLES["saas"])
+    rel_arts  = _RELATED_ARTICLE_TEMPLATES.get(industry, _RELATED_ARTICLE_TEMPLATES["saas"])
+    tone_desc = _KB_TONES.get(tone, _KB_TONES["friendly"])
+    aud_desc  = _AUDIENCE_CONTEXT.get(audience, _AUDIENCE_CONTEXT["end_user"])
+
+    from datetime import date as _date
+    year = _date.today().year
+
+    # Generate sections with writing guides
+    sections = []
+    for i, section_name in enumerate(art_cfg["structure"]):
+        if section_name == "Step-by-Step Instructions" or section_name == "Step-by-Step Fix":
+            content_hint = f"Write 4-8 numbered steps. Start each step with a verb (Click, Navigate, Enter, Select). Be specific about where UI elements are located in {product}."
+            sample = f"1. Log in to {product} and go to Settings\n2. Click on [Section Name] in the left sidebar\n3. Select [Option] from the dropdown\n4. Click Save to apply changes\n5. You'll see a confirmation message — your changes are live!"
+        elif section_name == "Overview" or section_name == "What Is It?":
+            content_hint = f"1-2 paragraph intro explaining what this feature does and why it matters. Speak directly to the {audience} — mention the benefit, not just the feature."
+            sample = f"This guide explains how to {topic.lower()} in {product}. Whether you're a first-time user or looking to improve your workflow, this article walks you through everything you need."
+        elif section_name == "Prerequisites":
+            content_hint = "List what the user needs before starting — account permissions, feature access, other setup steps. Use a bullet list."
+            sample = f"Before you begin, make sure you have:\n• An active {product} account\n• Admin or [Role] permissions\n• [Any other requirement]"
+        elif section_name == "Troubleshooting" or section_name == "Quick Fix (Try First)":
+            content_hint = "List the top 3-5 issues users face with this topic and a one-line fix for each. Use a table or numbered list."
+            sample = "**Issue: Page not loading** → Clear browser cache and try again\n**Issue: Button missing** → Check your account permissions with your Admin\n**Issue: Error message showing** → Note the error code and contact support"
+        elif section_name == "Related Articles":
+            content_hint = "List 4-6 related help articles as bullet links. Pick titles that logically follow from this article."
+            sample = "\n".join(f"• [{a}](#)" for a in rel_arts[:5])
+        elif section_name == "Still Need Help?" or section_name == "Contact Us" or section_name == "When to Contact Support":
+            content_hint = f"Friendly closing section with support channels. Include WhatsApp number, email, chat, and response SLA."
+            sample = f"Can't find what you're looking for? Our support team is here to help!\n\n💬 Live Chat: Available in-app (9 AM – 6 PM IST)\n📱 WhatsApp: [Your number]\n📧 Email: support@{company.lower().replace(' ','')}.com\nWe typically respond within 4 business hours."
+        elif section_name == "Top Questions" or section_name == "Detailed Answers":
+            content_hint = f"List 5-8 frequently asked questions about {topic}. For each, provide a clear 1-3 sentence answer."
+            sample = f"**Q: How long does {topic.lower()} take?**\nA: Most users complete this in under 5 minutes.\n\n**Q: Can I undo this action?**\nA: Yes — go to Settings > History to revert changes."
+        elif section_name == "Common Causes":
+            content_hint = "List 3-5 root causes of the problem. Help users self-diagnose before following fix steps."
+            sample = f"This issue usually happens because:\n• Incorrect permissions on your account\n• Browser cache / cookies conflict\n• {product} is undergoing maintenance\n• Network or connectivity issue"
+        elif section_name == "Tips & Tricks":
+            content_hint = "3-5 power-user tips that go beyond the basics. These delight users and reduce support volume."
+            sample = f"💡 **Pro tip:** Bookmark the {topic.lower()} page for quick access\n💡 Use keyboard shortcut [Ctrl+K] to search faster\n💡 Set up notifications to get alerted when [event] happens"
+        elif section_name == "Key Terms":
+            content_hint = "Define 4-6 terms users might encounter. Use a simple glossary format."
+            sample = "**[Term 1]:** [Simple definition in 1 sentence]\n**[Term 2]:** [Simple definition in 1 sentence]"
+        elif section_name == "Examples":
+            content_hint = "1-2 real-world examples showing the concept in action. Use an Indian SMB context."
+            sample = f"**Example 1:** Ravi Textiles uses {topic.lower()} to [achieve outcome], saving 2 hours per week.\n**Example 2:** A Bengaluru SaaS startup sets up {topic.lower()} to automatically [action]."
+        elif section_name == "What's New" or section_name == "Key Changes":
+            content_hint = "Describe what changed and how it impacts users. Use before/after format where helpful."
+            sample = "We've updated [Feature] to make it faster and easier to use:\n• **Before:** Users had to [old way]\n• **After:** Now you can [new way] in one click"
+        else:
+            content_hint = f"Write content for this section about {topic}. Keep it clear, scannable, and relevant to {audience} users."
+            sample = f"[Content for {section_name} — tailored to your {product} and {topic}]"
+
+        sections.append({
+            "section":      section_name,
+            "order":        i + 1,
+            "writing_guide": content_hint,
+            "sample_content": sample,
+            "word_count_target": "80-120 words" if section_name not in ["Step-by-Step Instructions", "Step-by-Step Fix", "Troubleshooting", "Common Causes"] else "120-200 words",
+        })
+
+    # SEO titles
+    seo_titles = [
+        f"How to {topic} in {product} — Step-by-Step Guide [{year}]",
+        f"{topic}: Complete Guide for {company} Users",
+        f"{topic} — {product} Help Center",
+        f"How to {topic} | {company} Support",
+        f"{topic} Explained — {product} Knowledge Base",
+    ]
+
+    # Meta description
+    meta_desc = f"Learn how to {topic.lower()} in {product}. This step-by-step guide covers everything {audience.replace('_',' ')} users need to know. Updated {year}."
+
+    return {
+        "action":        "kb_article",
+        "business_name": company,
+        "product_name":  product,
+        "article_topic": topic,
+        "article_type":  art_cfg["label"],
+        "audience":      aud_desc,
+        "tone":          tone_desc,
+        "sections":      sections,
+        "seo_titles":    seo_titles,
+        "meta_description": meta_desc,
+        "tags":          [topic.lower(), product.lower(), industry, audience.replace("_"," "), "help center", "support"],
+        "related_articles": rel_arts,
+        "industry_examples": ind_exmpl[:5],
+        "publishing_checklist": [
+            "Add screenshots or GIFs for each major step",
+            "Test all links and ensure they open correctly",
+            "Have a non-technical team member read and flag confusing parts",
+            "Add the article to the correct help center category",
+            "Update the 'Last reviewed' date at top of article",
+            "Share the article link in your onboarding email sequence",
+            "Set a reminder to review and update in 6 months",
+        ],
+        "writing_tips": [
+            f"Tone: {tone_desc}",
+            "Use short sentences — aim for Flesch Reading Ease score > 60",
+            "Bold key terms and action words to aid scanning",
+            "Add a TL;DR summary at the very top for busy readers",
+            "Use numbered lists for steps, bullet lists for options/features",
+            "India SMB tip: Add WhatsApp support option — most preferred support channel",
+            "Avoid passive voice — say 'Click Save' not 'Save should be clicked'",
+        ],
+    }
 
 
 def _onboarding_sequence_builder(

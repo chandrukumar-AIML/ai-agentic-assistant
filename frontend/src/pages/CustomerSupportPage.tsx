@@ -60,6 +60,7 @@ const TABS = [
   { id: 'scorecard',  label: 'Agent Scorecard' },
   { id: 'nps',        label: 'NPS Campaign' },
   { id: 'onboarding_seq', label: 'Onboarding Sequence' },
+  { id: 'kb_article',    label: 'Knowledge Base Article' },
 ]
 
 const WA_TYPES = [
@@ -1313,6 +1314,7 @@ export default function CustomerSupportPage() {
         {tab === 'scorecard'   && <AgentScorecardTab lang={lang} />}
         {tab === 'nps'         && <NpsCampaignTab lang={lang} />}
         {tab === 'onboarding_seq' && <OnboardingSequenceTab lang={lang} />}
+        {tab === 'kb_article'     && <KbArticleTab lang={lang} />}
       </div>
     </PageShell>
   )
@@ -2791,6 +2793,239 @@ function OnboardingSequenceTab({ lang }: { lang: Lang }) {
             )
           })() : <Empty text="Demo data pre-loaded — click Build Onboarding Sequence →" />}
         </div>
+      </div>
+    </div>
+  )
+}
+
+export function KbArticleTab({ lang }: { lang: string }) {
+  const [bizName, setBizName]     = useState('')
+  const [prodName, setProdName]   = useState('')
+  const [topic, setTopic]         = useState('')
+  const [artType, setArtType]     = useState('how_to')
+  const [industry, setIndustry]   = useState('saas')
+  const [audience, setAudience]   = useState('end_user')
+  const [tone, setTone]           = useState('friendly')
+  const [res, setRes]             = useState<any>(null)
+  const [loading, setLoading]     = useState(false)
+  const [err, setErr]             = useState('')
+  const [activeSection, setActiveSection] = useState(0)
+  const [view, setView]           = useState<'sections'|'seo'|'checklist'>('sections')
+
+  const run = async () => {
+    setLoading(true); setErr(''); setRes(null); setActiveSection(0)
+    try {
+      setRes(await csAction('kb_article', {
+        business_name: bizName, product_name: prodName,
+        article_topic: topic, article_type: artType,
+        industry, audience, tone,
+      }, lang))
+    } catch (e: any) {
+      setErr(e.message)
+      // demo fallback
+      setRes({
+        action: 'kb_article', business_name: bizName || 'Demo Business', product_name: prodName || 'Demo Platform',
+        article_topic: topic || 'How to Reset Your Password', article_type: 'How-To Guide',
+        sections: [
+          { section: 'Overview', order: 1, writing_guide: 'Introduce what the article covers.', sample_content: 'This guide walks you through resetting your password in under 2 minutes.', word_count_target: '80-120 words' },
+          { section: 'Step-by-Step Instructions', order: 2, writing_guide: 'Write numbered steps starting with action verbs.', sample_content: '1. Go to the login page\n2. Click "Forgot Password"\n3. Enter your email address\n4. Check your inbox for a reset link\n5. Click the link and set a new password', word_count_target: '120-200 words' },
+          { section: 'Troubleshooting', order: 3, writing_guide: 'List top 3 issues and quick fixes.', sample_content: "**Email not received** → Check spam folder\n**Link expired** → Request a new reset link\n**Still locked out** → Contact support", word_count_target: '120-200 words' },
+          { section: 'Related Articles', order: 4, writing_guide: 'Link to 4-5 related articles.', sample_content: '• Account Setup Guide\n• Two-Factor Authentication\n• Billing & Payments FAQ', word_count_target: '80-120 words' },
+        ],
+        seo_titles: ['How to Reset Your Password — Step-by-Step Guide [2025]', 'Password Reset: Complete Guide for Users', 'Forgot Password? Here\'s How to Reset It | Help Center'],
+        meta_description: 'Learn how to reset your password step by step. Updated 2025.',
+        tags: ['password reset', 'account', 'login', 'help center'],
+        related_articles: ['Account Setup', 'Two-Factor Auth', 'Billing FAQ', 'Team Management', 'Data Export'],
+        publishing_checklist: ['Add screenshots for each step', 'Test all links', 'Have a non-technical reader review it', 'Add to correct help center category', 'Update Last Reviewed date'],
+        writing_tips: ['Use short sentences', 'Bold key action words', 'Add a TL;DR at the top', 'Include WhatsApp support option'],
+      })
+    }
+    setLoading(false)
+  }
+
+  const sectionColors = ['#4f46e5','#0891b2','#059669','#d97706','#dc2626','#7c3aed','#db2777']
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ background: '#111827', borderRadius: 10, padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>📖 Knowledge Base Article Generator</div>
+        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>Turn any support topic into a structured help-center article with writing guides</div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Business Name</label>
+          <input value={bizName} onChange={e => setBizName(e.target.value)} placeholder="e.g. Zoho, your startup"
+            style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Product / Platform Name</label>
+          <input value={prodName} onChange={e => setProdName(e.target.value)} placeholder="e.g. CRM Pro, Core Platform"
+            style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Article Topic *</label>
+          <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. How to invite team members, Setting up payments"
+            style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 12, boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Article Type</label>
+          <select value={artType} onChange={e => setArtType(e.target.value)}
+            style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 12 }}>
+            <option value="how_to">How-To Guide</option>
+            <option value="troubleshoot">Troubleshooting</option>
+            <option value="faq">FAQ Article</option>
+            <option value="concept">Concept Explainer</option>
+            <option value="policy">Policy / Terms</option>
+            <option value="release_note">Release / Update Note</option>
+          </select>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Industry</label>
+            <select value={industry} onChange={e => setIndustry(e.target.value)}
+              style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 12 }}>
+              <option value="saas">SaaS</option>
+              <option value="ecommerce">E-Commerce</option>
+              <option value="fintech">Fintech</option>
+              <option value="healthcare">Healthcare</option>
+              <option value="logistics">Logistics</option>
+              <option value="retail">Retail</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Audience</label>
+            <select value={audience} onChange={e => setAudience(e.target.value)}
+              style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 12 }}>
+              <option value="end_user">End User</option>
+              <option value="admin">Admin / Power User</option>
+              <option value="developer">Developer</option>
+              <option value="business">Business Owner</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 12, color: '#9ca3af', display: 'block', marginBottom: 4 }}>Tone</label>
+          <select value={tone} onChange={e => setTone(e.target.value)}
+            style={{ width: '100%', background: '#1e2535', border: '1px solid #374151', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 12 }}>
+            <option value="friendly">Friendly & Conversational</option>
+            <option value="professional">Professional & Formal</option>
+            <option value="simple">Simple & Plain English</option>
+          </select>
+        </div>
+        <button onClick={run} disabled={loading}
+          style={{ width: '100%', background: loading ? '#374151' : '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, padding: '10px 16px', fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}>
+          {loading ? 'Generating Article…' : '📖 Generate KB Article'}
+        </button>
+        {err && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>Demo mode: {err}</div>}
+
+        {res && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 6 }}>INDUSTRY EXAMPLE TOPICS</div>
+            {(res.industry_examples || []).map((ex: string, i: number) => (
+              <div key={i} onClick={() => setTopic(ex)} style={{ fontSize: 11, color: '#60a5fa', padding: '3px 0', cursor: 'pointer' }}>→ {ex}</div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ background: '#111827', borderRadius: 10, padding: 20 }}>
+        {res ? (
+          <>
+            {/* Header */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>📖 {res.article_topic}</div>
+              <div style={{ fontSize: 11, color: '#6b7280' }}>{res.article_type} · {res.sections?.length} sections · {res.audience?.split('—')[0]?.trim()}</div>
+            </div>
+
+            {/* View switcher */}
+            <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+              {(['sections','seo','checklist'] as const).map(v => (
+                <span key={v} onClick={() => setView(v)} style={{
+                  padding: '4px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+                  background: view === v ? '#4f46e5' : '#1e2535',
+                  color: view === v ? '#fff' : '#6b7280', fontWeight: view === v ? 700 : 400,
+                }}>{v === 'sections' ? '📝 Sections' : v === 'seo' ? '🔍 SEO' : '✅ Checklist'}</span>
+              ))}
+            </div>
+
+            {/* Sections view */}
+            {view === 'sections' && (
+              <div>
+                {/* Section chips */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+                  {(res.sections || []).map((s: any, i: number) => (
+                    <span key={i} onClick={() => setActiveSection(i)} style={{
+                      padding: '3px 10px', borderRadius: 20, fontSize: 10, cursor: 'pointer', fontWeight: 600,
+                      background: activeSection === i ? sectionColors[i % sectionColors.length] : '#1e2535',
+                      color: activeSection === i ? '#fff' : '#6b7280',
+                    }}>§{s.order} {s.section}</span>
+                  ))}
+                </div>
+                {res.sections?.[activeSection] && (() => {
+                  const s = res.sections[activeSection]
+                  return (
+                    <div style={{ background: '#0f172a', borderRadius: 8, padding: 14, border: `1px solid ${sectionColors[activeSection % sectionColors.length]}40` }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: sectionColors[activeSection % sectionColors.length], marginBottom: 4 }}>§{s.order} — {s.section}</div>
+                      <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 8 }}>Target: {s.word_count_target}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 4 }}>WRITING GUIDE</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10, lineHeight: 1.6 }}>{s.writing_guide}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', marginBottom: 4 }}>SAMPLE CONTENT</div>
+                      <div style={{ fontSize: 11, color: '#d1d5db', whiteSpace: 'pre-wrap', lineHeight: 1.7, background: '#111827', borderRadius: 6, padding: 10 }}>{s.sample_content}</div>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+
+            {/* SEO view */}
+            {view === 'seo' && (
+              <div>
+                <div style={{ fontSize: 10, color: '#22c55e', marginBottom: 8, fontWeight: 700 }}>SEO TITLE OPTIONS</div>
+                {(res.seo_titles || []).map((t: string, i: number) => (
+                  <div key={i} style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginBottom: 6 }}>
+                    <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2 }}>OPTION {i+1}</div>
+                    <div style={{ fontSize: 12, color: '#e2e8f0' }}>{t}</div>
+                  </div>
+                ))}
+                <div style={{ background: '#0f172a', borderRadius: 6, padding: 10, marginTop: 10 }}>
+                  <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>META DESCRIPTION</div>
+                  <div style={{ fontSize: 11, color: '#d1d5db', lineHeight: 1.5 }}>{res.meta_description}</div>
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 6 }}>TAGS / LABELS</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {(res.tags || []).map((tag: string, i: number) => (
+                      <span key={i} style={{ background: '#1e2535', borderRadius: 4, padding: '3px 8px', fontSize: 10, color: '#6b7280' }}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 10, color: '#f59e0b', marginBottom: 6, fontWeight: 700 }}>WRITING TIPS</div>
+                  {(res.writing_tips || []).map((tip: string, i: number) => (
+                    <div key={i} style={{ fontSize: 11, color: '#94a3b8', padding: '3px 0' }}>• {tip}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Checklist view */}
+            {view === 'checklist' && (
+              <div>
+                <div style={{ fontSize: 10, color: '#22c55e', marginBottom: 8, fontWeight: 700 }}>PUBLISHING CHECKLIST</div>
+                {(res.publishing_checklist || []).map((item: string, i: number) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #111827' }}>
+                    <span style={{ color: '#4b5563', fontSize: 12 }}>☐</span>
+                    <span style={{ fontSize: 12, color: '#d1d5db' }}>{item}</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 6, fontWeight: 700 }}>RELATED ARTICLES TO LINK</div>
+                  {(res.related_articles || []).map((art: string, i: number) => (
+                    <div key={i} style={{ fontSize: 11, color: '#60a5fa', padding: '3px 0' }}>→ {art}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        ) : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter a topic and click Generate KB Article →</div>}
       </div>
     </div>
   )
