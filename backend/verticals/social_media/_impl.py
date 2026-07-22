@@ -1913,12 +1913,14 @@ async def social_agent(
         )
 
     elif action == "reel_script":
-        return await generate_reel_script(
-            topic=payload.get("topic", ""),
-            duration=payload.get("duration", 30),
-            platform=payload.get("reel_platform", "instagram"),
-            hook_style=payload.get("hook_style", "question"),
-            brand_name=payload.get("brand_name", ""),
+        return generate_reel_script(
+            business_name=payload.get("brand_name", ""),
+            business_type=payload.get("industry", payload.get("channel_niche", "")),
+            reel_topic=payload.get("topic", ""),
+            reel_goal=payload.get("reel_goal", "awareness"),
+            target_audience=payload.get("target_audience", ""),
+            duration=int(payload.get("duration", 30) or 30),
+            style=payload.get("hook_style", "educational"),
             language=language,
         )
 
@@ -1984,10 +1986,13 @@ async def social_agent(
     elif action == "whatsapp_content":
         return await generate_whatsapp_content(
             content_type=payload.get("content_type", "broadcast"),
-            topic=payload.get("topic", ""),
             brand_name=payload.get("brand_name", ""),
+            industry=payload.get("industry", payload.get("audience", "general")),
+            product_name=payload.get("topic", payload.get("product_name", "")),
+            offer=payload.get("offer", ""),
+            customer_name=payload.get("customer_name", "Customer"),
             language=language,
-            audience=payload.get("audience", ""),
+            tone=payload.get("tone", "friendly"),
         )
 
     elif action == "niche_templates":
@@ -2000,12 +2005,17 @@ async def social_agent(
         )
 
     elif action == "bulk_generate":
-        return await generate_bulk_posts(
-            topics=payload.get("topics", []),
-            platform=platform,
+        topics = payload.get("topics", [])
+        brand = payload.get("brand_name", "")
+        return generate_bulk_posts(
+            company_name=brand,
+            industry=payload.get("industry", "technology"),
             tone=payload.get("tone", "professional"),
-            brand_name=payload.get("brand_name", ""),
-            language=language,
+            target_audience=payload.get("target_audience", "general audience"),
+            platform=platform,
+            count=len(topics) if topics else int(payload.get("count", 5)),
+            brand_keywords=topics if topics else payload.get("brand_keywords", []),
+            usp=payload.get("usp", ""),
         )
 
     elif action == "content_pillars":
