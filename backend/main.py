@@ -1,4 +1,8 @@
+import json
 import logging
+import logging.config
+import os
+import time
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,11 +14,35 @@ from backend.api.auth            import limiter, router as auth_router
 from backend.api.health          import router as health_router
 from backend.api.vertical_routes import router as vertical_router
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
-)
-logger   = logging.getLogger(__name__)
+
+class _JSONFormatter(logging.Formatter):
+    """Emit one JSON object per log line — friendly for cloud log parsers."""
+    def format(self, record: logging.LogRecord) -> str:
+        base = {
+            "ts":      self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level":   record.levelname,
+            "logger":  record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            base["exc"] = self.formatException(record.exc_info)
+        return json.dumps(base, ensure_ascii=False)
+
+
+def _setup_logging(level: str = "INFO") -> None:
+    _fmt = _JSONFormatter() if os.getenv("APP_ENV", "development") == "production" else None
+    handler = logging.StreamHandler()
+    if _fmt:
+        handler.setFormatter(_fmt)
+    logging.basicConfig(
+        level=getattr(logging, level.upper(), logging.INFO),
+        handlers=[handler],
+        format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+    )
+
+
+_setup_logging(os.getenv("LOG_LEVEL", "INFO"))
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 app = FastAPI(
@@ -34,6 +62,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def _request_logger(request: Request, call_next):
+    start = time.monotonic()
+    response = await call_next(request)
+    ms = round((time.monotonic() - start) * 1000, 1)
+    logger.info(
+        "%s %s → %s  (%.1fms)",
+        request.method, request.url.path, response.status_code, ms,
+    )
+    return response
 
 
 @app.exception_handler(RateLimitExceeded)

@@ -22,6 +22,7 @@
     "rehype-highlight": "^7.0.1",
     "remark-gfm": "^4.0.0",
     "uuid": "^14.0.0",
+    "posthog-js": "^1.240.6",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

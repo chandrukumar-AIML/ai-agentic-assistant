@@ -24,13 +24,13 @@ A small business in India needs AI for a dozen jobs — GST & invoicing, hiring,
 
 ## 🎬 Demo
 
-> 📸 *[Add a dashboard screenshot or 2-min Loom walkthrough here]*
-
 | | |
 |---|---|
 | **Live Demo** | [ai-agentic-assistant.vercel.app](https://ai-agentic-assistant.vercel.app) |
 | **Demo Login** | `admin@agentic.local` / `admin123` (admin) · `demo@agentic.local` / `demo123` (client) |
 | **GitHub** | [chandrukumar-AIML/ai-agentic-assistant](https://github.com/chandrukumar-AIML/ai-agentic-assistant) |
+| **Uptime** | [![Uptime](https://img.shields.io/uptimerobot/status/m800000000-placeholder?label=API%20status)](https://stats.uptimerobot.com) |
+| **Demo Video** | 📹 [Watch 2-min walkthrough](#) *(coming soon — record with Loom)* |
 
 **🎭 Demo Mode** — set `DEMO_MODE=true` and every AI feature returns instant, realistic sample output (no Ollama, **zero OpenAI cost**) — perfect for a public, shareable demo link. Deterministic engines (GST/TDS/scoring/validation) still run for real.
 
