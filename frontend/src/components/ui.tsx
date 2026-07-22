@@ -248,19 +248,25 @@ function fmtCell(v: any): string {
 }
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
-export function Badge({ text, color = 'blue' }: { text: string; color?: 'blue' | 'green' | 'red' | 'yellow' | 'purple' }) {
-  const colors = {
-    blue:   { bg: 'rgba(16,185,129,0.15)', color: '#5eead4' },
-    green:  { bg: 'rgba(34,197,94,0.15)',  color: '#86efac' },
-    red:    { bg: 'rgba(239,68,68,0.15)',   color: '#fca5a5' },
-    yellow: { bg: 'rgba(234,179,8,0.15)',   color: '#fde047' },
-    purple: { bg: 'rgba(168,85,247,0.15)',  color: '#d8b4fe' },
-  }[color]
+const BADGE_PALETTE: Record<string, { bg: string; color: string }> = {
+  blue:   { bg: 'rgba(16,185,129,0.15)', color: '#5eead4' },
+  green:  { bg: 'rgba(34,197,94,0.15)',  color: '#86efac' },
+  red:    { bg: 'rgba(239,68,68,0.15)',   color: '#fca5a5' },
+  yellow: { bg: 'rgba(234,179,8,0.15)',   color: '#fde047' },
+  purple: { bg: 'rgba(168,85,247,0.15)',  color: '#d8b4fe' },
+}
+export function Badge({ text, label, children, color = 'blue' }: {
+  text?: string; label?: string; children?: ReactNode; color?: string
+}) {
+  const content = text ?? label ?? children
+  const preset = BADGE_PALETTE[color]
+  const bg    = preset ? preset.bg    : color + '22'
+  const fg    = preset ? preset.color : color
   return (
     <span style={{
       fontSize: 11, padding: '2px 8px', borderRadius: 20,
-      background: colors.bg, color: colors.color, fontWeight: 600,
-    }}>{text}</span>
+      background: bg, color: fg, fontWeight: 600,
+    }}>{content}</span>
   )
 }
 
