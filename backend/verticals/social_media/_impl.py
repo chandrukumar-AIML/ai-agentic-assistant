@@ -25,9 +25,31 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from backend.config import get_settings
+from backend.verticals.social_media.constants import FESTIVE_CALENDAR
 
 logger   = logging.getLogger(__name__)
 settings = get_settings()
+
+# alias for legacy references
+_FESTIVE_CALENDAR = FESTIVE_CALENDAR
+
+_FESTIVE_SCRIPTS: dict = {
+    "generic": {
+        "appreciation": "Happy {festival} {emoji} from {brand}! 🎊\n\nThis {festival}, we're grateful for your trust and support. {vibe}\n\nWishing you joy, prosperity, and success! ✨",
+        "offer":        "🎊 {festival} Sale is LIVE at {brand}! {emoji}\n\n✅ {offer}\n\nShop now — limited time only! 🛍️",
+        "contest":      "🎁 {festival} Giveaway! {emoji}\n\nWin {prize}!\n\nHow to enter:\n✅ Like this post\n✅ Follow @{brand}\n✅ Tag 2 friends\n\nWinner announced: {draw_date}",
+    },
+    "diwali": {
+        "appreciation": "🪔 Shubh Deepawali from {brand}! ✨\n\nThis festival of lights, we celebrate YOU — our valued community. May this Diwali bring warmth, prosperity, and new beginnings.\n\nDiwali Cheers! 🎆 #HappyDiwali",
+        "offer":        "🪔 Diwali Dhamaka at {brand}! 🎉\n\n✨ {offer} — celebrate in style!\n\nHurry, offer ends with the festival! 🛍️ #DiwaliSale #DiwaliOffer",
+        "contest":      "🎁 Diwali Giveaway from {brand}! 🪔\n\nWin {prize}!\n\nEnter:\n✅ Like & Share\n✅ Follow us\n✅ Tag a friend\n\nWinner on {draw_date}! #DiwaliContest",
+    },
+    "holi": {
+        "appreciation": "🌈 Happy Holi from {brand}! 🎨\n\nSpread colours, spread love! May this Holi fill your life with vibrant joy. {vibe} ✨",
+        "offer":        "🎨 Holi Special Offers at {brand}! 🌈\n\n{offer} — celebrate the festival of colours!\n\n#HappyHoli #HoliSale",
+        "contest":      "🎨 Holi Contest at {brand}!\n\nShare your Holi selfie & win {prize}!\n\n#HoliContest #PlayWithColours",
+    },
+}
 
 # ── Platform constraints ──────────────────────────────────────────────────────
 
@@ -3304,8 +3326,8 @@ def generate_festive_post(
         "vibe":          vibe,
         "post_angle":    post_angle,
         "post_text":     post_text,
-        "hashtags":      fest["hashtags"],
-        "full_post":     f"{post_text}\n\n{' '.join(fest['hashtags'][:6])}",
+        "hashtags":      fest.get("hashtags", [f"#{festival}", f"#{festival}Sale", f"#{brand_name}"]),
+        "full_post":     f"{post_text}\n\n{' '.join(fest.get('hashtags', [f'#{festival}', f'#{festival}Wishes'])[:6])}",
         "platform_tips": {
             "instagram": "Post 30 min before prime time (7–9pm). Add to Stories with countdown sticker.",
             "facebook":  "Boost post to 10km radius for ₹200–500/day — festive CPMs are high but conversions too.",
@@ -3323,7 +3345,7 @@ def generate_festive_post(
             "Use festive frames/borders from Canva — free templates available",
             "Keep text minimal — let the visual carry the emotion",
         ],
-        "all_angles": {k: v for k, v in _FESTIVE_POST_ANGLES.items()},
+        "all_angles": {"appreciation": "Brand warmth", "offer": "Festival discount", "contest": "Giveaway", "story": "Behind the scenes", "tips": "Festive tips"},
     }
 
 
@@ -4191,7 +4213,8 @@ def generate_content_calendar(
                 post = {"platform": "twitter", "caption": caption, "format": fmt["format"]}
 
             elif platform == "whatsapp":
-                caption = f"Hi! 👋 {theme.split('—')[0].strip()} from {co}!\n\n{usp or f'We help {target_audience or \"businesses\"} grow with smart tools.'}\n\nReply YES to learn more! 🚀"
+                audience = target_audience or "businesses"
+                caption = f"Hi! 👋 {theme.split('—')[0].strip()} from {co}!\n\n{usp or f'We help {audience} grow with smart tools.'}\n\nReply YES to learn more! 🚀"
                 post = {"platform": "whatsapp", "caption": caption, "format": fmt["format"]}
 
             else:

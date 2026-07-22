@@ -1,14 +1,11 @@
-# backend/api/health.py
-"""
-Comprehensive health check endpoint.
-Checks every service dependency with timeout protection.
-"""
+"""Health check endpoints — app status and Ollama connectivity."""
 import asyncio
 import logging
 import time
+from typing import Optional
+
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -22,10 +19,10 @@ class ServiceStatus(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    status:    str   # "ok" | "degraded" | "critical"
-    version:   str   = "2.0.0"
-    services:  list[ServiceStatus]
-    summary:   str
+    status:   str
+    version:  str = "1.0.0"
+    services: list[ServiceStatus]
+    summary:  str
 
 
 async def _check(name: str, coro, timeout: float = 5.0) -> ServiceStatus:
@@ -33,8 +30,7 @@ async def _check(name: str, coro, timeout: float = 5.0) -> ServiceStatus:
     try:
         ok, detail = await asyncio.wait_for(coro, timeout=timeout)
         return ServiceStatus(
-            name=name,
-            healthy=ok,
+            name=name, healthy=ok,
             latency_ms=round((time.monotonic() - start) * 1000, 2),
             detail=detail,
         )
@@ -48,121 +44,56 @@ async def _check(name: str, coro, timeout: float = 5.0) -> ServiceStatus:
         return ServiceStatus(
             name=name, healthy=False,
             latency_ms=round((time.monotonic() - start) * 1000, 2),
-            detail=str(e)[:100],
+            detail=str(e)[:120],
         )
 
 
-async def _check_openai() -> tuple[bool, str]:
-    from backend.llm.openai_client import openai_health_check
-    ok = await openai_health_check()
-    return ok, "gpt-4o reachable" if ok else "OpenAI unreachable"
-
-
 async def _check_ollama() -> tuple[bool, str]:
-    from backend.llm.ollama_client import ollama_health
+    from backend.llm.ollama_openai import ollama_health
     ok = await ollama_health()
-    return ok, "ollama running" if ok else "ollama unreachable"
+    return ok, "Ollama running (llama3.2)" if ok else "Ollama unreachable — start with: ollama serve"
 
 
-async def _check_neo4j() -> tuple[bool, str]:
-    from backend.graph_db.neo4j_client import health_check, get_node_counts
-    ok = await health_check()
-    if ok:
-        counts = await get_node_counts()
-        total  = sum(counts.values())
-        return True, f"{total} nodes in graph"
-    return False, "Neo4j unreachable"
+async def _check_groq() -> tuple[bool, str]:
+    from backend.config import get_settings
+    cfg = get_settings()
+    if not cfg.groq_api_key:
+        return False, "GROQ_API_KEY not set (optional)"
+    return True, "Groq API key configured"
 
 
-async def _check_redis() -> tuple[bool, str]:
-    from backend.session.redis_client import get_redis
-    r    = await get_redis()
-    pong = await r.ping()
-    info = await r.info("memory")
-    used = info.get("used_memory_human", "?")
-    return bool(pong), f"Redis OK, memory={used}"
+async def _check_gemini() -> tuple[bool, str]:
+    from backend.config import get_settings
+    cfg = get_settings()
+    if not cfg.gemini_api_key:
+        return False, "GEMINI_API_KEY not set (optional)"
+    return True, "Gemini API key configured"
 
 
-async def _check_chromadb() -> tuple[bool, str]:
-    from backend.rag.chroma_store import get_count
-    count = get_count()
-    return True, f"{count} documents indexed"
+@router.get("/health", tags=["health"])
+async def health():
+    """Quick liveness probe — used by load balancers."""
+    return {"status": "ok", "version": "1.0.0"}
 
 
-async def _check_faiss() -> tuple[bool, str]:
-    from backend.rag.faiss_store import get_index_size
-    size = get_index_size()
-    return True, f"{size} vectors indexed"
-
-
-async def _check_postgres() -> tuple[bool, str]:
-    from backend.prompts.registry import get_pool
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT COUNT(*) AS cnt FROM prompt_versions")
-    count = row["cnt"] if row else 0
-    return True, f"{count} prompt versions"
-
-
-async def _check_playwright() -> tuple[bool, str]:
-    import httpx
-    r = await httpx.AsyncClient(timeout=5.0).get("http://aaa_playwright:8010/health")
-    if r.status_code == 200:
-        data     = r.json()
-        sessions = data.get("active_sessions", 0)
-        return True, f"browser ready, {sessions} active sessions"
-    return False, f"HTTP {r.status_code}"
-
-
-async def _check_circuit_breaker() -> tuple[bool, str]:
-    from backend.llm.router import llm_router
-    status = llm_router.circuit.get_status()
-    state  = status["state"]
-    ok     = state in ("closed", "half_open")
-    return ok, f"circuit={state} fallbacks={status['total_fallbacks']}"
-
-
-@router.get("/health/deep", response_model=HealthResponse)
-async def deep_health_check():
-    """
-    Deep health check — tests every service dependency.
-    Used by monitoring systems and load balancers.
-    Returns 200 even if degraded (so LB doesn't pull the instance).
-    Returns 503 only if critical.
-    """
+@router.get("/health/deep", response_model=HealthResponse, tags=["health"])
+async def deep_health():
+    """Deep health check — tests Ollama + optional LLM providers."""
     checks = await asyncio.gather(
-        _check("openai",          _check_openai(),          timeout=8.0),
-        _check("ollama",          _check_ollama(),          timeout=5.0),
-        _check("neo4j",           _check_neo4j(),           timeout=5.0),
-        _check("redis",           _check_redis(),           timeout=3.0),
-        _check("chromadb",        _check_chromadb(),        timeout=3.0),
-        _check("faiss",           _check_faiss(),           timeout=2.0),
-        _check("postgres",        _check_postgres(),        timeout=5.0),
-        _check("playwright",      _check_playwright(),      timeout=5.0),
-        _check("circuit_breaker", _check_circuit_breaker(), timeout=2.0),
+        _check("ollama", _check_ollama(), timeout=5.0),
+        _check("groq",   _check_groq(),   timeout=2.0),
+        _check("gemini", _check_gemini(), timeout=2.0),
     )
 
-    # Categorise
-    critical_services = {"redis", "postgres", "faiss"}
-    critical_down     = [s for s in checks if s.name in critical_services and not s.healthy]
+    any_critical_down = [s for s in checks if s.name == "ollama" and not s.healthy]
     any_down          = [s for s in checks if not s.healthy]
 
-    if critical_down:
-        overall = "critical"
-    elif any_down:
-        overall = "degraded"
-    else:
-        overall = "ok"
-
+    overall = "critical" if any_critical_down else ("degraded" if any_down else "ok")
     down_names = [s.name for s in any_down]
-    summary    = (
-        f"All {len(checks)} services healthy"
+    summary = (
+        f"All services healthy"
         if not any_down
-        else f"{len(any_down)} service(s) unhealthy: {', '.join(down_names)}"
+        else f"{len(any_down)} service(s) not available: {', '.join(down_names)}"
     )
 
-    return HealthResponse(
-        status=overall,
-        services=list(checks),
-        summary=summary,
-    )
+    return HealthResponse(status=overall, services=list(checks), summary=summary)

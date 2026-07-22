@@ -5,8 +5,20 @@ from datetime import datetime
 
 
 def _llm(prompt: str, system: str = "") -> str:
-    from backend.verticals.social_media.social_agent import ollama_chat_completion
-    return ollama_chat_completion(prompt, system=system)
+    import asyncio, concurrent.futures
+    from backend.llm.ollama_openai import ollama_chat_completion
+    msgs = [{"role": "user", "content": prompt}]
+
+    def _run_in_thread():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(ollama_chat_completion(msgs, system=system))
+        finally:
+            loop.close()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(_run_in_thread).result(timeout=60)
 
 
 LANG_LABELS = {
