@@ -798,15 +798,15 @@ export default function SocialPage() {
           { id: 'adcopy',     label: 'Ad Copy',       icon: '📣' },
           { id: 'influencer', label: 'Influencer',    icon: '🤝' },
           { id: 'crisis',     label: 'Crisis',        icon: '🚨' },
-          { id: 'youtube',    label: 'YouTube',       icon: '▶️' },
+          { id: 'yt_script',  label: 'YT Script',     icon: '▶️' },
           { id: 'email',      label: 'Email Sequence',icon: '📧' },
-          { id: 'reel',       label: 'Reel Script',   icon: '🎬' },
+          { id: 'short_reel', label: 'Short Reel',    icon: '🎬' },
           { id: 'report',     label: 'Monthly Report',icon: '📊' },
           { id: 'kwcluster',  label: 'SEO Cluster',   icon: '🔍' },
           { id: 'seo',        label: 'SEO Audit',     icon: '📈' },
           { id: 'campaign',   label: 'Campaign Brief', icon: '📋' },
           { id: 'brandkit',   label: 'Brand Kit',      icon: '🏷️' },
-          { id: 'bulk',       label: 'Bulk Generate',  icon: '⚡' },
+          { id: 'launch_kit', label: 'Launch Kit',     icon: '🚀' },
           { id: 'analytics',  label: 'Analytics',      icon: '📉' },
           { id: 'india',      label: 'India & WhatsApp', icon: '🇮🇳' },
           { id: 'templates',  label: 'Niche Templates', icon: '🗂️' },
@@ -1162,7 +1162,7 @@ export default function SocialPage() {
       )}
 
       {/* ── YOUTUBE SCRIPT ── */}
-      {tab === 'youtube' && (
+      {tab === 'yt_script' && (
         <TwoCol>
           <Card>
             <SectionHead title="YouTube Script Writer" sub="Hook → chapters → B-roll notes → CTA → SEO package" />
@@ -1238,7 +1238,7 @@ export default function SocialPage() {
       )}
 
       {/* ── REEL SCRIPT ── */}
-      {tab === 'reel' && (
+      {tab === 'short_reel' && (
         <TwoCol>
           <Card>
             <SectionHead title="Reel / Short Video Script" sub="Stop-the-scroll scripts with visual direction, text overlays, and music vibe" />
@@ -1432,47 +1432,8 @@ export default function SocialPage() {
         </TwoCol>
       )}
 
-      {/* ── BULK GENERATOR ── */}
-      {tab === 'bulk' && (
-        <TwoCol>
-          <Card>
-            <SectionHead title="Bulk Post Generator" sub="Generate a week or month of posts in one click" />
-            <Select label="Platform"   value={bulkPlatform} onChange={setBulkPlatform} options={PLATFORMS} />
-            <Select label="Tone"       value={bulkTone}     onChange={setBulkTone}     options={TONES} />
-            <Input  label="Brand Name" value={bulkBrand}    onChange={setBulkBrand}    placeholder="Your brand (optional)" />
-            <Input label="Topics (one per line)" value={bulkTopics} onChange={setBulkTopics} rows={10}
-              placeholder="Enter one topic per line..." />
-            <div style={{ padding: 8, background: 'rgba(16,185,129,0.07)', borderRadius: 6, marginBottom: 12, fontSize: 11, color: '#5eead4' }}>
-              {bulkTopics.split('\n').filter(t => t.trim()).length} posts will be generated
-            </div>
-            <Btn onClick={() => bulkApi.call(() => socialPro('bulk_generate', {
-              topics: bulkTopics.split('\n').filter(t => t.trim()),
-              tone: bulkTone, brand_name: bulkBrand,
-            }, bulkPlatform))} loading={bulkApi.loading}>⚡ Generate All Posts</Btn>
-          </Card>
-          <div>
-            {bulkApi.data?.posts && !bulkApi.loading && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {bulkApi.data.posts.map((p: any, i: number) => (
-                  <Card key={i}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <Badge text={`Post ${i + 1}`} color="blue" />
-                      <Badge text={p.topic?.slice(0, 30) || 'Post'} color="purple" />
-                    </div>
-                    {p.post_text && (
-                      <div style={{ color: '#e2e8f0', fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', background: '#0f1117', padding: 10, borderRadius: 6 }}>
-                        {p.post_text}
-                      </div>
-                    )}
-                    {p.error && <div style={{ color: '#f87171', fontSize: 11 }}>{p.error}</div>}
-                  </Card>
-                ))}
-              </div>
-            )}
-            {!bulkApi.data && <ResultBox data={null} loading={bulkApi.loading} error={bulkApi.error} title="Bulk Posts" />}
-          </div>
-        </TwoCol>
-      )}
+      {/* ── PRODUCT LAUNCH KIT ── */}
+      {tab === 'launch_kit' && <LaunchKitTab />}
 
       {/* ── ANALYTICS ── */}
       {tab === 'analytics' && (
@@ -4004,5 +3965,159 @@ export default function SocialPage() {
       )}
 
     </PageShell>
+  )
+}
+
+// ── R22: Product Launch Kit ───────────────────────────────────────────────────
+const LK_PLATFORMS = ['instagram','linkedin','twitter','whatsapp']
+const LK_INDUSTRIES = ['technology','retail','ecommerce','food_beverage','fashion','services','health_beauty','education','finance']
+
+export function LaunchKitTab() {
+  const [lkProduct,    setLkProduct]    = useState('')
+  const [lkDesc,       setLkDesc]       = useState('')
+  const [lkAudience,   setLkAudience]   = useState('')
+  const [lkDate,       setLkDate]       = useState('')
+  const [lkUsp,        setLkUsp]        = useState('')
+  const [lkPrice,      setLkPrice]      = useState('')
+  const [lkIndustry,   setLkIndustry]   = useState('technology')
+  const [lkPlatforms,  setLkPlatforms]  = useState<string[]>(['instagram','linkedin'])
+  const [lkRes,        setLkRes]        = useState<any>(null)
+  const [lkLoading,    setLkLoading]    = useState(false)
+  const [lkErr,        setLkErr]        = useState('')
+  const [lkPhase,      setLkPhase]      = useState<'pre_launch'|'launch_day'|'post_launch'>('pre_launch')
+  const [lkPostIdx,    setLkPostIdx]    = useState(0)
+
+  const togglePlat = (p: string) => setLkPlatforms(prev =>
+    prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]
+  )
+
+  const run = async () => {
+    if (!lkProduct || !lkAudience || !lkDate) { setLkErr('Product name, audience, and launch date are required.'); return }
+    setLkLoading(true); setLkErr(''); setLkRes(null)
+    try {
+      setLkRes(await socialAction('product_launch_kit', {
+        product_name: lkProduct, product_description: lkDesc,
+        target_audience: lkAudience, launch_date: lkDate,
+        platforms: lkPlatforms, usp: lkUsp, price_point: lkPrice, industry: lkIndustry,
+      }))
+      setLkPhase('pre_launch'); setLkPostIdx(0)
+    } catch (e: any) { setLkErr(e.message) }
+    finally { setLkLoading(false) }
+  }
+
+  const PHASE_LABELS: Record<string, string> = {
+    pre_launch: '🕐 Pre-Launch', launch_day: '🚀 Launch Day', post_launch: '📈 Post-Launch',
+  }
+  const PHASE_COLORS: Record<string, string> = {
+    pre_launch: '#f59e0b', launch_day: '#10b981', post_launch: '#3b82f6',
+  }
+
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="Product Launch Kit" sub="3-phase content plan: pre-launch → launch day → post-launch" />
+        <Input label="Product / Service Name" value={lkProduct} onChange={setLkProduct} placeholder="e.g. TaxEasy Pro — GST Filing App" />
+        <Input label="What does it do?" value={lkDesc} onChange={setLkDesc} rows={2} placeholder="e.g. Automates GST filing for small businesses in under 10 minutes" />
+        <Input label="Target Audience" value={lkAudience} onChange={setLkAudience} placeholder="e.g. Small business owners and CAs in India" />
+        <Input label="Launch Date" value={lkDate} onChange={setLkDate} placeholder="e.g. August 15, 2026" />
+        <Input label="Unique Selling Point" value={lkUsp} onChange={setLkUsp} placeholder="e.g. Only app with auto-reconciliation + Hindi support" />
+        <Input label="Price / Offer (optional)" value={lkPrice} onChange={setLkPrice} placeholder="e.g. ₹999/year, Free for first 100 users" />
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>Industry</div>
+          <select value={lkIndustry} onChange={e => setLkIndustry(e.target.value)}
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, background: '#fff' }}>
+            {LK_INDUSTRIES.map(i => <option key={i} value={i}>{i.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>Platforms to include</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {LK_PLATFORMS.map(p => (
+              <button key={p} onClick={() => togglePlat(p)}
+                style={{ padding: '5px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                  background: lkPlatforms.includes(p) ? '#10b981' : '#f3f4f6',
+                  color: lkPlatforms.includes(p) ? '#fff' : '#374151' }}>
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Btn onClick={run} loading={lkLoading}>🚀 Generate Launch Kit</Btn>
+        {lkErr && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>{lkErr}</div>}
+      </Card>
+
+      <Card>
+        {lkRes ? (() => {
+          const r = lkRes
+          const phase = r.phases?.[lkPhase] || {}
+          const posts = phase.posts || []
+          return (
+            <div>
+              {/* Phase tabs */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                {(['pre_launch','launch_day','post_launch'] as const).map(ph => (
+                  <button key={ph} onClick={() => { setLkPhase(ph); setLkPostIdx(0) }}
+                    style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                      background: lkPhase === ph ? PHASE_COLORS[ph] : '#f3f4f6',
+                      color: lkPhase === ph ? '#fff' : '#374151' }}>
+                    {PHASE_LABELS[ph]}
+                  </button>
+                ))}
+              </div>
+
+              {/* Phase goal */}
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: '#065f46' }}>
+                🎯 {phase.goal}
+              </div>
+
+              {/* Post navigator */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                {posts.map((_: any, i: number) => (
+                  <button key={i} onClick={() => setLkPostIdx(i)}
+                    style={{ flex: '0 0 36px', height: 32, borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                      background: lkPostIdx === i ? PHASE_COLORS[lkPhase] : '#f3f4f6',
+                      color: lkPostIdx === i ? '#fff' : '#374151' }}>
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+
+              {/* Selected post */}
+              {posts[lkPostIdx] && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700 }}>
+                      {posts[lkPostIdx].hook_type} — {posts[lkPostIdx].platform.toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#9ca3af' }}>{posts[lkPostIdx].char_count} chars</div>
+                  </div>
+                  <ResultBox value={posts[lkPostIdx].caption} />
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>💡 {posts[lkPostIdx].format_note}</div>
+                </div>
+              )}
+
+              {/* Checklist */}
+              <div style={{ background: '#f9fafb', borderRadius: 8, padding: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6 }}>✅ {lkPhase.replace('_',' ')} checklist</div>
+                {(phase.checklist || []).map((item: string, i: number) => (
+                  <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 4, fontSize: 11, color: '#6b7280' }}>
+                    <span>□</span><span>{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Hashtags */}
+              {lkPhase === 'launch_day' && r.hashtags && (
+                <div style={{ marginTop: 12, background: '#eff6ff', borderRadius: 8, padding: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 4 }}>🏷️ Launch hashtags</div>
+                  <div style={{ fontSize: 12, color: '#374151' }}>{(r.hashtags.launch_day || []).join(' ')}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>{(r.hashtags.evergreen || []).join(' ')}</div>
+                </div>
+              )}
+            </div>
+          )
+        })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill in product details and click Generate →</div>}
+      </Card>
+    </TwoCol>
   )
 }

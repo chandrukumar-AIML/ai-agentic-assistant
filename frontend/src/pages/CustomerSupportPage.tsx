@@ -61,11 +61,12 @@ const TABS = [
   { id: 'nps',        label: 'NPS Campaign' },
   { id: 'onboarding_seq', label: 'Onboarding Sequence' },
   { id: 'kb_article',    label: 'Knowledge Base Article' },
-  { id: 'escalation',   label: 'Escalation Email' },
-  { id: 'winback',      label: 'Win-Back Campaign' },
+  { id: 'escalation_email',  label: 'Escalation Email' },
+  { id: 'winback_campaign',  label: 'Win-Back Campaign' },
   { id: 'csat_builder',  label: 'CSAT Survey Builder' },
   { id: 'cx360',         label: 'Customer 360' },
   { id: 'analytics',     label: 'Support Analytics' },
+  { id: 'returns_policy', label: 'Returns Policy' },
 ]
 
 const WA_TYPES = [
@@ -1320,8 +1321,9 @@ export default function CustomerSupportPage() {
         {tab === 'nps'         && <NpsCampaignTab lang={lang} />}
         {tab === 'onboarding_seq' && <OnboardingSequenceTab lang={lang} />}
         {tab === 'kb_article'     && <KbArticleTab lang={lang} />}
-        {tab === 'escalation'     && <EscalationEmailTab lang={lang} />}
-        {tab === 'winback'        && <WinBackTab lang={lang} />}
+        {tab === 'escalation_email'  && <EscalationEmailTab lang={lang} />}
+        {tab === 'winback_campaign'  && <WinBackTab lang={lang} />}
+        {tab === 'returns_policy'    && <ReturnsPolicyTab lang={lang} />}
         {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
         {tab === 'cx360'          && <Customer360Tab lang={lang} />}
         {tab === 'analytics'      && <SupportAnalyticsTab lang={lang} />}
@@ -4082,6 +4084,165 @@ export function SupportAnalyticsTab({ lang }: { lang: string }) {
         })() : (
           <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter this week's support numbers and click Generate Analytics Report →</div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── R22: Returns & Refund Policy Generator ────────────────────────────────────
+const RP_INDUSTRIES = ['ecommerce','electronics','fashion','food_beverage','software_saas','services','health_beauty','home_furniture']
+const RP_REFUND_MODES = ['Original payment method','Store credit / wallet','Bank transfer','UPI refund']
+
+export function ReturnsPolicyTab({ lang }: { lang: string }) {
+  const [rpBiz,     setRpBiz]     = useState('')
+  const [rpInd,     setRpInd]     = useState('ecommerce')
+  const [rpRetDays, setRpRetDays] = useState('0')
+  const [rpRefDays, setRpRefDays] = useState('0')
+  const [rpModes,   setRpModes]   = useState<string[]>(['Original payment method','Store credit / wallet'])
+  const [rpEmail,   setRpEmail]   = useState('')
+  const [rpPhone,   setRpPhone]   = useState('')
+  const [rpRes,     setRpRes]     = useState<any>(null)
+  const [rpLoading, setRpLoading] = useState(false)
+  const [rpErr,     setRpErr]     = useState('')
+  const [rpView,    setRpView]    = useState<'policy'|'whatsapp'|'faq'>('policy')
+
+  const toggleMode = (m: string) => setRpModes(prev =>
+    prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
+  )
+
+  const run = async () => {
+    if (!rpBiz) { setRpErr('Business name required'); return }
+    setRpLoading(true); setRpErr(''); setRpRes(null)
+    try {
+      setRpRes(await csAction('returns_policy', {
+        business_name: rpBiz, industry: rpInd,
+        return_days: parseInt(rpRetDays) || 0, refund_days: parseInt(rpRefDays) || 0,
+        refund_modes: rpModes, contact_email: rpEmail, contact_phone: rpPhone,
+      }, lang))
+    } catch (e: any) { setRpErr(e.message) }
+    finally { setRpLoading(false) }
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16 }}>
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>Returns & Refund Policy Generator</div>
+        <div>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Business Name</label>
+          <input value={rpBiz} onChange={e => setRpBiz(e.target.value)} placeholder="e.g. FreshCart India"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Industry</label>
+          <select value={rpInd} onChange={e => setRpInd(e.target.value)}
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}>
+            {RP_INDUSTRIES.map(i => <option key={i} value={i}>{i.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div>
+            <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Return Window (days, 0=auto)</label>
+            <input type="number" value={rpRetDays} onChange={e => setRpRetDays(e.target.value)} min="0"
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Refund Timeline (days, 0=auto)</label>
+            <input type="number" value={rpRefDays} onChange={e => setRpRefDays(e.target.value)} min="0"
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' as const }} />
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 6 }}>Refund Modes</label>
+          {RP_REFUND_MODES.map(m => (
+            <label key={m} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, cursor: 'pointer', marginBottom: 4 }}>
+              <input type="checkbox" checked={rpModes.includes(m)} onChange={() => toggleMode(m)} />{m}
+            </label>
+          ))}
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Contact Email (optional)</label>
+          <input value={rpEmail} onChange={e => setRpEmail(e.target.value)} placeholder="support@yourbrand.com"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12, boxSizing: 'border-box' as const }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>WhatsApp Number (optional)</label>
+          <input value={rpPhone} onChange={e => setRpPhone(e.target.value)} placeholder="+91-9XXXXXXXXX"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12, boxSizing: 'border-box' as const }} />
+        </div>
+        <button onClick={run} disabled={rpLoading}
+          style={{ padding: '12px', borderRadius: 10, border: 'none', background: '#7c3aed', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          {rpLoading ? 'Generating…' : '📋 Generate Policy'}
+        </button>
+        {rpErr && <div style={{ color: '#ef4444', fontSize: 12 }}>{rpErr}</div>}
+      </div>
+
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 }}>
+        {rpRes ? (() => {
+          const r = rpRes
+          const views = [{ id: 'policy', label: '📋 Policy' }, { id: 'whatsapp', label: '💬 WhatsApp' }, { id: 'faq', label: '❓ FAQ' }] as const
+          return (
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: '#111827', marginBottom: 8 }}>{r.policy_title}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 16 }}>
+                {Object.entries(r.summary_badge || {}).map(([k, v]) => (
+                  <div key={k} style={{ background: '#ede9fe', borderRadius: 20, padding: '4px 12px', fontSize: 11, color: '#5b21b6', fontWeight: 600 }}>
+                    {k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}: {v as string}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                {views.map(v => (
+                  <button key={v.id} onClick={() => setRpView(v.id as any)}
+                    style={{ flex: 1, padding: '7px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: rpView === v.id ? '#7c3aed' : '#f3f4f6', color: rpView === v.id ? '#fff' : '#374151' }}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+
+              {rpView === 'policy' && (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+                  {(r.policy_sections || []).map((sec: any, i: number) => (
+                    <div key={i} style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 10, padding: 14 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#5b21b6', marginBottom: 6 }}>{i+1}. {sec.section}</div>
+                      <div style={{ fontSize: 12, color: '#374151', whiteSpace: 'pre-line' as const, lineHeight: 1.7 }}>{sec.content}</div>
+                    </div>
+                  ))}
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, fontSize: 11, color: '#065f46' }}>
+                    ⚖️ {r.legal_note}
+                  </div>
+                </div>
+              )}
+
+              {rpView === 'whatsapp' && (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+                  {Object.entries(r.whatsapp_snippets || {}).map(([key, tmpl]: [string, any]) => (
+                    <div key={key} style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: 14 }}>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: '#065f46', marginBottom: 6 }}>
+                        💬 {key.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#374151', fontFamily: 'monospace', background: '#fff', padding: 10, borderRadius: 6, whiteSpace: 'pre-wrap' as const }}>{tmpl}</div>
+                    </div>
+                  ))}
+                  <div style={{ background: '#fffbeb', borderRadius: 8, padding: 10, fontSize: 11, color: '#92400e' }}>
+                    💡 Replace placeholder variables with actual order/customer data before sending.
+                  </div>
+                </div>
+              )}
+
+              {rpView === 'faq' && (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 10 }}>
+                  {(r.faq_pairs || []).map((faq: any, i: number) => (
+                    <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 12 }}>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: '#111827', marginBottom: 4 }}>Q: {faq.q}</div>
+                      <div style={{ fontSize: 12, color: '#374151' }}>A: {faq.a}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill in details and click Generate Policy →</div>}
       </div>
     </div>
   )

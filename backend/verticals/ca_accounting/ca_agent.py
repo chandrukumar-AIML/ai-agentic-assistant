@@ -953,6 +953,32 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "balance_sheet":
+        return generate_balance_sheet(
+            company_name=payload.get("company_name", ""),
+            period=payload.get("period", ""),
+            industry=payload.get("industry", "services"),
+            land_building=float(payload.get("land_building", 0)),
+            plant_machinery=float(payload.get("plant_machinery", 0)),
+            furniture=float(payload.get("furniture", 0)),
+            vehicles=float(payload.get("vehicles", 0)),
+            intangibles=float(payload.get("intangibles", 0)),
+            cash=float(payload.get("cash", 0)),
+            bank=float(payload.get("bank", 0)),
+            debtors=float(payload.get("debtors", 0)),
+            inventory=float(payload.get("inventory", 0)),
+            loans_advances=float(payload.get("loans_advances", 0)),
+            other_current=float(payload.get("other_current", 0)),
+            share_capital=float(payload.get("share_capital", 0)),
+            reserves_surplus=float(payload.get("reserves_surplus", 0)),
+            long_term_loans=float(payload.get("long_term_loans", 0)),
+            deferred_tax=float(payload.get("deferred_tax", 0)),
+            creditors=float(payload.get("creditors", 0)),
+            short_term_loans=float(payload.get("short_term_loans", 0)),
+            provisions=float(payload.get("provisions", 0)),
+            other_current_liab=float(payload.get("other_current_liab", 0)),
+            language=language,
+        )
     elif action == "form_16":
         return generate_form16(
             employee_name=payload.get("employee_name", ""),
@@ -2587,6 +2613,151 @@ _FORM16_TAX_SLABS_NEW = [
 _DEDUCTION_HEADS_80C = ["PPF", "ELSS", "LIC Premium", "Home Loan Principal", "Tuition Fees", "NPS (80CCD1)", "EPF Contribution"]
 _DEDUCTION_80D = "Medical insurance premium"
 _HRA_EXEMPTION_NOTE = "HRA exemption calculated as min of: actual HRA received, 50%/40% of basic (metro/non-metro), rent paid minus 10% of basic"
+
+
+# ── R22: Balance Sheet Builder ───────────────────────────────────────────────
+
+_BS_RATIOS = {
+    "current_ratio":       {"formula": "Current Assets / Current Liabilities", "healthy": "> 1.5", "warning": "< 1.0"},
+    "debt_to_equity":      {"formula": "Total Debt / Shareholders Equity",     "healthy": "< 1.0", "warning": "> 2.0"},
+    "working_capital":     {"formula": "Current Assets - Current Liabilities", "healthy": "Positive", "warning": "Negative"},
+    "asset_turnover":      {"formula": "Revenue / Total Assets",               "healthy": "> 1.0", "warning": "< 0.5"},
+}
+
+_BS_INDUSTRY_BENCHMARKS = {
+    "manufacturing":   {"current_ratio": 1.8, "debt_to_equity": 0.9},
+    "retail":          {"current_ratio": 1.4, "debt_to_equity": 0.7},
+    "services":        {"current_ratio": 1.6, "debt_to_equity": 0.5},
+    "technology":      {"current_ratio": 2.5, "debt_to_equity": 0.3},
+    "real_estate":     {"current_ratio": 1.2, "debt_to_equity": 1.5},
+    "hospitality":     {"current_ratio": 1.1, "debt_to_equity": 1.2},
+}
+
+_BS_NOTES_TEMPLATES = {
+    "high_debt":    "Debt-to-equity ratio is above industry benchmark. Consider debt restructuring or equity infusion.",
+    "low_liquidity":"Current ratio below 1.5 — monitor working capital closely to avoid cash flow stress.",
+    "strong_equity":"Healthy equity base. Company is well-positioned for expansion or credit.",
+    "healthy":      "Balance sheet is healthy. Key ratios are within or above industry benchmarks.",
+}
+
+
+def generate_balance_sheet(
+    company_name: str,
+    period: str,
+    industry: str,
+    # Fixed Assets
+    land_building: float = 0,
+    plant_machinery: float = 0,
+    furniture: float = 0,
+    vehicles: float = 0,
+    intangibles: float = 0,
+    # Current Assets
+    cash: float = 0,
+    bank: float = 0,
+    debtors: float = 0,
+    inventory: float = 0,
+    loans_advances: float = 0,
+    other_current: float = 0,
+    # Equity & Reserves
+    share_capital: float = 0,
+    reserves_surplus: float = 0,
+    # Long-term Liabilities
+    long_term_loans: float = 0,
+    deferred_tax: float = 0,
+    # Current Liabilities
+    creditors: float = 0,
+    short_term_loans: float = 0,
+    provisions: float = 0,
+    other_current_liab: float = 0,
+    language: str = "en",
+) -> dict:
+    # Assets
+    total_fixed = land_building + plant_machinery + furniture + vehicles + intangibles
+    total_current_assets = cash + bank + debtors + inventory + loans_advances + other_current
+    total_assets = total_fixed + total_current_assets
+
+    # Liabilities
+    total_equity = share_capital + reserves_surplus
+    total_lt_liab = long_term_loans + deferred_tax
+    total_current_liab = creditors + short_term_loans + provisions + other_current_liab
+    total_equity_liab = total_equity + total_lt_liab + total_current_liab
+
+    # Balance check
+    difference = round(total_assets - total_equity_liab, 2)
+    balanced = abs(difference) < 1
+
+    # Ratios
+    cur_ratio = round(total_current_assets / total_current_liab, 2) if total_current_liab else 0
+    d2e = round((long_term_loans + short_term_loans) / total_equity, 2) if total_equity else 0
+    working_cap = round(total_current_assets - total_current_liab, 2)
+
+    bench = _BS_INDUSTRY_BENCHMARKS.get(industry.lower(), _BS_INDUSTRY_BENCHMARKS["services"])
+
+    # Notes
+    notes = []
+    if d2e > bench["debt_to_equity"] * 1.5:
+        notes.append(_BS_NOTES_TEMPLATES["high_debt"])
+    if cur_ratio < 1.5:
+        notes.append(_BS_NOTES_TEMPLATES["low_liquidity"])
+    if not notes:
+        notes.append(_BS_NOTES_TEMPLATES["healthy"] if cur_ratio >= bench["current_ratio"] else _BS_NOTES_TEMPLATES["low_liquidity"])
+
+    return {
+        "company": company_name,
+        "period": period,
+        "industry": industry,
+        "balanced": balanced,
+        "difference": difference,
+        "assets": {
+            "fixed_assets": {
+                "land_and_building": land_building,
+                "plant_and_machinery": plant_machinery,
+                "furniture_and_fixtures": furniture,
+                "vehicles": vehicles,
+                "intangible_assets": intangibles,
+                "total_fixed_assets": round(total_fixed, 2),
+            },
+            "current_assets": {
+                "cash_in_hand": cash,
+                "bank_balances": bank,
+                "trade_debtors": debtors,
+                "inventory": inventory,
+                "loans_and_advances": loans_advances,
+                "other_current_assets": other_current,
+                "total_current_assets": round(total_current_assets, 2),
+            },
+            "total_assets": round(total_assets, 2),
+        },
+        "equity_and_liabilities": {
+            "shareholders_equity": {
+                "share_capital": share_capital,
+                "reserves_and_surplus": reserves_surplus,
+                "total_equity": round(total_equity, 2),
+            },
+            "long_term_liabilities": {
+                "long_term_loans": long_term_loans,
+                "deferred_tax_liability": deferred_tax,
+                "total_lt_liabilities": round(total_lt_liab, 2),
+            },
+            "current_liabilities": {
+                "trade_creditors": creditors,
+                "short_term_borrowings": short_term_loans,
+                "provisions": provisions,
+                "other_current_liabilities": other_current_liab,
+                "total_current_liabilities": round(total_current_liab, 2),
+            },
+            "total_equity_and_liabilities": round(total_equity_liab, 2),
+        },
+        "ratios": {
+            "current_ratio": {"value": cur_ratio, "benchmark": bench["current_ratio"],
+                               "status": "✅ Healthy" if cur_ratio >= bench["current_ratio"] else "⚠️ Below benchmark"},
+            "debt_to_equity": {"value": d2e, "benchmark": bench["debt_to_equity"],
+                                "status": "✅ Healthy" if d2e <= bench["debt_to_equity"] else "⚠️ Above benchmark"},
+            "working_capital": {"value": working_cap, "status": "✅ Positive" if working_cap > 0 else "🔴 Negative"},
+        },
+        "auditor_notes": notes,
+        "schedule_vi_ready": True,
+    }
 
 
 def _compute_tax_new_regime(taxable_income: float) -> dict:

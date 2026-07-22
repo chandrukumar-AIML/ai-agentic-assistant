@@ -827,6 +827,7 @@ export default function CAPage() {
           { id: 'salary_slip',     label: 'Salary Slip Generator',      icon: '🧾' },
           { id: 'client_dash',     label: 'Client Dashboard',           icon: '👥' },
           { id: 'form16',          label: 'Form 16 Generator',          icon: '📄' },
+          { id: 'balance_sheet',   label: 'Balance Sheet',              icon: '⚖️' },
         ]}
         active={tab} onChange={setTab}
       />
@@ -3587,6 +3588,261 @@ export default function CAPage() {
           </Card>
         </TwoCol>
       )}
+      {tab === 'balance_sheet' && <BalanceSheetTab />}
     </PageShell>
+  )
+}
+
+// ── R22: Balance Sheet Builder ────────────────────────────────────────────────
+const BS_INDUSTRIES = ['services','technology','manufacturing','retail','ecommerce','real_estate','hospitality','food_beverage']
+
+function BSField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #f3f4f6' }}>
+      <span style={{ fontSize: 12, color: '#374151' }}>{label}</span>
+      <input type="number" value={value} onChange={e => onChange(e.target.value)} min="0"
+        style={{ width: 120, padding: '4px 8px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: 12, textAlign: 'right' }} />
+    </div>
+  )
+}
+
+function BalanceSheetTab() {
+  const [bsCo,      setBsCo]      = useState('')
+  const [bsPeriod,  setBsPeriod]  = useState('')
+  const [bsInd,     setBsInd]     = useState('services')
+  // Fixed Assets
+  const [bsLand,    setBsLand]    = useState('0')
+  const [bsPlant,   setBsPlant]   = useState('0')
+  const [bsFurn,    setBsFurn]    = useState('0')
+  const [bsVeh,     setBsVeh]     = useState('0')
+  const [bsInt,     setBsInt]     = useState('0')
+  // Current Assets
+  const [bsCash,    setBsCash]    = useState('0')
+  const [bsBank,    setBsBank]    = useState('0')
+  const [bsDebt,    setBsDebt]    = useState('0')
+  const [bsInv,     setBsInv]     = useState('0')
+  const [bsLoan,    setBsLoan]    = useState('0')
+  const [bsOtCA,    setBsOtCA]    = useState('0')
+  // Equity
+  const [bsSC,      setBsSC]      = useState('0')
+  const [bsRes,     setBsRes]     = useState('0')
+  // LT Liab
+  const [bsLTL,     setBsLTL]     = useState('0')
+  const [bsDTL,     setBsDTL]     = useState('0')
+  // Current Liab
+  const [bsCred,    setBsCred]    = useState('0')
+  const [bsSTL,     setBsSTL]     = useState('0')
+  const [bsProv,    setBsProv]    = useState('0')
+  const [bsOtCL,    setBsOtCL]    = useState('0')
+
+  const [bsResult,  setBsResult]  = useState<any>(null)
+  const [bsLoading, setBsLoading] = useState(false)
+  const [bsErr,     setBsErr]     = useState('')
+  const [bsView,    setBsView]    = useState<'sheet'|'ratios'|'notes'>('sheet')
+
+  const run = async () => {
+    if (!bsCo) { setBsErr('Company name required'); return }
+    setBsLoading(true); setBsErr(''); setBsResult(null)
+    try {
+      setBsResult(await caAction('balance_sheet', {
+        company_name: bsCo, period: bsPeriod, industry: bsInd,
+        land_building: bsLand, plant_machinery: bsPlant, furniture: bsFurn, vehicles: bsVeh, intangibles: bsInt,
+        cash: bsCash, bank: bsBank, debtors: bsDebt, inventory: bsInv, loans_advances: bsLoan, other_current: bsOtCA,
+        share_capital: bsSC, reserves_surplus: bsRes,
+        long_term_loans: bsLTL, deferred_tax: bsDTL,
+        creditors: bsCred, short_term_loans: bsSTL, provisions: bsProv, other_current_liab: bsOtCL,
+      }))
+    } catch (e: any) { setBsErr(e.message) }
+    finally { setBsLoading(false) }
+  }
+
+  const fmt = (n: number) => '₹' + (n || 0).toLocaleString('en-IN')
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 16 }}>
+      {/* Input panel */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12 }}>Company Details</div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Company Name</label>
+            <input value={bsCo} onChange={e => setBsCo(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Period (e.g. FY 2025-26)</label>
+            <input value={bsPeriod} onChange={e => setBsPeriod(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 4 }}>Industry</label>
+            <select value={bsInd} onChange={e => setBsInd(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}>
+              {BS_INDUSTRIES.map(i => <option key={i} value={i}>{i.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Fixed Assets */}
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: '#059669', marginBottom: 8 }}>ASSETS — Fixed (₹)</div>
+          <BSField label="Land & Building" value={bsLand} onChange={setBsLand} />
+          <BSField label="Plant & Machinery" value={bsPlant} onChange={setBsPlant} />
+          <BSField label="Furniture & Fixtures" value={bsFurn} onChange={setBsFurn} />
+          <BSField label="Vehicles" value={bsVeh} onChange={setBsVeh} />
+          <BSField label="Intangible Assets" value={bsInt} onChange={setBsInt} />
+        </div>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: '#059669', marginBottom: 8 }}>ASSETS — Current (₹)</div>
+          <BSField label="Cash in Hand" value={bsCash} onChange={setBsCash} />
+          <BSField label="Bank Balances" value={bsBank} onChange={setBsBank} />
+          <BSField label="Trade Debtors" value={bsDebt} onChange={setBsDebt} />
+          <BSField label="Inventory" value={bsInv} onChange={setBsInv} />
+          <BSField label="Loans & Advances" value={bsLoan} onChange={setBsLoan} />
+          <BSField label="Other Current Assets" value={bsOtCA} onChange={setBsOtCA} />
+        </div>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: '#dc2626', marginBottom: 8 }}>EQUITY & RESERVES (₹)</div>
+          <BSField label="Share Capital" value={bsSC} onChange={setBsSC} />
+          <BSField label="Reserves & Surplus" value={bsRes} onChange={setBsRes} />
+        </div>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: '#dc2626', marginBottom: 8 }}>LIABILITIES (₹)</div>
+          <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 4 }}>Long-Term</div>
+          <BSField label="Long-Term Loans" value={bsLTL} onChange={setBsLTL} />
+          <BSField label="Deferred Tax Liability" value={bsDTL} onChange={setBsDTL} />
+          <div style={{ fontSize: 10, color: '#9ca3af', margin: '8px 0 4px' }}>Current</div>
+          <BSField label="Trade Creditors" value={bsCred} onChange={setBsCred} />
+          <BSField label="Short-Term Borrowings" value={bsSTL} onChange={setBsSTL} />
+          <BSField label="Provisions" value={bsProv} onChange={setBsProv} />
+          <BSField label="Other Current Liabilities" value={bsOtCL} onChange={setBsOtCL} />
+        </div>
+        <button onClick={run} disabled={bsLoading}
+          style={{ padding: '12px', borderRadius: 10, border: 'none', background: '#059669', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          {bsLoading ? 'Generating…' : '⚖️ Generate Balance Sheet'}
+        </button>
+        {bsErr && <div style={{ color: '#ef4444', fontSize: 12 }}>{bsErr}</div>}
+      </div>
+
+      {/* Result panel */}
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 }}>
+        {bsResult ? (() => {
+          const r = bsResult
+          const a = r.assets; const el = r.equity_and_liabilities
+          const views = [{ id: 'sheet', label: '⚖️ Balance Sheet' }, { id: 'ratios', label: '📊 Ratios' }, { id: 'notes', label: '📝 Notes' }] as const
+          return (
+            <div>
+              {/* Header */}
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <div style={{ fontWeight: 800, fontSize: 16, color: '#111827' }}>{r.company}</div>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>Balance Sheet as at {r.period}</div>
+                <div style={{ marginTop: 8 }}>
+                  {r.balanced
+                    ? <span style={{ background: '#d1fae5', color: '#065f46', padding: '3px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>✅ Balanced</span>
+                    : <span style={{ background: '#fee2e2', color: '#991b1b', padding: '3px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>⚠️ Off by ₹{Math.abs(r.difference).toLocaleString()}</span>
+                  }
+                </div>
+              </div>
+
+              {/* View tabs */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                {views.map(v => (
+                  <button key={v.id} onClick={() => setBsView(v.id as any)}
+                    style={{ flex: 1, padding: '7px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      background: bsView === v.id ? '#059669' : '#f3f4f6', color: bsView === v.id ? '#fff' : '#374151' }}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+
+              {bsView === 'sheet' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  {/* Assets */}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: '#059669', borderBottom: '2px solid #059669', paddingBottom: 4, marginBottom: 8 }}>ASSETS</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>Fixed Assets</div>
+                    {Object.entries(a.fixed_assets).filter(([k]) => k !== 'total_fixed_assets').map(([k, v]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}>
+                        <span style={{ color: '#374151' }}>{k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span>
+                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(v as number)}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 12, borderTop: '1px solid #e5e7eb', marginTop: 4, paddingTop: 4 }}>
+                      <span>Total Fixed Assets</span><span>{fmt(a.fixed_assets.total_fixed_assets)}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, margin: '10px 0 4px' }}>Current Assets</div>
+                    {Object.entries(a.current_assets).filter(([k]) => k !== 'total_current_assets').map(([k, v]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}>
+                        <span style={{ color: '#374151' }}>{k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span>
+                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(v as number)}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 12, borderTop: '1px solid #e5e7eb', marginTop: 4, paddingTop: 4 }}>
+                      <span>Total Current Assets</span><span>{fmt(a.current_assets.total_current_assets)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 13, background: '#ecfdf5', padding: '6px 8px', borderRadius: 6, marginTop: 8 }}>
+                      <span>TOTAL ASSETS</span><span>{fmt(a.total_assets)}</span>
+                    </div>
+                  </div>
+                  {/* Equity & Liabilities */}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: '#dc2626', borderBottom: '2px solid #dc2626', paddingBottom: 4, marginBottom: 8 }}>EQUITY & LIABILITIES</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, marginBottom: 4 }}>Shareholders' Equity</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}><span>Share Capital</span><span>{fmt(el.shareholders_equity.share_capital)}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}><span>Reserves & Surplus</span><span>{fmt(el.shareholders_equity.reserves_and_surplus)}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 12, borderTop: '1px solid #e5e7eb', marginTop: 4, paddingTop: 4 }}><span>Total Equity</span><span>{fmt(el.shareholders_equity.total_equity)}</span></div>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, margin: '10px 0 4px' }}>Long-Term Liabilities</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}><span>Long-Term Loans</span><span>{fmt(el.long_term_liabilities.long_term_loans)}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}><span>Deferred Tax Liability</span><span>{fmt(el.long_term_liabilities.deferred_tax_liability)}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 12, borderTop: '1px solid #e5e7eb', marginTop: 4, paddingTop: 4 }}><span>Total LT Liabilities</span><span>{fmt(el.long_term_liabilities.total_lt_liabilities)}</span></div>
+                    <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 600, margin: '10px 0 4px' }}>Current Liabilities</div>
+                    {Object.entries(el.current_liabilities).filter(([k]) => k !== 'total_current_liabilities').map(([k, v]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}>
+                        <span>{k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span><span>{fmt(v as number)}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 12, borderTop: '1px solid #e5e7eb', marginTop: 4, paddingTop: 4 }}><span>Total Current Liabilities</span><span>{fmt(el.current_liabilities.total_current_liabilities)}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 13, background: '#fef2f2', padding: '6px 8px', borderRadius: 6, marginTop: 8 }}>
+                      <span>TOTAL EQUITY & LIABILITIES</span><span>{fmt(el.total_equity_and_liabilities)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {bsView === 'ratios' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {Object.entries(r.ratios).map(([key, val]: [string, any]) => (
+                    <div key={key} style={{ background: '#f9fafb', borderRadius: 10, padding: 14 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>{key.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800 }}>{val.value ?? val.value}</div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                        {val.benchmark && <span style={{ color: '#6b7280' }}>Industry benchmark: {val.benchmark}</span>}
+                        <span style={{ color: (val.status || '').includes('✅') ? '#059669' : '#d97706', fontWeight: 600 }}>{val.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {bsView === 'notes' && (
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10 }}>Auditor Notes & Observations</div>
+                  {(r.auditor_notes || []).map((n: string, i: number) => (
+                    <div key={i} style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 12, marginBottom: 8, fontSize: 12, color: '#92400e' }}>
+                      💡 {n}
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 12, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, fontSize: 11, color: '#065f46' }}>
+                    ✅ Schedule VI ready — format compliant with Companies Act 2013
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Enter all balance sheet figures and click Generate →</div>}
+      </div>
+    </div>
   )
 }

@@ -560,6 +560,17 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "returns_policy":
+            return generate_returns_policy(
+                business_name=payload.get("business_name", ""),
+                industry=payload.get("industry", "ecommerce"),
+                custom_return_days=int(payload.get("return_days", 0)),
+                custom_refund_days=int(payload.get("refund_days", 0)),
+                refund_modes=payload.get("refund_modes", []),
+                contact_email=payload.get("contact_email", ""),
+                contact_phone=payload.get("contact_phone", ""),
+                language=language,
+            )
         elif action == "support_analytics":
             return generate_support_analytics(
                 business_name=payload.get("business_name", ""),
@@ -2828,6 +2839,124 @@ _CATEGORY_ICONS = {
     "Complaint":         "⚠️",
     "Returns/Refund":    "↩️",
 }
+
+
+# ── R22: Returns & Refund Policy Generator ───────────────────────────────────
+
+_RETURNS_WINDOWS = {
+    "ecommerce":     {"return_days": 7,  "refund_days": 5,  "exchange": True},
+    "electronics":   {"return_days": 14, "refund_days": 7,  "exchange": True},
+    "fashion":       {"return_days": 30, "refund_days": 7,  "exchange": True},
+    "food_beverage": {"return_days": 1,  "refund_days": 2,  "exchange": False},
+    "software_saas": {"return_days": 14, "refund_days": 7,  "exchange": False},
+    "services":      {"return_days": 0,  "refund_days": 14, "exchange": False},
+    "health_beauty": {"return_days": 7,  "refund_days": 5,  "exchange": True},
+    "home_furniture": {"return_days": 14,"refund_days": 7,  "exchange": True},
+}
+
+_RETURNS_EXCLUSIONS = {
+    "ecommerce":     ["Items used or damaged by customer", "Products missing original packaging", "Perishables and food items", "Digital downloads once accessed"],
+    "electronics":   ["Software products once opened", "Items with tampered serial numbers", "Accessories if opened", "Damage due to misuse"],
+    "fashion":       ["Innerwear and swimwear", "Altered or washed items", "Items without tags", "Gift cards"],
+    "software_saas": ["Partially used subscription months", "Setup/onboarding fees", "Add-ons or integrations"],
+    "services":      ["Completed services", "Partially rendered services"],
+    "food_beverage": ["Opened or consumed items", "Items past best-before date"],
+}
+
+_WHATSAPP_TEMPLATES = {
+    "return_request": "Hi {name}! 👋 Your return request for Order #{order_id} has been received. Our team will review it within 24 hours. For eligible returns, we'll share the pickup details shortly. Thank you for your patience! 🙏",
+    "refund_initiated": "Good news, {name}! ✅ Your refund of ₹{amount} for Order #{order_id} has been initiated. It will reflect in your {payment_method} within {days} business days.",
+    "return_rejected": "Hi {name}, we're unable to process a return for Order #{order_id} because {reason}. Please WhatsApp us if you have any questions — we're happy to help! 🙏",
+}
+
+
+def generate_returns_policy(
+    business_name: str,
+    industry: str,
+    custom_return_days: int = 0,
+    custom_refund_days: int = 0,
+    refund_modes: list = None,
+    contact_email: str = "",
+    contact_phone: str = "",
+    language: str = "en",
+) -> dict:
+    industry_key = industry.lower().replace(" ", "_")
+    cfg = _RETURNS_WINDOWS.get(industry_key, _RETURNS_WINDOWS["ecommerce"])
+    exclusions = _RETURNS_EXCLUSIONS.get(industry_key, _RETURNS_EXCLUSIONS["ecommerce"])
+
+    ret_days = custom_return_days or cfg["return_days"]
+    ref_days = custom_refund_days or cfg["refund_days"]
+    refund_modes = refund_modes or ["Original payment method", "Store credit / wallet"]
+
+    policy_sections = [
+        {
+            "section": "Return Window",
+            "content": (
+                f"We accept returns within {ret_days} days of delivery for eligible items. "
+                "Items must be unused, in original condition, and with all original packaging and tags intact."
+            ) if ret_days > 0 else "All sales are final. Returns are not accepted except in case of defective or wrongly shipped items.",
+        },
+        {
+            "section": "Refund Policy",
+            "content": (
+                f"Once we receive and inspect your return, refunds are processed within {ref_days} business days. "
+                f"Refunds are issued via: {', '.join(refund_modes)}."
+            ),
+        },
+        {
+            "section": "Exchange Policy",
+            "content": (
+                f"We offer exchanges within {ret_days} days of delivery, subject to stock availability. "
+                "Size or colour exchanges can be requested via WhatsApp or email."
+            ) if cfg["exchange"] else "Exchanges are not available. Please return and reorder.",
+        },
+        {
+            "section": "Non-Returnable Items",
+            "content": "The following items are not eligible for return or refund:\n" + "\n".join(f"• {e}" for e in exclusions),
+        },
+        {
+            "section": "How to Initiate a Return",
+            "content": (
+                f"1. Contact us within {ret_days} days of delivery\n"
+                f"2. Email: {contact_email or 'support@' + business_name.lower().replace(' ', '') + '.com'}\n"
+                f"3. WhatsApp: {contact_phone or '+91-XXXXXXXXXX'}\n"
+                "4. Share your order number and reason for return\n"
+                "5. We will arrange pickup (no self-shipping needed for eligible returns)"
+            ),
+        },
+        {
+            "section": "Defective or Wrong Product",
+            "content": "If you receive a defective, damaged, or incorrect item, please contact us within 48 hours of delivery with photos. We will arrange a replacement or full refund at no cost to you.",
+        },
+        {
+            "section": "GST on Refunds",
+            "content": "GST included in the original price will be refunded proportionally. Credit note will be issued as per GST regulations (Rule 53 of CGST Rules).",
+        },
+    ]
+
+    faq_pairs = [
+        {"q": "How long will my refund take?", "a": f"Refunds are processed within {ref_days} business days after we receive the returned item."},
+        {"q": "Can I return a sale or discounted item?", "a": "Sale items are eligible for exchange only, not refunds, unless defective."},
+        {"q": "What if I received the wrong item?", "a": "Contact us within 48 hours with your order number and a photo. We'll send the correct item immediately."},
+        {"q": "Do I need to pay for return shipping?", "a": "No — we arrange free pickup for all eligible returns."},
+        {"q": "Can I cancel my order?", "a": "Orders can be cancelled before dispatch. Contact us immediately and we'll process a full refund."},
+    ]
+
+    return {
+        "business": business_name,
+        "industry": industry,
+        "policy_title": f"{business_name} — Returns & Refund Policy",
+        "summary_badge": {
+            "return_window": f"{ret_days} days" if ret_days > 0 else "No returns",
+            "refund_timeline": f"{ref_days} business days",
+            "exchange": "Yes" if cfg["exchange"] else "No",
+            "free_pickup": "Yes",
+        },
+        "policy_sections": policy_sections,
+        "whatsapp_snippets": _WHATSAPP_TEMPLATES,
+        "faq_pairs": faq_pairs,
+        "legal_note": "This policy is governed by the Consumer Protection Act, 2019 and the Consumer Protection (E-Commerce) Rules, 2020.",
+    }
 
 
 def generate_support_analytics(

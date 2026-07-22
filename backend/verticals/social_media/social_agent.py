@@ -2069,6 +2069,18 @@ async def social_agent(
             language=language,
         )
 
+    elif action == "product_launch_kit":
+        return generate_product_launch_kit(
+            product_name=payload.get("product_name", ""),
+            product_description=payload.get("product_description", ""),
+            target_audience=payload.get("target_audience", ""),
+            launch_date=payload.get("launch_date", ""),
+            platforms=payload.get("platforms", ["instagram", "linkedin"]),
+            usp=payload.get("usp", ""),
+            price_point=payload.get("price_point", ""),
+            industry=payload.get("industry", "technology"),
+            language=language,
+        )
     elif action == "bulk_posts":
         return generate_bulk_posts(
             company_name=payload.get("company_name", ""),
@@ -2926,6 +2938,142 @@ _CTAS = [
     "Tag a friend who needs this 👇", "What's your experience? Tell us below →",
     "Book a free consultation → [link]", "Subscribe for weekly tips →",
 ]
+
+
+# ── R22: Product Launch Kit ──────────────────────────────────────────────────
+
+_LAUNCH_PHASES = {
+    "pre_launch": {
+        "label": "Pre-Launch (7–14 days before)",
+        "goal": "Build anticipation and grow waitlist",
+        "hooks": ["Coming soon teaser", "Behind-the-scenes build", "Problem statement post", "Countdown post", "Early-access signup CTA"],
+    },
+    "launch_day": {
+        "label": "Launch Day",
+        "goal": "Maximum reach and conversions",
+        "hooks": ["Big announcement post", "Founder story", "Key benefit highlight", "Social proof teaser", "Limited-time offer"],
+    },
+    "post_launch": {
+        "label": "Post-Launch (days 2–14)",
+        "goal": "Sustain momentum and drive reviews",
+        "hooks": ["First-user testimonial request", "FAQ post", "Feature spotlight", "Use-case story", "Thank-you post"],
+    },
+}
+
+_LAUNCH_PLATFORMS = {
+    "instagram": {"char_limit": 2200, "format": "visual-first with emoji, line breaks, 5–10 hashtags"},
+    "linkedin":  {"char_limit": 1300, "format": "professional narrative, 3–5 bullet points, 3 hashtags"},
+    "twitter":   {"char_limit": 280,  "format": "punchy, one strong hook, 1–2 hashtags"},
+    "whatsapp":  {"char_limit": 1000, "format": "conversational, broadcast-ready, no hashtags"},
+}
+
+_LAUNCH_EMAIL_TEMPLATES = {
+    "waitlist_confirmation": "Subject: You're on the list 🎉 | Body: Confirm interest + what to expect",
+    "launch_day_blast":      "Subject: It's here! [Product] is live | Body: CTA + benefit summary",
+    "follow_up":             "Subject: Did you miss [Product]? | Body: Last chance + social proof",
+}
+
+
+def generate_product_launch_kit(
+    product_name: str,
+    product_description: str,
+    target_audience: str,
+    launch_date: str,
+    platforms: list,
+    usp: str = "",
+    price_point: str = "",
+    industry: str = "technology",
+    language: str = "en",
+) -> dict:
+    platforms = platforms or ["instagram", "linkedin"]
+    usp = usp or f"The easiest {product_name} for {target_audience}"
+    price_tag = f" at {price_point}" if price_point else ""
+
+    kit: dict = {"product": product_name, "launch_date": launch_date, "phases": {}}
+
+    for phase_key, phase in _LAUNCH_PHASES.items():
+        posts = []
+        for i, hook in enumerate(phase["hooks"][:3]):
+            platform = platforms[i % len(platforms)]
+            plat_cfg = _LAUNCH_PLATFORMS.get(platform, _LAUNCH_PLATFORMS["instagram"])
+            post_body = _craft_launch_post(
+                hook=hook, product=product_name, desc=product_description,
+                audience=target_audience, usp=usp, price_tag=price_tag,
+                platform=platform, phase=phase_key,
+            )
+            posts.append({
+                "hook_type": hook,
+                "platform": platform,
+                "caption": post_body,
+                "char_count": len(post_body),
+                "format_note": plat_cfg["format"],
+            })
+
+        kit["phases"][phase_key] = {
+            "label": phase["label"],
+            "goal": phase["goal"],
+            "posts": posts,
+            "checklist": _launch_checklist(phase_key, product_name, launch_date),
+        }
+
+    kit["email_sequence"] = [
+        {"step": k, "guide": v} for k, v in _LAUNCH_EMAIL_TEMPLATES.items()
+    ]
+    kit["press_kit_bullets"] = [
+        f"{product_name} launches {launch_date}{price_tag}",
+        f"Designed for {target_audience} in {industry}",
+        f"Key USP: {usp}",
+        f"Available on: {', '.join(platforms)}",
+    ]
+    kit["hashtags"] = {
+        "launch_day": [f"#{product_name.replace(' ', '')}", "#ProductLaunch", "#NewProduct", f"#{industry.capitalize()}India", "#IndianStartup"],
+        "evergreen":  ["#MadeInIndia", "#StartupIndia", f"#{industry.capitalize()}", "#Innovation", "#SmallBusiness"],
+    }
+    return kit
+
+
+def _craft_launch_post(hook: str, product: str, desc: str, audience: str,
+                        usp: str, price_tag: str, platform: str, phase: str) -> str:
+    intros = {
+        "pre_launch": f"Something big is coming for {audience}. 👀\n\nWe've been building {product} — {desc}.\n\n{usp}.\n\nDrop a 🙋 if you want early access{price_tag}.",
+        "launch_day": f"🚀 IT'S LIVE!\n\n{product} is now available{price_tag}.\n\n{desc}\n\nBuilt specifically for {audience}.\n\n✅ {usp}\n\nLink in bio / comments 👇",
+        "post_launch": f"The response to {product} has been incredible! 🙏\n\n{audience} are already loving it.\n\n{usp}\n\nJoin them today{price_tag} — link in bio.",
+    }
+    base = intros.get(phase, intros["launch_day"])
+    if platform == "twitter":
+        return base[:270] + " 🔗"
+    if platform == "linkedin":
+        return base + "\n\n#ProductLaunch #Innovation #IndianStartup"
+    if platform == "instagram":
+        return base + "\n\n.\n.\n.\n#ProductLaunch #NewProduct #MadeInIndia #IndianStartup #Innovation"
+    return base
+
+
+def _launch_checklist(phase: str, product: str, launch_date: str) -> list:
+    checklists = {
+        "pre_launch": [
+            f"Set up {product} waitlist landing page",
+            "Schedule teaser posts (T-14, T-7, T-3, T-1 days)",
+            "Prepare press kit and media assets",
+            "Warm up email list with 'coming soon' campaign",
+            "Brief team on launch-day responsibilities",
+        ],
+        "launch_day": [
+            f"Publish announcement post at 9 AM IST on {launch_date}",
+            "Send launch-day email blast to full list",
+            "Go live on Instagram / LinkedIn for Q&A",
+            "Monitor comments and DMs — reply within 1 hour",
+            "Push PR outreach to tech and business media",
+        ],
+        "post_launch": [
+            "Follow up with non-openers (email day 3)",
+            "Collect first user testimonials",
+            "Post a 'thank you' and first-week stats",
+            "Run a limited-time offer for fence-sitters",
+            "Start review request sequence",
+        ],
+    }
+    return checklists.get(phase, [])
 
 
 def generate_bulk_posts(
