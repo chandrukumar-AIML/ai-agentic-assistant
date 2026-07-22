@@ -5,20 +5,45 @@ from datetime import datetime
 
 
 def _llm(prompt: str, system: str = "") -> str:
-    import asyncio, concurrent.futures
-    from backend.llm.ollama_openai import ollama_chat_completion
-    msgs = [{"role": "user", "content": prompt}]
+    import asyncio, concurrent.futures, time
 
-    def _run_in_thread():
+    msgs: list[dict] = []
+    if system:
+        msgs.append({"role": "system", "content": system})
+    msgs.append({"role": "user", "content": prompt})
+
+    def _run_in_thread() -> str:
+        from openai import AsyncOpenAI
+        from backend.llm.ollama_openai import OLLAMA_BASE_URL, OLLAMA_API_KEY, OLLAMA_MODEL
+
+        async def _call() -> str:
+            client = AsyncOpenAI(base_url=OLLAMA_BASE_URL, api_key=OLLAMA_API_KEY, timeout=90.0, max_retries=0)
+            try:
+                resp = await client.chat.completions.create(model=OLLAMA_MODEL, messages=msgs, temperature=0.7, max_tokens=1024)
+                return resp.choices[0].message.content or ""
+            except BaseException:
+                return ""
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            return loop.run_until_complete(ollama_chat_completion(msgs, system=system))
+            return loop.run_until_complete(_call())
+        except BaseException:
+            return ""
         finally:
             loop.close()
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(_run_in_thread).result(timeout=60)
+    for attempt in range(3):
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                result = pool.submit(_run_in_thread).result(timeout=120)
+            if result:
+                return result
+        except BaseException:
+            pass
+        if attempt < 2:
+            time.sleep(2)
+    return ""
 
 
 LANG_LABELS = {
@@ -149,7 +174,10 @@ Requirements:
 
 Write only the message, no explanation."""
 
-    message = _llm(prompt, system=sys_prompt)
+    try:
+        message = _llm(prompt, system=sys_prompt)
+    except Exception:
+        message = ""
 
     return {
         "message": message,
@@ -180,7 +208,10 @@ Respond ONLY with JSON:
   "summary": "one sentence summary"
 }}"""
 
-    raw = _llm(prompt, system=sys_prompt)
+    try:
+        raw = _llm(prompt, system=sys_prompt)
+    except Exception:
+        raw = ""
     try:
         start = raw.index("{")
         end = raw.rindex("}") + 1
@@ -373,7 +404,10 @@ Generate a weekly intelligence report as JSON:
   "recommended_faq_additions": ["questions to add to FAQ"]
 }}"""
 
-    raw = _llm(prompt, system=sys_prompt)
+    try:
+        raw = _llm(prompt, system=sys_prompt)
+    except Exception:
+        raw = ""
     try:
         start = raw.index("{")
         end = raw.rindex("}") + 1

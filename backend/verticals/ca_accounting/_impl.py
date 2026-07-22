@@ -249,39 +249,41 @@ async def calculate_tds(
 
     sec = _TDS_SECTIONS[section]
     threshold = sec["threshold"]
+    # support both old key ("name") and new key ("nature")
+    sec_name = sec.get("name") or sec.get("nature", section)
 
     if amount < threshold:
         return {
             "action":    "tds_calc",
             "section":   section,
-            "name":      sec["name"],
+            "name":      sec_name,
             "amount":    amount,
             "threshold": threshold,
-            "tds":       0.0,
+            "tds_amount": 0.0,
             "note":      f"No TDS — payment ₹{amount:,.2f} is below threshold ₹{threshold:,}",
         }
 
-    rate_key = payee_type if payee_type in ("individual", "company") else "individual"
-    rate = sec.get(rate_key, sec.get("individual", 0))
+    # support both old keys (individual/company) and new key (rate_default)
+    rate = sec.get(payee_type) or sec.get("individual") or sec.get("rate_default", 0)
 
     if rate == "slab":
         return {
             "action":  "tds_calc",
             "section": section,
-            "name":    sec["name"],
+            "name":    sec_name,
             "note":    "Salary TDS (Sec 192) is calculated per income-tax slab — use the salary TDS calculator.",
         }
 
     if not pan_available:
-        rate = max(rate * 2, 20.0)  # 20% or twice the rate, whichever higher
+        rate = max(float(rate) * 2, 20.0)  # 20% or twice the rate, whichever higher
 
-    tds_amount = round(amount * rate / 100, 2)
+    tds_amount = round(amount * float(rate) / 100, 2)
     net_payment = round(amount - tds_amount, 2)
 
     return {
         "action":       "tds_calc",
         "section":      section,
-        "name":         sec["name"],
+        "name":         sec_name,
         "gross_amount": amount,
         "tds_rate":     rate,
         "tds_amount":   tds_amount,
@@ -2681,6 +2683,7 @@ _PT_SLABS = {
     "gujarat":       [(5999, 0), (999999, 200)],
     "delhi":         [(999999, 0)],  # No PT in Delhi
     "none":          [(999999, 0)],
+    "default":       [(999999, 0)],  # fallback for unknown states
 }
 
 _ALLOWANCE_LABELS = {
