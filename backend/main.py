@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from backend.config              import get_settings
-from backend.api.auth            import limiter
+from backend.api.auth            import limiter, router as auth_router
 from backend.api.health          import router as health_router
 from backend.api.vertical_routes import router as vertical_router
 
@@ -53,6 +53,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
+app.include_router(auth_router,     prefix="/api")
 app.include_router(health_router,   prefix="/api")
 app.include_router(vertical_router, prefix="/api")
 
