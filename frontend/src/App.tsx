@@ -15,7 +15,7 @@ export type PageId =
   | 'settings'
 
 const makePAGE_MAP = (onNavigate: (id: PageId) => void): Record<PageId, React.ReactNode> => ({
-  dashboard:          <DashboardPage onNavigate={onNavigate} />,
+  dashboard:          <DashboardPage onNavigate={id => onNavigate(id as PageId)} />,
   social:             <SocialPage />,
   'ca-accounting':    <CAPage />,
   'customer-support': <CustomerSupportPage />,

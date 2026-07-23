@@ -1,7 +1,7 @@
 // frontend/src/pages/CustomerSupportPage.tsx - AI Customer Support Agent
 import { useState } from 'react'
 import { csAction } from '../lib/api'
-import { PageShell, Card, Btn, Input, Select, Tabs, SectionHead } from '../components/ui'
+import { PageShell, Card, Btn, Input, Select, Tabs, SectionHead, useApi } from '../components/ui'
 import WorkspaceSetup from '../components/WorkspaceSetup'
 import WorkspaceBar from '../components/WorkspaceBar'
 import { getWorkspace, clearWorkspace, CSWorkspace } from '../lib/workspace'
@@ -3092,7 +3092,6 @@ export function KbArticleTab({ lang }: { lang: string }) {
 
 // ── Round 17: Escalation Email Generator ─────────────────────────────────────
 export function EscalationEmailTab({ lang }: { lang: string }) {
-  const { csAction } = useApi()
   const [bizName, setBizName]     = useState('')
   const [custName, setCustName]   = useState('')
   const [ticketId, setTicketId]   = useState('')
@@ -3281,7 +3280,6 @@ export function EscalationEmailTab({ lang }: { lang: string }) {
 
 // ── Round 18: Customer Win-Back Campaign ─────────────────────────────────────
 export function WinBackTab({ lang }: { lang: string }) {
-  const { csAction } = useApi()
   const [bizName, setBizName]     = useState('')
   const [prodName, setProdName]   = useState('')
   const [custName, setCustName]   = useState('')

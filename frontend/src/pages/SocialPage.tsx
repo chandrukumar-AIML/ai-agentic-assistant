@@ -3370,7 +3370,7 @@ export default function SocialPage() {
       {tab === 'reel' && (
         <TwoCol>
           <Card>
-            <SectionHead title="🎬 Reel Script Writer" subtitle="Generate a scene-by-scene Instagram Reel script with caption & hashtags" />
+            <SectionHead title="🎬 Reel Script Writer" sub="Generate a scene-by-scene Instagram Reel script with caption & hashtags" />
             <Input label="Business Name" value={rlBusiness} onChange={setRlBusiness} placeholder="e.g. Chai Wala Co." />
             <Input label="Business Type" value={rlBizType} onChange={setRlBizType} placeholder="e.g. Food & Beverage, SaaS, Retail" />
             <Input label="Reel Topic" value={rlTopic} onChange={setRlTopic} placeholder="e.g. 5 tips to save tax, Our chai-making process" />
@@ -3458,7 +3458,7 @@ export default function SocialPage() {
                   {rlView === 'caption' && (
                     <div>
                       <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, marginBottom: 6 }}>CAPTION</div>
-                      <ResultBox value={r.caption} />
+                      <ResultBox data={r.caption} />
                       <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, margin: '12px 0 6px' }}>HASHTAGS ({r.hashtags?.length})</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {r.hashtags?.map((tag: string, i: number) => (
@@ -3503,7 +3503,7 @@ export default function SocialPage() {
       {tab === 'youtube' && (
         <TwoCol>
           <Card>
-            <SectionHead title="▶️ YouTube Description Generator" subtitle="SEO-optimised description, chapters, tags & upload checklist" />
+            <SectionHead title="▶️ YouTube Description Generator" sub="SEO-optimised description, chapters, tags & upload checklist" />
             <Input label="Channel Name" value={ydChannel} onChange={setYdChannel} placeholder="e.g. CA Rahul Explains" />
             <Input label="Video Title" value={ydTitle} onChange={setYdTitle} placeholder="e.g. GST Filing for Small Business Owners 2025" />
             <Input label="Video Topic / Keyword" value={ydTopic} onChange={setYdTopic} placeholder="e.g. GST filing, income tax saving, digital marketing" />
@@ -3562,7 +3562,7 @@ export default function SocialPage() {
                         <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 700, marginBottom: 4 }}>HOOK (first 2 lines — shown in search)</div>
                         <div style={{ fontSize: 13, color: '#374151' }}>{r.hook}</div>
                       </div>
-                      <ResultBox value={r.full_description} />
+                      <ResultBox data={r.full_description} />
                     </div>
                   )}
 
@@ -3577,7 +3577,7 @@ export default function SocialPage() {
                       <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, margin: '14px 0 6px' }}>
                         TAGS ({r.tags?.length}) — {r.char_count?.tags}/{r.char_count?.tags_limit} chars
                       </div>
-                      <ResultBox value={r.tags_string} />
+                      <ResultBox data={r.tags_string} />
                       <div style={{ fontSize: 12, color: '#6b7280', fontWeight: 700, margin: '14px 0 6px' }}>END SCREEN SUGGESTIONS</div>
                       {r.end_screen_suggestions?.map((s: string, i: number) => (
                         <div key={i} style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>• {s}</div>
@@ -3666,10 +3666,10 @@ export default function SocialPage() {
                     <div>
                       <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>POST TYPE: {r.post_type} · TONE: {r.tone}</div>
                       {r.hook && <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 13, color: '#1e3a5f', fontWeight: 600 }}>🎣 Hook: {r.hook}</div>}
-                      <ResultBox value={r.primary_post || ''} />
+                      <ResultBox data={r.primary_post || ''} />
                       <div style={{ marginTop: 10 }}>
                         <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>SHORTER VARIANT</div>
-                        <ResultBox value={r.short_post || ''} />
+                        <ResultBox data={r.short_post || ''} />
                       </div>
                       {r.hashtags && (
                         <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -3989,7 +3989,7 @@ export default function SocialPage() {
                         <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 700 }}>POST {bpSelected + 1} — {posts[bpSelected].topic.toUpperCase()}</div>
                         <div style={{ fontSize: 11, color: '#9ca3af' }}>{posts[bpSelected].char_count} chars</div>
                       </div>
-                      <ResultBox value={posts[bpSelected].caption} />
+                      <ResultBox data={posts[bpSelected].caption} />
                       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                         <button onClick={() => setBpSelected(Math.max(0, bpSelected - 1))} disabled={bpSelected === 0}
                           style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', fontSize: 12, cursor: 'pointer', color: '#374151' }}>← Prev</button>
@@ -4930,7 +4930,7 @@ export function LaunchKitTab() {
                     </div>
                     <div style={{ fontSize: 11, color: '#9ca3af' }}>{posts[lkPostIdx].char_count} chars</div>
                   </div>
-                  <ResultBox value={posts[lkPostIdx].caption} />
+                  <ResultBox data={posts[lkPostIdx].caption} />
                   <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>💡 {posts[lkPostIdx].format_note}</div>
                 </div>
               )}

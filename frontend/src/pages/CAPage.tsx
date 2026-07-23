@@ -2614,7 +2614,7 @@ export default function CAPage() {
       {tab === 'depreciation' && (
         <TwoCol>
           <Card>
-            <SectionHead title="📉 Depreciation Calculator" subtitle="SLM / WDV / Double Declining — IT Act & Companies Act rates" />
+            <SectionHead title="📉 Depreciation Calculator" sub="SLM / WDV / Double Declining — IT Act & Companies Act rates" />
             <Input label="Asset Name" value={dpAsset} onChange={setDpAsset} placeholder="e.g. Dell Laptop, Office AC, Tata Ace Van" />
             <Select label="Asset Category" value={dpCat} onChange={setDpCat} options={[
               { value: 'plant_machinery',  label: 'Plant & Machinery (WDV 15%)' },
@@ -2758,7 +2758,7 @@ export default function CAPage() {
       {tab === 'itr_checklist' && (
         <TwoCol>
           <Card>
-            <SectionHead title="📋 ITR Filing Checklist" subtitle="Personalised document checklist based on your income sources & deductions" />
+            <SectionHead title="📋 ITR Filing Checklist" sub="Personalised document checklist based on your income sources & deductions" />
             <Input label="Taxpayer Name" value={icName} onChange={setIcName} placeholder="e.g. Rahul Sharma" />
             <Input label="PAN" value={icPan} onChange={setIcPan} placeholder="ABCDE1234F" />
             <Select label="Assessment Year" value={icAY} onChange={setIcAY} options={[

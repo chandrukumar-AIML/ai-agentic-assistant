@@ -1,27 +1,26 @@
-// frontend/src/components/ThemeToggle.tsx
-import React, { useEffect } from 'react'
-import { useChatStore } from '../store/chatStore'
-import { Theme }        from '../types'
+import { useEffect, useState } from 'react'
+
+type Theme = 'light' | 'dark' | 'system'
 
 export default function ThemeToggle() {
-  const theme    = useChatStore(s => s.theme)
-  const setTheme = useChatStore(s => s.setTheme)
+  const [theme, setThemeState] = useState<Theme>(() =>
+    (localStorage.getItem('aaa_theme') as Theme) || 'system'
+  )
 
   useEffect(() => {
-    const root       = document.documentElement
+    const root = document.documentElement
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-
     if (theme === 'dark' || (theme === 'system' && prefersDark)) {
       root.setAttribute('data-theme', 'dark')
     } else {
       root.setAttribute('data-theme', 'light')
     }
+    localStorage.setItem('aaa_theme', theme)
   }, [theme])
 
   const cycle = () => {
     const order: Theme[] = ['light', 'dark', 'system']
-    const next = order[(order.indexOf(theme) + 1) % order.length]
-    setTheme(next)
+    setThemeState(prev => order[(order.indexOf(prev) + 1) % order.length])
   }
 
   const icon = theme === 'light' ? '☀️' : theme === 'dark' ? '🌙' : '⚙️'
@@ -33,7 +32,7 @@ export default function ThemeToggle() {
       style={{
         background: 'none', border: 'none', cursor: 'pointer',
         fontSize: '14px', padding: '4px', borderRadius: '6px',
-        color: 'var(--color-text-tertiary)',
+        color: 'var(--text-2)',
       }}
     >
       {icon}
