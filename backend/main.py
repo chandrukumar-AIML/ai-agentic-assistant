@@ -67,11 +67,27 @@ app.add_middleware(
 @app.middleware("http")
 async def _request_logger(request: Request, call_next):
     start = time.monotonic()
+
+    # Extract action name from POST body on action endpoints (non-destructive read)
+    action = ""
+    if request.method == "POST" and "/action" in request.url.path:
+        try:
+            body = await request.body()
+            import json as _json
+            action = _json.loads(body).get("action", "")
+            # Re-attach body so downstream handlers can still read it
+            from starlette.requests import Request as StarletteRequest
+            async def _receive():
+                return {"type": "http.request", "body": body}
+            request = StarletteRequest(request.scope, _receive)
+        except Exception:
+            pass
+
     response = await call_next(request)
     ms = round((time.monotonic() - start) * 1000, 1)
     logger.info(
-        "%s %s → %s  (%.1fms)",
-        request.method, request.url.path, response.status_code, ms,
+        "%s %s action=%s → %s  (%.1fms)",
+        request.method, request.url.path, action or "-", response.status_code, ms,
     )
     return response
 

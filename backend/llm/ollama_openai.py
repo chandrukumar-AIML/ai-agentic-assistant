@@ -61,6 +61,7 @@ async def ollama_chat_completion(
     temperature: float = 0.7,
     max_tokens:  int   = 1024,
     system:      Optional[str] = None,
+    action:      str   = "",
 ) -> str:
     """
     Simple wrapper — returns the text content string directly.
@@ -84,7 +85,7 @@ async def ollama_chat_completion(
     if cfg.groq_api_key:
         try:
             from backend.llm.groq_client import groq_chat
-            return await groq_chat(messages, temperature=temperature, max_tokens=max_tokens)
+            return await groq_chat(messages, temperature=temperature, max_tokens=max_tokens, action=action)
         except Exception as e:
             logger.warning("Groq failed, falling back to Gemini/Ollama: %s", e)
 
@@ -92,12 +93,16 @@ async def ollama_chat_completion(
     if cfg.gemini_api_key:
         try:
             from backend.llm.gemini_client import gemini_chat
-            return await gemini_chat(messages, temperature=temperature, max_tokens=max_tokens)
+            return await gemini_chat(messages, temperature=temperature, max_tokens=max_tokens, action=action)
         except Exception as e:
             logger.warning("Gemini failed, falling back to Ollama: %s", e)
 
     # LOCAL DEV: use Ollama.
+    import time
+    from backend.llm.cost_tracker import LLMCallRecord, log_llm_call
+
     client = get_client()
+    start = time.monotonic()
     try:
         resp = await client.chat.completions.create(
             model=model,
@@ -105,6 +110,14 @@ async def ollama_chat_completion(
             temperature=temperature,
             max_tokens=max_tokens,
         )
+        usage = resp.usage
+        log_llm_call(LLMCallRecord(
+            provider="ollama", model=model, action=action,
+            input_tokens=usage.prompt_tokens     if usage else 0,
+            output_tokens=usage.completion_tokens if usage else 0,
+            latency_ms=round((time.monotonic() - start) * 1000, 1),
+            cost_usd=0.0,
+        ))
         return resp.choices[0].message.content or ""
     except Exception as e:
         logger.error("Ollama completion failed (model=%s): %s", model, e)

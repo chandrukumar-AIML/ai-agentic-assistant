@@ -49,10 +49,15 @@ async def gemini_chat(
     max_tokens:  int   = 2048,
     stream:      bool  = False,
     model:       str | None = None,
+    action:      str = "",
 ) -> str:
     """Call Gemini Flash and return the text response."""
+    import time
+    from backend.llm.cost_tracker import LLMCallRecord, estimate_cost, log_llm_call
+
     use_model = model or settings.gemini_model
     client = _get_client()
+    start = time.monotonic()
     try:
         resp = await client.chat.completions.create(
             model=use_model,
@@ -60,8 +65,22 @@ async def gemini_chat(
             temperature=temperature,
             max_tokens=max_tokens,
         )
+        usage = resp.usage
+        in_tok  = usage.prompt_tokens     if usage else 0
+        out_tok = usage.completion_tokens if usage else 0
+        log_llm_call(LLMCallRecord(
+            provider="gemini", model=use_model, action=action,
+            input_tokens=in_tok, output_tokens=out_tok,
+            latency_ms=round((time.monotonic() - start) * 1000, 1),
+            cost_usd=estimate_cost(use_model, in_tok, out_tok),
+        ))
         return resp.choices[0].message.content or ""
     except APIError as e:
+        log_llm_call(LLMCallRecord(
+            provider="gemini", model=use_model, action=action,
+            latency_ms=round((time.monotonic() - start) * 1000, 1),
+            error=str(e)[:120],
+        ))
         raise GeminiCallError(f"Gemini API error: {e}") from e
     except Exception as e:
         raise GeminiCallError(f"Gemini call failed: {e}") from e

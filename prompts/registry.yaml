@@ -1,0 +1,53 @@
+# Prompt Version Registry — AI Agentic Assistant
+# Tracks the current active version of every system prompt.
+# Update this file when a prompt is changed and re-evaluated.
+# Format: action_name: {version, grade, changed_on, note}
+
+version: "1.0"
+updated: "2026-07-23"
+
+# ── Customer Support ──────────────────────────────────────────────────────────
+cs:
+  faq:                    { version: v1, grade: B, changed_on: "2026-07-01" }
+  ticket_categorizer:     { version: v1, grade: B, changed_on: "2026-07-01" }
+  sentiment_analysis:     { version: v1, grade: A, changed_on: "2026-07-01" }
+  response_template:      { version: v1, grade: B, changed_on: "2026-07-01" }
+  escalation_handler:     { version: v1, grade: B, changed_on: "2026-07-01" }
+  csat_analyzer:          { version: v1, grade: B, changed_on: "2026-07-01" }
+  knowledge_base:         { version: v1, grade: B, changed_on: "2026-07-01" }
+  complaint_handler:      { version: v1, grade: B, changed_on: "2026-07-01" }
+  onboarding_message:     { version: v1, grade: B, changed_on: "2026-07-01" }
+  proactive_outreach:     { version: v1, grade: B, changed_on: "2026-07-01" }
+
+# ── CA Accounting ─────────────────────────────────────────────────────────────
+ca:
+  gst_query:              { version: v1, grade: A, changed_on: "2026-07-01" }
+  tds_calc:               { version: v1, grade: A, changed_on: "2026-07-01" }
+  generate_invoice:       { version: v1, grade: B, changed_on: "2026-07-01" }
+  itr_advice:             { version: v1, grade: B, changed_on: "2026-07-01" }
+  audit_checklist:        { version: v1, grade: B, changed_on: "2026-07-01" }
+  client_email:           { version: v1, grade: B, changed_on: "2026-07-01" }
+  reconciliation:         { version: v1, grade: B, changed_on: "2026-07-01" }
+  tax_deadlines:          { version: v1, grade: A, changed_on: "2026-07-01" }
+  ca_social_post:         { version: v1, grade: B, changed_on: "2026-07-01" }
+  payroll_calc:           { version: v1, grade: B, changed_on: "2026-07-01" }
+
+# ── Social Media ──────────────────────────────────────────────────────────────
+sm:
+  generate_post:          { version: v1, grade: B, changed_on: "2026-07-01" }
+  hashtag_generator:      { version: v1, grade: B, changed_on: "2026-07-01" }
+  caption_writer:         { version: v1, grade: B, changed_on: "2026-07-01" }
+  competitor_analysis:    { version: v1, grade: B, changed_on: "2026-07-01" }
+  content_calendar:       { version: v1, grade: B, changed_on: "2026-07-01" }
+  seo_blog:               { version: v1, grade: B, changed_on: "2026-07-01" }
+  engagement_reply:       { version: v1, grade: B, changed_on: "2026-07-01" }
+  viral_hook:             { version: v1, grade: B, changed_on: "2026-07-01" }
+  brand_voice:            { version: v1, grade: B, changed_on: "2026-07-01" }
+  influencer_brief:       { version: v1, grade: B, changed_on: "2026-07-01" }
+
+# ── Grade legend ──────────────────────────────────────────────────────────────
+# A = excellent — accurate, well-formatted, India-aware
+# B = good — correct output, minor formatting issues
+# C = acceptable — works but needs improvement
+# D = poor — often wrong or badly formatted
+# F = broken — do not ship

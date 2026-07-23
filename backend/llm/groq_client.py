@@ -44,9 +44,14 @@ async def groq_chat(
     temperature: float = 0.7,
     max_tokens:  int   = 2048,
     model:       str | None = None,
+    action:      str = "",
 ) -> str:
+    import time
+    from backend.llm.cost_tracker import LLMCallRecord, estimate_cost, log_llm_call
+
     use_model = model or settings.groq_model
     client = _get_client()
+    start = time.monotonic()
     try:
         resp = await client.chat.completions.create(
             model=use_model,
@@ -54,8 +59,22 @@ async def groq_chat(
             temperature=temperature,
             max_tokens=max_tokens,
         )
+        usage = resp.usage
+        in_tok  = usage.prompt_tokens     if usage else 0
+        out_tok = usage.completion_tokens if usage else 0
+        log_llm_call(LLMCallRecord(
+            provider="groq", model=use_model, action=action,
+            input_tokens=in_tok, output_tokens=out_tok,
+            latency_ms=round((time.monotonic() - start) * 1000, 1),
+            cost_usd=estimate_cost(use_model, in_tok, out_tok),
+        ))
         return resp.choices[0].message.content or ""
     except APIError as e:
+        log_llm_call(LLMCallRecord(
+            provider="groq", model=use_model, action=action,
+            latency_ms=round((time.monotonic() - start) * 1000, 1),
+            error=str(e)[:120],
+        ))
         raise GroqCallError(f"Groq API error: {e}") from e
     except Exception as e:
         raise GroqCallError(f"Groq call failed: {e}") from e
