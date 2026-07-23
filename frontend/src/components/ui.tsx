@@ -8,16 +8,16 @@ export function PageShell({ title, subtitle, icon, children }: {
   title: string; subtitle?: string; icon: string; children: ReactNode
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0f1117', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg)', overflow: 'hidden' }}>
       <div className="aaa-page-head" style={{
-        borderBottom: '1px solid #1e2535',
-        background: '#161b27', flexShrink: 0,
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--surface)', flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 12,
       }}>
         <span style={{ fontSize: 22 }}>{icon}</span>
         <div>
-          <div style={{ color: '#e2e8f0', fontSize: 16, fontWeight: 600 }}>{title}</div>
-          {subtitle && <div style={{ color: '#4b5563', fontSize: 12, marginTop: 1 }}>{subtitle}</div>}
+          <div style={{ color: 'var(--text)', fontSize: 16, fontWeight: 600 }}>{title}</div>
+          {subtitle && <div style={{ color: 'var(--text-3)', fontSize: 12, marginTop: 1 }}>{subtitle}</div>}
         </div>
       </div>
       <div className="aaa-page-body" style={{ flex: 1, overflow: 'auto' }}>
@@ -31,7 +31,7 @@ export function PageShell({ title, subtitle, icon, children }: {
 export function Card({ children, style }: { children: ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{
-      background: '#161b27', border: '1px solid #1e2535',
+      background: 'var(--surface)', border: '1px solid var(--border)',
       borderRadius: 12, padding: 20, ...style,
     }}>{children}</div>
   )
@@ -43,16 +43,17 @@ export function Btn({ children, onClick, loading, variant = 'primary', disabled,
   variant?: 'primary' | 'secondary' | 'danger' | 'success'; disabled?: boolean;
   style?: React.CSSProperties
 }) {
-  const bg = {
-    primary:   loading || disabled ? '#3730a3' : '#10b981',
-    secondary: '#1e2535',
-    danger:    '#dc2626',
-    success:   '#16a34a',
-  }[variant]
+  const variantStyle: React.CSSProperties = variant === 'primary'
+    ? { background: 'var(--accent)', color: '#fff', border: '1px solid transparent', opacity: loading || disabled ? 0.6 : 1 }
+    : variant === 'danger'
+    ? { background: 'var(--danger)', color: '#fff', border: '1px solid transparent' }
+    : variant === 'success'
+    ? { background: 'var(--success)', color: '#fff', border: '1px solid transparent' }
+    : { background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border)' }
+
   return (
     <button onClick={onClick} disabled={loading || disabled} style={{
-      background: bg, color: variant === 'secondary' ? '#9ca3af' : '#fff',
-      border: '1px solid ' + (variant === 'secondary' ? '#374151' : 'transparent'),
+      ...variantStyle,
       padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
       cursor: loading || disabled ? 'not-allowed' : 'pointer',
       display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -69,15 +70,15 @@ export function Input({ value, onChange, placeholder, label, type = 'text', rows
   value: string; onChange: (v: string) => void; placeholder?: string;
   label?: string; type?: string; rows?: number
 }) {
-  const common = {
-    width: '100%', background: '#0f1117', border: '1px solid #1e2535',
-    borderRadius: 8, padding: '10px 12px', color: '#e2e8f0',
-    fontSize: 13, outline: 'none', boxSizing: 'border-box' as const,
+  const common: React.CSSProperties = {
+    width: '100%', background: 'var(--bg)', border: '1px solid var(--border)',
+    borderRadius: 8, padding: '10px 12px', color: 'var(--text)',
+    fontSize: 13, outline: 'none', boxSizing: 'border-box',
     fontFamily: 'inherit',
   }
   return (
     <div style={{ marginBottom: 14 }}>
-      {label && <label style={{ display: 'block', fontSize: 12, color: '#9ca3af', marginBottom: 5, fontWeight: 500 }}>{label}</label>}
+      {label && <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 5, fontWeight: 500 }}>{label}</label>}
       {rows ? (
         <textarea rows={rows} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={{ ...common, resize: 'vertical' }} />
       ) : (
@@ -94,11 +95,11 @@ export function Select({ value, onChange, options, label }: {
 }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      {label && <label style={{ display: 'block', fontSize: 12, color: '#9ca3af', marginBottom: 5, fontWeight: 500 }}>{label}</label>}
+      {label && <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 5, fontWeight: 500 }}>{label}</label>}
       <select value={value} onChange={e => onChange(e.target.value)} style={{
-        width: '100%', background: '#0f1117', border: '1px solid #1e2535',
-        borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 13,
-        outline: 'none', boxSizing: 'border-box', cursor: 'pointer',
+        width: '100%', background: 'var(--bg)', border: '1px solid var(--border)',
+        borderRadius: 8, padding: '10px 12px', color: 'var(--text)', fontSize: 13,
+        outline: 'none', boxSizing: 'border-box' as const, cursor: 'pointer',
         fontFamily: 'inherit',
       }}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -112,23 +113,41 @@ export function ResultBox({ data, loading, error, title }: {
   data?: any; loading?: boolean; error?: string; title?: string
 }) {
   if (loading) return (
-    <div style={{ background: '#0f1117', border: '1px solid #1e2535', borderRadius: 8, padding: 20, textAlign: 'center', color: '#6b7280' }}>
-      <span style={{ fontSize: 24 }}>⏳</span>
-      <p style={{ marginTop: 8, fontSize: 13 }}>Processing...</p>
+    <div style={{
+      background: 'var(--surface)', border: '1px solid var(--border)',
+      borderRadius: 12, padding: 28, textAlign: 'center', color: 'var(--text-3)',
+    }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%', margin: '0 auto 12px',
+        border: '2px solid var(--border-2)', borderTop: '2px solid var(--accent)',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <p style={{ fontSize: 13, color: 'var(--text-2)' }}>Processing...</p>
     </div>
   )
   if (error) return (
-    <div style={{ background: '#1a0a0a', border: '1px solid #7f1d1d', borderRadius: 8, padding: 16 }}>
-      <span style={{ color: '#ef4444', fontSize: 12, fontWeight: 600 }}>⚠ Error</span>
-      <p style={{ color: '#fca5a5', fontSize: 13, marginTop: 4 }}>{error}</p>
+    <div style={{
+      background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)',
+      borderRadius: 12, padding: 16,
+    }}>
+      <span style={{ color: 'var(--danger)', fontSize: 12, fontWeight: 600 }}>⚠ Error</span>
+      <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 4, opacity: 0.8 }}>{error}</p>
     </div>
   )
   if (!data) return null
   return (
-    <div style={{ background: '#0a0f1a', border: '1px solid #1e3a5f', borderRadius: 8, overflow: 'hidden' }}>
+    <div style={{
+      background: 'var(--surface)', border: '1px solid var(--border-2)',
+      borderRadius: 12, overflow: 'hidden',
+    }}>
       {title && (
-        <div style={{ padding: '8px 14px', background: '#0d1b2e', borderBottom: '1px solid #1e3a5f' }}>
-          <span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{title}</span>
+        <div style={{
+          padding: '8px 14px', background: 'var(--surface-2)',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }} />
+          <span style={{ color: 'var(--accent-2)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</span>
         </div>
       )}
       <div style={{ padding: 16, maxHeight: 460, overflowY: 'auto', overflowX: 'auto' }}>
@@ -159,8 +178,8 @@ function renderResult(data: any): ReactNode {
       return (
         <div>
           {meta.length > 0 && (
-            <div style={{ marginBottom: 10, fontSize: 12, color: '#9ca3af' }}>
-              {meta.map(k => <span key={k} style={{ marginRight: 14 }}><b style={{ color: '#e2e8f0' }}>{prettyKey(k)}:</b> {String(data[k])}</span>)}
+            <div style={{ marginBottom: 10, fontSize: 12, color: 'var(--text-2)' }}>
+              {meta.map(k => <span key={k} style={{ marginRight: 14 }}><b style={{ color: 'var(--text)' }}>{prettyKey(k)}:</b> {String(data[k])}</span>)}
             </div>
           )}
           <DataTable rows={data[arrKey]} />
@@ -176,7 +195,10 @@ function renderResult(data: any): ReactNode {
   }
 
   return (
-    <pre style={{ margin: 0, color: '#93c5fd', fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'Monaco, Consolas, monospace' }}>
+    <pre style={{
+      margin: 0, color: 'var(--accent-2)', fontSize: 12, lineHeight: 1.6,
+      whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'Monaco, Consolas, monospace',
+    }}>
       {JSON.stringify(data, null, 2)}
     </pre>
   )
@@ -188,20 +210,20 @@ function prettyKey(k: string): string {
 
 function Markdown({ text }: { text: string }) {
   return (
-    <div style={{ color: '#dbeafe', fontSize: 13.5, lineHeight: 1.65 }} className="aaa-md">
+    <div style={{ color: 'var(--text)', fontSize: 13.5, lineHeight: 1.65 }} className="aaa-md">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           table: ({ node: _node, ...p }) => <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: 12.5 }} {...p} />,
-          th:    ({ node: _node, ...p }) => <th style={{ border: '1px solid #1e3a5f', padding: '6px 10px', background: '#0d1b2e', color: '#93c5fd', textAlign: 'left' }} {...p} />,
-          td:    ({ node: _node, ...p }) => <td style={{ border: '1px solid #1e3a5f', padding: '6px 10px', color: '#cbd5e1' }} {...p} />,
-          code:  ({ node: _node, ...p }) => <code style={{ background: '#0d1b2e', padding: '1px 5px', borderRadius: 4, color: '#5eead4', fontSize: 12 }} {...p} />,
-          pre:   ({ node: _node, ...p }) => <pre style={{ background: '#0d1b2e', padding: 12, borderRadius: 8, overflowX: 'auto', fontSize: 12 }} {...p} />,
-          a:     ({ node: _node, ...p }) => <a style={{ color: '#5eead4' }} target="_blank" rel="noreferrer" {...p} />,
-          h1:    ({ node: _node, ...p }) => <h3 style={{ color: '#e2e8f0', fontSize: 16, margin: '10px 0 6px' }} {...p} />,
-          h2:    ({ node: _node, ...p }) => <h4 style={{ color: '#e2e8f0', fontSize: 14, margin: '10px 0 6px' }} {...p} />,
-          h3:    ({ node: _node, ...p }) => <h5 style={{ color: '#e2e8f0', fontSize: 13, margin: '8px 0 4px' }} {...p} />,
-          strong:({ node: _node, ...p }) => <strong style={{ color: '#fff' }} {...p} />,
+          th:    ({ node: _node, ...p }) => <th style={{ border: '1px solid var(--border)', padding: '6px 10px', background: 'var(--surface-2)', color: 'var(--accent-2)', textAlign: 'left' }} {...p} />,
+          td:    ({ node: _node, ...p }) => <td style={{ border: '1px solid var(--border)', padding: '6px 10px', color: 'var(--text-2)' }} {...p} />,
+          code:  ({ node: _node, ...p }) => <code style={{ background: 'var(--surface-2)', padding: '1px 5px', borderRadius: 4, color: 'var(--success)', fontSize: 12 }} {...p} />,
+          pre:   ({ node: _node, ...p }) => <pre style={{ background: 'var(--surface-2)', padding: 12, borderRadius: 8, overflowX: 'auto', fontSize: 12, border: '1px solid var(--border)' }} {...p} />,
+          a:     ({ node: _node, ...p }) => <a style={{ color: 'var(--accent-2)' }} target="_blank" rel="noreferrer" {...p} />,
+          h1:    ({ node: _node, ...p }) => <h3 style={{ color: 'var(--text)', fontSize: 16, margin: '10px 0 6px' }} {...p} />,
+          h2:    ({ node: _node, ...p }) => <h4 style={{ color: 'var(--text)', fontSize: 14, margin: '10px 0 6px' }} {...p} />,
+          h3:    ({ node: _node, ...p }) => <h5 style={{ color: 'var(--text)', fontSize: 13, margin: '8px 0 4px' }} {...p} />,
+          strong:({ node: _node, ...p }) => <strong style={{ color: 'var(--text)' }} {...p} />,
         }}
       >{text}</ReactMarkdown>
     </div>
@@ -214,11 +236,11 @@ function DataTable({ rows }: { rows: any[] }) {
     <div style={{ overflowX: 'auto' }}>
       <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12.5 }}>
         <thead>
-          <tr>{cols.map(c => <th key={c} style={{ border: '1px solid #1e3a5f', padding: '7px 10px', background: '#0d1b2e', color: '#93c5fd', textAlign: 'left', whiteSpace: 'nowrap' }}>{prettyKey(c)}</th>)}</tr>
+          <tr>{cols.map(c => <th key={c} style={{ border: '1px solid var(--border)', padding: '7px 10px', background: 'var(--surface-2)', color: 'var(--accent-2)', textAlign: 'left', whiteSpace: 'nowrap' }}>{prettyKey(c)}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i}>{cols.map(c => <td key={c} style={{ border: '1px solid #1e3a5f', padding: '7px 10px', color: '#cbd5e1' }}>{fmtCell(r?.[c])}</td>)}</tr>
+            <tr key={i}>{cols.map(c => <td key={c} style={{ border: '1px solid var(--border)', padding: '7px 10px', color: 'var(--text-2)' }}>{fmtCell(r?.[c])}</td>)}</tr>
           ))}
         </tbody>
       </table>
@@ -231,8 +253,8 @@ function KeyValueList({ obj }: { obj: Record<string, any> }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 16px', fontSize: 13 }}>
       {Object.entries(obj).map(([k, v]) => (
         <Fragment key={k}>
-          <div style={{ color: '#9ca3af', whiteSpace: 'nowrap' }}>{prettyKey(k)}</div>
-          <div style={{ color: '#e2e8f0', fontWeight: 500, wordBreak: 'break-word' }}>{fmtCell(v)}</div>
+          <div style={{ color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{prettyKey(k)}</div>
+          <div style={{ color: 'var(--text)', fontWeight: 500, wordBreak: 'break-word' }}>{fmtCell(v)}</div>
         </Fragment>
       ))}
     </div>
@@ -274,41 +296,125 @@ export function Badge({ text, label, children, color = 'blue' }: {
 export function StatCard({ label, value, icon, trend }: { label: string; value: string | number; icon: string; trend?: string }) {
   return (
     <div style={{
-      background: '#161b27', border: '1px solid #1e2535', borderRadius: 12,
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
       padding: 20, display: 'flex', flexDirection: 'column', gap: 8,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <span style={{ fontSize: 24 }}>{icon}</span>
-        {trend && <span style={{ fontSize: 11, color: '#22c55e' }}>{trend}</span>}
+        {trend && <span style={{ fontSize: 11, color: 'var(--success)' }}>{trend}</span>}
       </div>
-      <div style={{ color: '#e2e8f0', fontSize: 22, fontWeight: 700 }}>{value}</div>
-      <div style={{ color: '#6b7280', fontSize: 12 }}>{label}</div>
+      <div style={{ color: 'var(--text)', fontSize: 22, fontWeight: 700 }}>{value}</div>
+      <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{label}</div>
     </div>
   )
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-export function Tabs({ tabs, active, onChange }: {
+export function Tabs({ tabs, active, onChange, accentColor, groups }: {
   tabs: { id: string; label: string; icon?: string }[]
-  active: string; onChange: (id: string) => void
+  active: string
+  onChange: (id: string) => void
+  accentColor?: string
+  groups?: { label: string; ids: string[] }[]
 }) {
+  const [search, setSearch] = useState('')
+  const [activeGroup, setActiveGroup] = useState<string | null>(null)
+  const accent = accentColor ?? 'var(--accent)'
+  const showSearch = tabs.length > 8
+
+  // Filter by group first, then by search query
+  let visible = tabs
+  if (!search && activeGroup && groups) {
+    const g = groups.find(g => g.label === activeGroup)
+    if (g) visible = tabs.filter(t => g.ids.includes(t.id))
+  }
+  if (search) {
+    visible = tabs.filter(t => t.label.toLowerCase().includes(search.toLowerCase()))
+  }
+  // Always keep the active tab visible so it's not hidden by filters
+  if (active && !visible.find(t => t.id === active)) {
+    const activeTab = tabs.find(t => t.id === active)
+    if (activeTab) visible = [activeTab, ...visible]
+  }
+
   return (
-    <div style={{
-      display: 'flex', gap: 2, background: '#0f1117',
-      borderRadius: 10, padding: 4, marginBottom: 20, flexWrap: 'wrap',
-    }}>
-      {tabs.map(t => (
-        <button key={t.id} onClick={() => onChange(t.id)} style={{
-          padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 500,
-          border: 'none', cursor: 'pointer',
-          background: active === t.id ? '#10b981' : 'none',
-          color: active === t.id ? '#fff' : '#6b7280',
-          display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s',
-        }}>
-          {t.icon && <span>{t.icon}</span>}
-          {t.label}
-        </button>
-      ))}
+    <div style={{ marginBottom: 16 }}>
+
+      {/* Category group pills */}
+      {groups && !search && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setActiveGroup(null)}
+            style={{
+              padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, border: 'none',
+              cursor: 'pointer', transition: 'all 0.15s',
+              background: activeGroup === null ? accent : 'var(--surface-3)',
+              color: activeGroup === null ? '#fff' : 'var(--text-3)',
+            }}
+          >All</button>
+          {groups.map(g => (
+            <button key={g.label}
+              onClick={() => setActiveGroup(g.label === activeGroup ? null : g.label)}
+              style={{
+                padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, border: 'none',
+                cursor: 'pointer', transition: 'all 0.15s',
+                background: activeGroup === g.label ? accent + 'cc' : 'var(--surface-3)',
+                color: activeGroup === g.label ? '#fff' : 'var(--text-3)',
+              }}
+            >{g.label}</button>
+          ))}
+        </div>
+      )}
+
+      {/* Search input — auto-shows when > 8 tabs */}
+      {showSearch && (
+        <div style={{ position: 'relative', marginBottom: 10 }}>
+          <span style={{
+            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--text-3)', fontSize: 13, pointerEvents: 'none',
+          }}>🔍</span>
+          <input
+            value={search}
+            onChange={e => { setSearch(e.target.value); setActiveGroup(null) }}
+            placeholder="Search features..."
+            style={{
+              width: '100%', boxSizing: 'border-box' as const,
+              paddingLeft: 32, paddingRight: search ? 32 : 12,
+              paddingTop: 7, paddingBottom: 7,
+              background: 'var(--surface-2)', border: '1px solid var(--border)',
+              borderRadius: 8, color: 'var(--text)', fontSize: 12, outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{
+              position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-3)', fontSize: 14, padding: 2, lineHeight: 1,
+            }}>✕</button>
+          )}
+        </div>
+      )}
+
+      {/* Tab pills */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {visible.length === 0 && (
+          <span style={{ fontSize: 12, color: 'var(--text-3)', padding: '6px 4px' }}>No features match "{search}"</span>
+        )}
+        {visible.map(t => (
+          <button key={t.id} onClick={() => { onChange(t.id); setSearch('') }} style={{
+            padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: active === t.id ? 600 : 400,
+            border: active === t.id ? 'none' : '1px solid var(--border)',
+            cursor: 'pointer', transition: 'all 0.15s',
+            background: active === t.id ? accent : 'var(--surface-2)',
+            color: active === t.id ? '#fff' : 'var(--text-2)',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+            {t.icon && <span style={{ fontSize: 13 }}>{t.icon}</span>}
+            {t.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -326,8 +432,8 @@ export function TwoCol({ children, gap = 20 }: { children: ReactNode; gap?: numb
 export function SectionHead({ title, sub }: { title: string; sub?: string }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 600 }}>{title}</div>
-      {sub && <div style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>{sub}</div>}
+      <div style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>{title}</div>
+      {sub && <div style={{ color: 'var(--text-3)', fontSize: 12, marginTop: 2 }}>{sub}</div>}
     </div>
   )
 }

@@ -2,6 +2,9 @@
 import { useState } from 'react'
 import { csAction } from '../lib/api'
 import { PageShell, Card, Btn, Input, Select, Tabs, SectionHead } from '../components/ui'
+import WorkspaceSetup from '../components/WorkspaceSetup'
+import WorkspaceBar from '../components/WorkspaceBar'
+import { getWorkspace, clearWorkspace, CSWorkspace } from '../lib/workspace'
 
 type Lang = 'en' | 'ta' | 'hi'
 
@@ -121,8 +124,8 @@ function TA({ rows = 4, value, onChange, placeholder }: { rows?: number; value: 
 
 function FaqTab({ lang }: { lang: Lang }) {
   const [query, setQuery]     = useState('')
-  const [bizName, setBizName] = useState('')
-  const [bizType, setBizType] = useState('')
+  const [bizName, setBizName] = useState(() => getWorkspace<CSWorkspace>('cs')?.company_name ?? '')
+  const [bizType, setBizType] = useState(() => getWorkspace<CSWorkspace>('cs')?.business_type ?? '')
   const [faqCtx, setFaqCtx]   = useState('')
   const [res, setRes]         = useState<any>(null)
   const [loading, setLoading] = useState(false)
@@ -1284,9 +1287,32 @@ function CannedTab({ lang }: { lang: Lang }) {
 export default function CustomerSupportPage() {
   const [tab, setTab]   = useState('faq')
   const [lang, setLang] = useState<Lang>('en')
+  const [ws, setWs] = useState<CSWorkspace | null>(() => getWorkspace<CSWorkspace>('cs'))
+  const [showSetup, setShowSetup] = useState<boolean>(() => !getWorkspace<CSWorkspace>('cs'))
+  const [editMode, setEditMode] = useState(false)
 
   return (
     <PageShell title="Customer Support Agent" icon="cs">
+
+      {/* Workspace Setup Wizard */}
+      {(showSetup || editMode) && (
+        <WorkspaceSetup
+          agent="cs"
+          initialData={ws ?? {}}
+          onDone={data => { setWs(data); setShowSetup(false); setEditMode(false) }}
+          onSkip={showSetup && !editMode ? () => setShowSetup(false) : undefined}
+        />
+      )}
+
+      {/* Workspace context bar */}
+      {ws && !showSetup && (
+        <WorkspaceBar
+          agent="cs"
+          onEdit={() => setEditMode(true)}
+          onClear={() => { clearWorkspace('cs'); setWs(null); setShowSetup(true) }}
+        />
+      )}
+
       <div style={{ padding: '0 24px 8px', display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ color: '#6b7280', fontSize: 13 }}>Language:</div>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -1302,7 +1328,16 @@ export default function CustomerSupportPage() {
           ))}
         </div>
       </div>
-      <Tabs tabs={TABS} active={tab} onChange={setTab} />
+      <Tabs tabs={TABS} active={tab} onChange={setTab}
+        accentColor="#10B981"
+        groups={[
+          { label: 'Conversations',    ids: ['faq','whatsapp','complaint','canned','template','review_response','comment_reply'] },
+          { label: 'Tickets & SLA',    ids: ['ticket','sla','sla_policy','escalation','categorizer','rulebook','ticket_triage'] },
+          { label: 'Customer Success', ids: ['health','churn','nps','cx360','onboarding','onboarding_seq','winback','winback_campaign','lead'] },
+          { label: 'Analytics',        ids: ['sentiment','report','analytics','voc_report','scorecard','csat','csat_builder'] },
+          { label: 'Content & KB',     ids: ['kb','kb_article','returns_policy','chatbot','agent_training'] },
+        ]}
+      />
       <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }}>
         {tab === 'faq'       && <FaqTab lang={lang} />}
         {tab === 'whatsapp'  && <WhatsAppTab lang={lang} />}

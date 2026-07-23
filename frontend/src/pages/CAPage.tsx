@@ -2,6 +2,9 @@
 import { useState } from 'react'
 import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
 import { caAction } from '../lib/api'
+import WorkspaceSetup from '../components/WorkspaceSetup'
+import WorkspaceBar from '../components/WorkspaceBar'
+import { getWorkspace, clearWorkspace, CAWorkspace } from '../lib/workspace'
 
 const LANGUAGES = [
   { label: 'English', value: 'en' },
@@ -113,6 +116,9 @@ const GST_RATES = [
 export default function CAPage() {
   const [tab, setTab] = useState('gst_query')
   const [language, setLanguage] = useState('en')
+  const [ws, setWs] = useState<CAWorkspace | null>(() => getWorkspace<CAWorkspace>('ca'))
+  const [showSetup, setShowSetup] = useState<boolean>(() => !getWorkspace<CAWorkspace>('ca'))
+  const [editMode, setEditMode] = useState(false)
 
   // Tab 1: GST Query Bot
   const [gstQuery, setGstQuery]     = useState('')
@@ -121,8 +127,8 @@ export default function CAPage() {
 
   // Tab 2: Client Email
   const [emailType, setEmailType]       = useState('gst_notice')
-  const [emailClient, setEmailClient]   = useState('')
-  const [emailFirm, setEmailFirm]       = useState('')
+  const [emailClient, setEmailClient]   = useState(() => getWorkspace<CAWorkspace>('ca')?.client_name ?? '')
+  const [emailFirm, setEmailFirm]       = useState(() => getWorkspace<CAWorkspace>('ca')?.firm_name ?? '')
   const [emailDetails, setEmailDetails] = useState('')
   const [emailAmount, setEmailAmount]   = useState('')
   const [emailDeadline, setEmailDeadline] = useState('')
@@ -131,7 +137,7 @@ export default function CAPage() {
   // Tab 3: Deadlines
   const [dlMonth, setDlMonth]         = useState(String(new Date().getMonth() + 1))
   const [dlYear, setDlYear]           = useState(String(new Date().getFullYear()))
-  const [dlTaxpayer, setDlTaxpayer]   = useState('regular')
+  const [dlTaxpayer, setDlTaxpayer]   = useState(() => getWorkspace<CAWorkspace>('ca')?.taxpayer_type ?? 'regular')
   const deadlineApi = useApi()
 
   // Tab 4: TDS Calculator
@@ -142,11 +148,11 @@ export default function CAPage() {
   const tdsApi = useApi()
 
   // Tab 5: Invoice
-  const [invSeller, setInvSeller]     = useState('')
-  const [invSellerGst, setInvSellerGst] = useState('')
+  const [invSeller, setInvSeller]     = useState(() => getWorkspace<CAWorkspace>('ca')?.client_name ?? '')
+  const [invSellerGst, setInvSellerGst] = useState(() => getWorkspace<CAWorkspace>('ca')?.gstin ?? '')
   const [invBuyer, setInvBuyer]       = useState('')
   const [invBuyerGst, setInvBuyerGst] = useState('')
-  const [invState, setInvState]       = useState('')
+  const [invState, setInvState]       = useState(() => getWorkspace<CAWorkspace>('ca')?.state ?? '')
   const [invPOS, setInvPOS]           = useState('')
   const [invNotes, setInvNotes]       = useState('')
   const [invItems, setInvItems]       = useState([
@@ -784,6 +790,26 @@ export default function CAPage() {
 
   return (
     <PageShell icon="📒" title="AI CA / Accounting Agent" subtitle="GST · TDS · ITR · Audit · Invoice · Client Communication — India-focused">
+
+      {/* Workspace Setup Wizard */}
+      {(showSetup || editMode) && (
+        <WorkspaceSetup
+          agent="ca"
+          initialData={ws ?? {}}
+          onDone={data => { setWs(data); setShowSetup(false); setEditMode(false) }}
+          onSkip={showSetup && !editMode ? () => setShowSetup(false) : undefined}
+        />
+      )}
+
+      {/* Workspace context bar — shown when configured */}
+      {ws && !showSetup && (
+        <WorkspaceBar
+          agent="ca"
+          onEdit={() => setEditMode(true)}
+          onClear={() => { clearWorkspace('ca'); setWs(null); setShowSetup(true) }}
+        />
+      )}
+
       <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: '#6b7280' }}>Language:</span>
         {LANGUAGES.map(l => (
@@ -839,6 +865,15 @@ export default function CAPage() {
           { id: 'hra_80c',         label: 'HRA & 80C Planner',          icon: '💰' },
         ]}
         active={tab} onChange={setTab}
+        accentColor="#F59E0B"
+        groups={[
+          { label: 'GST & Tax',    ids: ['gst_query','gst_invoice','reconciliation','gstr_filing','gstr_assistant','notice_reply'] },
+          { label: 'TDS & Payroll',ids: ['tds_calc','tds','salary_slip','form16','payroll'] },
+          { label: 'Invoicing',    ids: ['invoice','rent_receipts','gst_invoice'] },
+          { label: 'Audit & Compliance', ids: ['audit','deadlines','compliance_cal','mca_calendar','itr','itr_checklist','directors_report','tally_analysis'] },
+          { label: 'Finance',      ids: ['cashflow','pl','balance_sheet','overdue','loan','advance_tax','valuation','depreciation','capital_gains','partnership_deed','hra_80c','client_dash','startup_guide'] },
+          { label: 'Client & Social', ids: ['client_email','client_query','ca_post','proposal'] },
+        ]}
       />
 
       {/* ── GST QUERY BOT ── */}

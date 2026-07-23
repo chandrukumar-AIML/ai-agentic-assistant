@@ -2,6 +2,9 @@
 import { useState } from 'react'
 import { PageShell, Card, Btn, Input, Select, ResultBox, Tabs, TwoCol, useApi, SectionHead, Badge } from '../components/ui'
 import { generateContent, generateHashtags, generateImage, socialEnhance, socialPro, submitSocialForApproval, socialAction } from '../lib/api'
+import WorkspaceSetup from '../components/WorkspaceSetup'
+import WorkspaceBar from '../components/WorkspaceBar'
+import { getWorkspace, clearWorkspace, SMWorkspace } from '../lib/workspace'
 
 const PLATFORMS  = [{ label: 'LinkedIn', value: 'linkedin' }, { label: 'Twitter/X', value: 'twitter' }, { label: 'Instagram', value: 'instagram' }, { label: 'Facebook', value: 'facebook' }]
 const TONES      = [{ label: 'Professional', value: 'professional' }, { label: 'Casual', value: 'casual' }, { label: 'Inspirational', value: 'inspirational' }, { label: 'Educational', value: 'educational' }, { label: 'Humorous', value: 'humorous' }]
@@ -30,6 +33,9 @@ const STATUS_COLORS: Record<PostStatus, string> = { Draft: '#6b7280', Scheduled:
 
 export default function SocialPage() {
   const [tab, setTab] = useState('content')
+  const [ws, setWs] = useState<SMWorkspace | null>(() => getWorkspace<SMWorkspace>('sm'))
+  const [showSetup, setShowSetup] = useState<boolean>(() => !getWorkspace<SMWorkspace>('sm'))
+  const [editMode, setEditMode] = useState(false)
 
   // ── Tab 1: Content Generator ──
   const [topic, setTopic]       = useState(TOPICS[0])
@@ -81,7 +87,7 @@ export default function SocialPage() {
   // ── Tab 7: Competitor Audit ──
   const [compName, setCompName]         = useState('')
   const [compNiche, setCompNiche]       = useState('')
-  const [compOurBrand, setCompOurBrand] = useState('')
+  const [compOurBrand, setCompOurBrand] = useState(() => getWorkspace<SMWorkspace>('sm')?.brand_name ?? '')
   const compApi = useApi()
 
   // ── Tab 8: Ad Copy Generator ──
@@ -788,6 +794,26 @@ export default function SocialPage() {
 
   return (
     <PageShell icon="📱" title="AI Social Media Manager" subtitle="Content · Ads · Influencer · Crisis · YouTube · Email · Reels · SEO — Enterprise depth">
+
+      {/* Workspace Setup Wizard */}
+      {(showSetup || editMode) && (
+        <WorkspaceSetup
+          agent="sm"
+          initialData={ws ?? {}}
+          onDone={data => { setWs(data); setShowSetup(false); setEditMode(false) }}
+          onSkip={showSetup && !editMode ? () => setShowSetup(false) : undefined}
+        />
+      )}
+
+      {/* Workspace context bar */}
+      {ws && !showSetup && (
+        <WorkspaceBar
+          agent="sm"
+          onEdit={() => setEditMode(true)}
+          onClear={() => { clearWorkspace('sm'); setWs(null); setShowSetup(true) }}
+        />
+      )}
+
       <Tabs
         tabs={[
           { id: 'content',    label: 'Content',       icon: '✍️' },
@@ -841,6 +867,13 @@ export default function SocialPage() {
           { id: 'festive_post',      label: 'Festive Post',          icon: '🪔' },
         ]}
         active={tab} onChange={setTab}
+        accentColor="#8B5CF6"
+        groups={[
+          { label: 'Create',    ids: ['content','hashtags','image','repurpose','adcopy','email','short_reel','twitter','carousel','article','reel','youtube','lcp','facebook_post','meme_caption','comment_reply','bio_opt','bulk','brand_voice','festive_post'] },
+          { label: 'Research',  ids: ['competitor','spy','seo','kwcluster','monitor','mention','roi','hooks','analytics'] },
+          { label: 'Strategy',  ids: ['campaign','launch_kit','brandkit','influencer','outreach','advocacy','india','templates','abtest'] },
+          { label: 'Schedule',  ids: ['calendar','cal','scheduler','bridge','report'] },
+        ]}
       />
 
       {/* ── CONTENT GENERATOR ── */}
