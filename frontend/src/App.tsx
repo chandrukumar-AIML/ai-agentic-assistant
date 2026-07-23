@@ -14,13 +14,13 @@ export type PageId =
   | 'social' | 'ca-accounting' | 'customer-support'
   | 'settings'
 
-const PAGE_MAP: Record<PageId, React.ReactNode> = {
-  dashboard:          <DashboardPage />,
+const makePAGE_MAP = (onNavigate: (id: PageId) => void): Record<PageId, React.ReactNode> => ({
+  dashboard:          <DashboardPage onNavigate={onNavigate} />,
   social:             <SocialPage />,
   'ca-accounting':    <CAPage />,
   'customer-support': <CustomerSupportPage />,
   settings:           <SettingsPage />,
-}
+})
 
 function readCachedProfile(): UserProfile | null {
   try {
@@ -69,8 +69,10 @@ export default function App() {
     return <LandingPage onSignIn={() => setShowLogin(true)} />
   }
 
+  const PAGE_MAP = makePAGE_MAP((id) => setPage(id as PageId))
+
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#0f1117', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
       <Sidebar
         current={page}
         onNavigate={setPage}
@@ -85,10 +87,11 @@ export default function App() {
       <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {demoMode && (
           <div style={{
-            flexShrink: 0, padding: '7px 16px', textAlign: 'center', fontSize: 12, fontWeight: 600,
-            color: '#0f1117', background: 'linear-gradient(90deg, #fbbf24, #f59e0b)', letterSpacing: '0.02em',
+            flexShrink: 0, padding: '6px 16px', textAlign: 'center', fontSize: 11, fontWeight: 700,
+            color: '#000', background: 'linear-gradient(90deg, #F59E0B, #D97706)',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
           }}>
-            DEMO MODE — AI responses are instant sample data. Add an API key to switch on real generation.
+            Demo Mode — Instant sample output · Add an API key for real AI generation
           </div>
         )}
         {PAGE_MAP[page]}
