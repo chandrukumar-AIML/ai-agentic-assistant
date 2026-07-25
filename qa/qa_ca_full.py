@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""CA Full Feature QA — 40 actions, Sharma & Co / Priya Sharma persona (corrected keys)"""
+"""CA Full Feature QA — 44 actions (40 core + 4 AI Brain), Sharma & Co / Priya Sharma persona"""
 import sys, json, urllib.request
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -122,6 +122,17 @@ ca("payroll", {"company_name":"ZenFit","month":"July 2025","employees":[{"name":
 ca("tax_planning", {"income_details":{"salary":900000,"business_income":300000},"investments":{"ppf":60000,"elss":50000},"expenses":{"hra_paid":336000},"taxpayer_type":"individual","age":35,"regime":"old"}, "taxpayer_type","recommendations")
 # 40 — actual keys: return_type, firm_name, gstin, period, sales_summary
 ca("gstr_filing_prep", {"sales_data":[{"invoice_no":"ZF/001","party":"FreshMart","gstin":"29FRESH1234R1Z5","taxable":100000,"cgst":9000,"sgst":9000,"igst":0}],"purchase_data":[{"invoice_no":"SC/001","party":"Sharma","gstin":"29AABCU9603R1ZX","taxable":50000,"cgst":4500,"sgst":4500,"igst":0}],"return_type":"gstr3b","firm_name":"ZenFit","gstin":"29ZENFIT1234R1Z5","period":"July 2025"}, "return_type","firm_name","sales_summary")
+
+CA_WS = {"firm_name": "Sharma & Associates", "gstin": "29SHARMA123R1Z5", "business_type": "CA Firm", "financial_year": "2025-26", "filing_frequency": "monthly", "client_name": "ZenFit Pvt Ltd"}
+
+# 41 — AI Brain: CA Command Center
+ca("ca_command_center", CA_WS, "briefing")
+# 42 — AI Brain: CA Goal Planner
+ca("ca_goal_planner", {**CA_WS, "goal": "gst_cleanup", "timeline": "30 days"}, "campaign")
+# 43 — AI Brain: Client Health Score
+ca("client_health_score", {"client_name": "ZenFit Pvt Ltd", "gstin": "29ZENFIT1234R1Z5", "issues": "late GSTR-3B filing, ITC mismatch", "filing_frequency": "monthly"}, "scores")
+# 44 — AI Brain: CA Strategy Meeting
+ca("ca_strategy_meeting", {**CA_WS, "focus": "compliance"}, "meeting")
 
 # ── SUMMARY ──────────────────────────────────────────────────────────────────
 print("\n" + "=" * 80)

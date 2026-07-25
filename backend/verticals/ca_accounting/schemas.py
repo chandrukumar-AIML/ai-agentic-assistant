@@ -1,7 +1,9 @@
 """Pydantic request/response schemas for the CA Accounting agent."""
 from __future__ import annotations
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+
+from typing import Any, Dict, List
+
+from pydantic import BaseModel
 
 
 class GstQueryRequest(BaseModel):

@@ -99,6 +99,7 @@ async def ollama_chat_completion(
 
     # LOCAL DEV: use Ollama.
     import time
+
     from backend.llm.cost_tracker import LLMCallRecord, log_llm_call
 
     client = get_client()

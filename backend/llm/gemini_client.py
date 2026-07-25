@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from openai import AsyncOpenAI, APIError
+from openai import APIError, AsyncOpenAI
 
 from backend.config import get_settings
 
@@ -53,6 +53,7 @@ async def gemini_chat(
 ) -> str:
     """Call Gemini Flash and return the text response."""
     import time
+
     from backend.llm.cost_tracker import LLMCallRecord, estimate_cost, log_llm_call
 
     use_model = model or settings.gemini_model

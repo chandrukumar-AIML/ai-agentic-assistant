@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from openai import AsyncOpenAI, APIError
+from openai import APIError, AsyncOpenAI
 
 from backend.config import get_settings
 
@@ -47,6 +47,7 @@ async def groq_chat(
     action:      str = "",
 ) -> str:
     import time
+
     from backend.llm.cost_tracker import LLMCallRecord, estimate_cost, log_llm_call
 
     use_model = model or settings.groq_model

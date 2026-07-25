@@ -5,7 +5,6 @@ from typing import Optional
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -158,6 +157,11 @@ class Settings(BaseSettings):
     twitter_access_token_secret: Optional[str] = None
     linkedin_author_urn:         Optional[str] = None   # urn:li:person:xxxx
     buffer_access_token:         Optional[str] = None
+    # OAuth app credentials (from developer portals)
+    linkedin_client_id:          Optional[str] = None
+    linkedin_client_secret:      Optional[str] = None
+    buffer_client_id:            Optional[str] = None
+    buffer_client_secret:        Optional[str] = None
 
     @model_validator(mode="after")
     def build_database_url(self) -> "Settings":

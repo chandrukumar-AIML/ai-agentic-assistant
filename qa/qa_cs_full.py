@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""CS Full Feature QA — 38 actions, ShopEasy / Rajesh Kumar persona"""
+"""CS Full Feature QA — 42 actions (38 core + 4 AI Brain), ShopEasy / Rajesh Kumar persona"""
 import sys, json, urllib.request
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -118,6 +118,17 @@ cs("analyze_csat", {"responses":[{"rating":5,"comment":"Fast delivery, great pac
 # cs("send_whatsapp", ...) — skip
 # 38 — ticket_triage with tickets list (old format from round2)
 cs("ticket_triage", {"tickets":[{"id":"TKT-001","subject":"Order not delivered 5 days","channel":"whatsapp","customer_tier":"gold"},{"id":"TKT-002","subject":"Wrong item received","channel":"email","customer_tier":"regular"}],"ticket_text":"","customer_name":"","channel":"whatsapp","customer_tier":"standard"}, "priority","category")
+
+CS_WS = {"company_name": "ShopEasy", "business_type": "ecommerce", "support_tone": "professional", "sla_first_response": "4"}
+
+# 39 — AI Brain: Support Command Center
+cs("support_command_center", CS_WS, "briefing")
+# 40 — AI Brain: CX Goal Planner
+cs("cx_goal_planner", {**CS_WS, "goal": "improve_csat", "timeline": "30 days"}, "campaign")
+# 41 — AI Brain: Response Quality Score
+cs("response_quality_score", {"response_text": "Hi Rajesh! I sincerely apologise for the delay with your order. I have escalated this to our logistics team and you should receive it within 24 hours. Here is your tracking link: [link]. Please let me know if you need anything else!", "ticket_subject": "Order not delivered after 5 days", "customer_tier": "gold"}, "scores")
+# 42 — AI Brain: CS Strategy Meeting
+cs("cs_strategy_meeting", {**CS_WS, "focus": "csat_improvement"}, "meeting")
 
 # ── SUMMARY ──────────────────────────────────────────────────────────────────
 print("\n" + "=" * 80)

@@ -8,6 +8,7 @@ import CAPage from './pages/CAPage'
 import CustomerSupportPage from './pages/CustomerSupportPage'
 import SettingsPage from './pages/SettingsPage'
 import { getMe, UserProfile } from './lib/api'
+import { setSocialTokens } from './lib/socialTokens'
 
 export type PageId =
   | 'dashboard'
@@ -32,10 +33,37 @@ function readCachedProfile(): UserProfile | null {
 export default function App() {
   const [authed,           setAuthed]          = useState(!!sessionStorage.getItem('aaa_token'))
   const [showLogin,        setShowLogin]        = useState(false)
-  const [page,             setPage]             = useState<PageId>('dashboard')
+  const [page,             setPage]             = useState<PageId>(() => {
+    // If returning from a social OAuth callback, land on settings
+    const p = new URLSearchParams(window.location.search)
+    return (p.has('social_ok') || p.has('social_error')) ? 'settings' : 'dashboard'
+  })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== 'undefined' && window.innerWidth < 860)
   const [profile,          setProfile]          = useState<UserProfile | null>(readCachedProfile())
   const [demoMode,         setDemoMode]         = useState(false)
+
+  // Handle OAuth callbacks — backend redirects here with tokens in URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const ok  = params.get('social_ok')
+    const err = params.get('social_error')
+
+    if (ok === 'linkedin') {
+      setSocialTokens({
+        linkedin_access_token: params.get('li_token') ?? '',
+        linkedin_person_urn:   params.get('li_urn')   ?? '',
+      })
+      sessionStorage.setItem('social_notify', JSON.stringify({ ok: true,  text: 'LinkedIn connected!' }))
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (ok === 'buffer') {
+      setSocialTokens({ buffer_access_token: params.get('buf_token') ?? '' })
+      sessionStorage.setItem('social_notify', JSON.stringify({ ok: true,  text: 'Buffer connected!' }))
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (err) {
+      sessionStorage.setItem('social_notify', JSON.stringify({ ok: false, text: `Connection failed: ${err.replace(/_/g, ' ')}` }))
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   useEffect(() => {
     const onResize = () => { if (window.innerWidth < 860) setSidebarCollapsed(true) }

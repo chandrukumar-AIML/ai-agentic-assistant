@@ -312,4 +312,29 @@ textarea.input { resize: vertical; min-height: 100px; }
 
 /* Float animation for hero elements */
 .aaa-float { animation: float 6s ease-in-out infinite; }
+
+/* Tool panel layout (Festive Post, Twitter Thread, etc.) */
+.tool-panel { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+.tool-title { font-size: 18px; font-weight: 700; color: var(--text); margin: 0; }
+.tool-desc  { font-size: 13px; color: var(--text-2); margin: 0; line-height: 1.5; }
+.form-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label {
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-md); color: var(--text); font-size: 13px;
+  padding: 8px 10px; outline: none; transition: border-color 0.15s;
+  font-family: inherit;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus { border-color: var(--accent); }
+.form-group textarea { resize: vertical; min-height: 80px; }
+.form-group select { cursor: pointer; }
 .aaa-float-delay { animation: float 6s ease-in-out 2s infinite; }

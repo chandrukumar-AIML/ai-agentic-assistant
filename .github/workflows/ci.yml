@@ -47,14 +47,21 @@ jobs:
           sleep 6
           curl -f http://localhost:8000/api/health
 
-      - name: Run CS Agent QA (37 actions)
+      - name: Run SM Agent QA (41 actions)
+        env:
+          JWT_SECRET: ci-test-secret-32-chars-minimum-ok
+          APP_ENV: development
+          DEMO_MODE: "true"
+        run: python qa/qa_sm_full.py
+
+      - name: Run CS Agent QA (42 actions)
         env:
           JWT_SECRET: ci-test-secret-32-chars-minimum-ok
           APP_ENV: development
           DEMO_MODE: "true"
         run: python qa/qa_cs_full.py
 
-      - name: Run CA Agent QA (40 actions)
+      - name: Run CA Agent QA (44 actions)
         env:
           JWT_SECRET: ci-test-secret-32-chars-minimum-ok
           APP_ENV: development

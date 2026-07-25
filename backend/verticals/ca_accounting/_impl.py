@@ -17,8 +17,7 @@ Capabilities:
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
-from typing import Optional
+from datetime import date, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -350,7 +349,6 @@ async def draft_invoice(
     # Amount in words (simple)
     def amount_words(n: float) -> str:
         try:
-            import math
             n_int = int(n)
             if n_int >= 10_00_000:
                 return f"Rupees {n_int / 10_00_000:.2f} Lakh only"
@@ -724,7 +722,7 @@ async def get_compliance_calendar(
     for m in months:
         month_items = GST_DEADLINES.get(m, [])
         month_name = datetime.date(2024, m, 1).strftime("%B")
-        for form, date, who in month_items:
+        for form, due_date, who in month_items:
             if not include_tds and "TDS" in form:
                 continue
             if not include_itr and "ITR" in form:
@@ -734,7 +732,7 @@ async def get_compliance_calendar(
                 "month": month_name,
                 "month_num": m,
                 "form": form,
-                "due_date": date,
+                "due_date": due_date,
                 "applicable_to": who,
                 "urgency": urgency,
                 "penalty": _deadline_penalty(form),
@@ -750,12 +748,18 @@ async def get_compliance_calendar(
 
 
 def _deadline_penalty(form: str) -> str:
-    if "3B" in form: return "₹50/day late fee + 18% interest on tax"
-    if "GSTR-1" in form: return "₹50/day (nil return: ₹20/day)"
-    if "TDS" in form: return "₹200/day + 1.5%/month interest"
-    if "ITR" in form: return "₹5,000 late fee (₹1,000 if income < ₹5L)"
-    if "Advance Tax" in form: return "1% interest/month u/s 234B & 234C"
-    if "GSTR-9" in form: return "₹200/day (max 0.25% of turnover)"
+    if "3B" in form:
+        return "₹50/day late fee + 18% interest on tax"
+    if "GSTR-1" in form:
+        return "₹50/day (nil return: ₹20/day)"
+    if "TDS" in form:
+        return "₹200/day + 1.5%/month interest"
+    if "ITR" in form:
+        return "₹5,000 late fee (₹1,000 if income < ₹5L)"
+    if "Advance Tax" in form:
+        return "1% interest/month u/s 234B & 234C"
+    if "GSTR-9" in form:
+        return "₹200/day (max 0.25% of turnover)"
     return "As per applicable section"
 
 
@@ -769,8 +773,9 @@ async def analyze_tally_export(
     language:      str = "en",
 ) -> dict:
     """Parse Tally XML/CSV export and generate GST reconciliation or financial summary."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
     import json
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     TYPE_DESC = {
         "gst_reconciliation": "GST reconciliation — compare GSTR-1/3B with books, find mismatches",
@@ -1379,8 +1384,8 @@ async def ca_agent(
 
 
 async def call_llm(prompt: str, system: str = "") -> str:
-    from backend.llm.ollama_openai import ollama_chat_completion
-    return await ollama_chat_completion(messages=[{"role": "user", "content": prompt}], system=system)
+    from backend.llm.llm_router import call_llm as _router
+    return await _router(prompt, system)
 
 
 # ── CA Command Center ─────────────────────────────────────────────────────────
@@ -1467,7 +1472,8 @@ Return ONLY valid JSON in this exact format:
   "top_action": "single most important thing to fix right now"
 }}"""
     raw = await call_llm(prompt, "You are an expert Indian CA scoring client health.")
-    import json, re
+    import json
+    import re
     try:
         m = re.search(r'\{[\s\S]*\}', raw)
         parsed = json.loads(m.group()) if m else {}
@@ -1549,8 +1555,8 @@ async def generate_gst_invoice(
     seller/buyer: {name, gstin, address, state}
     items: [{description, hsn, qty, unit, rate, gst_rate}]
     """
-    from datetime import datetime, timezone
     import uuid
+    from datetime import datetime, timezone
 
     inv_no   = invoice_no  or f"INV-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
     inv_date = invoice_date or datetime.now(timezone.utc).strftime("%d/%m/%Y")
@@ -1605,12 +1611,18 @@ async def generate_gst_invoice(
                 "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
                 "Seventeen", "Eighteen", "Nineteen"]
         tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
-        if n == 0: return "Zero"
-        if n < 20: return ones[n]
-        if n < 100: return tens[n // 10] + ("" if n % 10 == 0 else " " + ones[n % 10])
-        if n < 1000: return ones[n // 100] + " Hundred" + ("" if n % 100 == 0 else " " + _amount_words(n % 100))
-        if n < 100000: return _amount_words(n // 1000) + " Thousand" + ("" if n % 1000 == 0 else " " + _amount_words(n % 1000))
-        if n < 10000000: return _amount_words(n // 100000) + " Lakh" + ("" if n % 100000 == 0 else " " + _amount_words(n % 100000))
+        if n == 0:
+            return "Zero"
+        if n < 20:
+            return ones[n]
+        if n < 100:
+            return tens[n // 10] + ("" if n % 10 == 0 else " " + ones[n % 10])
+        if n < 1000:
+            return ones[n // 100] + " Hundred" + ("" if n % 100 == 0 else " " + _amount_words(n % 100))
+        if n < 100000:
+            return _amount_words(n // 1000) + " Thousand" + ("" if n % 1000 == 0 else " " + _amount_words(n % 1000))
+        if n < 10000000:
+            return _amount_words(n // 100000) + " Lakh" + ("" if n % 100000 == 0 else " " + _amount_words(n % 100000))
         return _amount_words(n // 10000000) + " Crore" + ("" if n % 10000000 == 0 else " " + _amount_words(n % 10000000))
 
     amount_words = _amount_words(rounded_total) + " Rupees Only"
@@ -1796,7 +1808,7 @@ async def optimize_tax_planning(
     regime:         str = "old",
     language:       str = "en",
 ) -> dict:
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     gross = (
         float(income_details.get("gross_salary",   0) or 0) +
@@ -1971,10 +1983,14 @@ def calculate_payroll(
         deductions = pf_emp + esi_emp + pt + tds + lop_ded
         net        = round(gross_act - pf_emp - esi_emp - pt - tds, 0)
 
-        total_gross  += gross_act; total_net    += net
-        total_pf_emp += pf_emp;   total_pf_er  += pf_er
-        total_esi_emp+= esi_emp;  total_esi_er += esi_er
-        total_tds    += tds;      total_pt     += pt
+        total_gross += gross_act
+        total_net += net
+        total_pf_emp += pf_emp
+        total_pf_er += pf_er
+        total_esi_emp += esi_emp
+        total_esi_er += esi_er
+        total_tds += tds
+        total_pt += pt
 
         payslips.append({
             "name":         e.get("name", ""),
@@ -2202,7 +2218,7 @@ async def draft_gst_notice_reply(
     reply_points: str = "",
     language: str = "en",
 ) -> dict:
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     template = _NOTICE_TEMPLATES.get(notice_type, _NOTICE_TEMPLATES["gst_scrutiny"])
     today = date.today().strftime("%d/%m/%Y")
@@ -3627,12 +3643,18 @@ def _num_to_words(n: float) -> str:
             "Seventeen","Eighteen","Nineteen"]
     tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
     n = int(n)
-    if n == 0: return "Zero"
-    if n < 20: return ones[n]
-    if n < 100: return tens[n//10] + (" " + ones[n%10] if n%10 else "")
-    if n < 1000: return ones[n//100] + " Hundred" + (" " + _num_to_words(n%100) if n%100 else "")
-    if n < 100000: return _num_to_words(n//1000) + " Thousand" + (" " + _num_to_words(n%1000) if n%1000 else "")
-    if n < 10000000: return _num_to_words(n//100000) + " Lakh" + (" " + _num_to_words(n%100000) if n%100000 else "")
+    if n == 0:
+        return "Zero"
+    if n < 20:
+        return ones[n]
+    if n < 100:
+        return tens[n//10] + (" " + ones[n%10] if n%10 else "")
+    if n < 1000:
+        return ones[n//100] + " Hundred" + (" " + _num_to_words(n%100) if n%100 else "")
+    if n < 100000:
+        return _num_to_words(n//1000) + " Thousand" + (" " + _num_to_words(n%1000) if n%1000 else "")
+    if n < 10000000:
+        return _num_to_words(n//100000) + " Lakh" + (" " + _num_to_words(n%100000) if n%100000 else "")
     return _num_to_words(n//10000000) + " Crore" + (" " + _num_to_words(n%10000000) if n%10000000 else "")
 
 
@@ -4343,7 +4365,7 @@ def generate_advance_tax(
         "payment_mode": "Challan ITNS 280 — online at tin.tin.nsdl.com or via net banking",
         "key_sections": ["Section 207 — Liability to pay advance tax", "Section 208 — ₹10,000 threshold", "Section 234B — Interest for non-payment", "Section 234C — Interest for deferred payment"],
         "tips": [
-            f"Estimate income conservatively — you can revise upward in later quarters",
+            "Estimate income conservatively — you can revise upward in later quarters",
             "Include all freelance / side income — advance tax applies to ALL income",
             "TDS on salary is already being deducted — only shortfall needs advance payment",
             f"Missing {'Q1' if net_advance_tax > 0 else ''} installment attracts 1% per month interest u/s 234C",
@@ -4492,7 +4514,7 @@ def generate_form16(
         f"File ITR-1 (salary only) or ITR-2 by 31 July {ay.split('-')[0]} to claim excess TDS refund.",
         "Keep Form 16 safe — needed for home loan applications, visa processing, and ITR filing.",
         "Cross-check TDS amounts with Form 26AS (https://www.incometax.gov.in) before filing ITR.",
-        f"Standard deduction of ₹50,000 is auto-applied under new tax regime.",
+        "Standard deduction of ₹50,000 is auto-applied under new tax regime.",
         "If you have other income (rent, FD interest, capital gains), declare separately in ITR.",
     ]
     if balance_tds > 0:
@@ -4531,8 +4553,6 @@ def generate_client_compliance_status(
 ) -> dict:
     import datetime
     today = datetime.date.today()
-    month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-
     # Determine applicable filings
     filings = []
 
@@ -4541,7 +4561,7 @@ def generate_client_compliance_status(
         if filing_type == "monthly":
             filings.append({
                 "filing": "GSTR-1 (Monthly)",
-                "due": f"11th of every month",
+                "due": "11th of every month",
                 "status": "pending" if today.day > 11 else "upcoming",
                 "penalty": _COMPLIANCE_DEADLINES["gst_monthly"]["penalty"],
                 "priority": "high",
@@ -4603,7 +4623,7 @@ def generate_client_compliance_status(
     if business_type in ["pvt_ltd", "llp"]:
         filings.append({
             "filing": "ROC Annual Return (MGT-7 / AOC-4)",
-            "due": f"Within 60 days of AGM (usually by Sep 30)",
+            "due": "Within 60 days of AGM (usually by Sep 30)",
             "status": "upcoming",
             "penalty": _COMPLIANCE_DEADLINES["roc_annual"]["penalty"],
             "priority": "medium",
@@ -4748,18 +4768,26 @@ def generate_salary_slip(
         earnings.append({"component": "Bonus / Incentive", "amount": bonus_amt})
 
     deductions = []
-    if pf_emp:      deductions.append({"component": "Provident Fund (Employee 12%)", "amount": pf_emp})
-    if esi_emp:     deductions.append({"component": "ESI (Employee 0.75%)",          "amount": esi_emp})
-    if pt_amt:      deductions.append({"component": "Professional Tax",              "amount": pt_amt})
-    if tds_monthly: deductions.append({"component": "TDS (Income Tax)",              "amount": tds_monthly})
-    if advance:     deductions.append({"component": "Advance Recovery",              "amount": advance})
-    if lop_deduction: deductions.append({"component": f"Loss of Pay ({lop} days)",  "amount": lop_deduction})
+    if pf_emp:
+        deductions.append({"component": "Provident Fund (Employee 12%)", "amount": pf_emp})
+    if esi_emp:
+        deductions.append({"component": "ESI (Employee 0.75%)", "amount": esi_emp})
+    if pt_amt:
+        deductions.append({"component": "Professional Tax", "amount": pt_amt})
+    if tds_monthly:
+        deductions.append({"component": "TDS (Income Tax)", "amount": tds_monthly})
+    if advance:
+        deductions.append({"component": "Advance Recovery", "amount": advance})
+    if lop_deduction:
+        deductions.append({"component": f"Loss of Pay ({lop} days)", "amount": lop_deduction})
 
     # Amount in words helper
     def _n2w(n):
         n = int(round(n))
-        if n >= 100000: return f"Rupees {n//100000} Lakh {(n%100000)//1000} Thousand {n%1000} only"
-        if n >= 1000:   return f"Rupees {n//1000} Thousand {n%1000} only"
+        if n >= 100000:
+            return f"Rupees {n//100000} Lakh {(n%100000)//1000} Thousand {n%1000} only"
+        if n >= 1000:
+            return f"Rupees {n//1000} Thousand {n%1000} only"
         return f"Rupees {n} only"
 
     return {
@@ -4947,7 +4975,6 @@ def generate_depreciation_calc(
 
     if method == "slm":
         annual_dep = (cost - salvage) / life if life > 0 else (cost - salvage)
-        dep_rate   = (annual_dep / cost * 100) if cost > 0 else 0
         wdv = cost
         for yr in range(life):
             fy_label = f"FY {fy_start + yr}-{str(fy_start + yr + 1)[-2:]}"
@@ -5141,16 +5168,23 @@ def generate_gst_invoice(
                 "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen",
                 "Seventeen","Eighteen","Nineteen"]
         tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
-        if n == 0: return "Zero"
-        if n < 20: return ones[n]
-        if n < 100: return tens[n//10] + (" " + ones[n%10] if n%10 else "")
-        if n < 1000: return ones[n//100] + " Hundred" + (" " + _num_to_words(n%100) if n%100 else "")
-        if n < 100000: return _num_to_words(n//1000) + " Thousand" + (" " + _num_to_words(n%1000) if n%1000 else "")
-        if n < 10000000: return _num_to_words(n//100000) + " Lakh" + (" " + _num_to_words(n%100000) if n%100000 else "")
+        if n == 0:
+            return "Zero"
+        if n < 20:
+            return ones[n]
+        if n < 100:
+            return tens[n//10] + (" " + ones[n%10] if n%10 else "")
+        if n < 1000:
+            return ones[n//100] + " Hundred" + (" " + _num_to_words(n%100) if n%100 else "")
+        if n < 100000:
+            return _num_to_words(n//1000) + " Thousand" + (" " + _num_to_words(n%1000) if n%1000 else "")
+        if n < 10000000:
+            return _num_to_words(n//100000) + " Lakh" + (" " + _num_to_words(n%100000) if n%100000 else "")
         return _num_to_words(n//10000000) + " Crore" + (" " + _num_to_words(n%10000000) if n%10000000 else "")
 
     amount_words = _num_to_words(rupees) + " Rupees"
-    if paise: amount_words += f" and {_num_to_words(paise)} Paise"
+    if paise:
+        amount_words += f" and {_num_to_words(paise)} Paise"
     amount_words += " Only"
 
     pt_label = _PAYMENT_TERMS_MAP.get(payment_terms, payment_terms)
@@ -5201,7 +5235,6 @@ def generate_client_proposal(
     firm = firm_name or "Sharma & Associates, Chartered Accountants"
     client = client_name or "ABC Pvt Ltd"
     industry = client_industry or "manufacturing"
-    turnover = client_turnover or "₹5 Cr – ₹10 Cr"
     ca = ca_name or "CA Rajesh Sharma"
     today = datetime.date.today()
     start = engagement_start or f"1st {today.strftime('%B %Y')}" if today.day > 15 else f"1st {today.strftime('%B %Y')}"
@@ -5751,7 +5784,8 @@ def generate_pl_statement(
         elif yoy_revenue_growth < 5:
             insights.append(f"Revenue growth of {yoy_revenue_growth:.1f}% YoY is below inflation — review pricing strategy and new revenue streams.")
 
-    cr = lambda x: f"₹{x/10000000:.2f} Cr" if x >= 10000000 else f"₹{x/100000:.1f}L"
+    def cr(x: float) -> str:
+        return f"₹{x/10000000:.2f} Cr" if x >= 10000000 else f"₹{x/100000:.1f}L"
 
     return {
         "action":           "pl_statement",

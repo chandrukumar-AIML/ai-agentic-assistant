@@ -91,7 +91,7 @@ async def deep_health():
     overall = "critical" if any_critical_down else ("degraded" if any_down else "ok")
     down_names = [s.name for s in any_down]
     summary = (
-        f"All services healthy"
+        "All services healthy"
         if not any_down
         else f"{len(any_down)} service(s) not available: {', '.join(down_names)}"
     )

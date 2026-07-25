@@ -21,7 +21,7 @@ Platform character limits:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from backend.config import get_settings
@@ -93,12 +93,12 @@ async def generate_post(
     Generate platform-optimized social media post content (Ollama-first).
     Returns post text, hashtags, and image prompt.
     """
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
-    import json
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
     cfg     = _PLATFORM_CONFIG.get(platform, _PLATFORM_CONFIG["linkedin"])
     emoji   = "Use relevant emojis." if include_emoji else "No emojis."
 
-    system = f"""You are an expert social media content strategist.
+    _system = f"""You are an expert social media content strategist.
 Generate platform-optimized content for {platform.upper()}.
 Format: {cfg['format']}
 Max characters: {cfg['max_chars']}
@@ -117,7 +117,7 @@ Return JSON:
   "cta": "call to action text"
 }}"""
 
-    user = (
+    _user = (
         f"Topic: {topic}\n"
         f"{'Brand: ' + brand_name if brand_name else ''}\n"
         f"{'Additional context: ' + extra_context if extra_context else ''}\n"
@@ -192,9 +192,10 @@ async def generate_social_image(
         key = settings.openai_api_key
         if not (key and key.startswith("sk-")):
             raise RuntimeError("OpenAI key not configured")
-        from openai import AsyncOpenAI
-        import httpx
         import base64
+
+        import httpx
+        from openai import AsyncOpenAI
 
         client = AsyncOpenAI(api_key=key)
 
@@ -300,7 +301,6 @@ async def post_to_twitter(tweet_text: str, image_b64: Optional[str] = None) -> d
     Post to Twitter/X via Twitter API v2 (Tweepy).
     Supports text tweets. Images require media upload (v1.1).
     """
-    bearer_token        = settings.twitter_bearer_token
     consumer_key        = settings.twitter_api_key
     consumer_secret     = settings.twitter_api_secret
     access_token        = settings.twitter_access_token
@@ -314,9 +314,10 @@ async def post_to_twitter(tweet_text: str, image_b64: Optional[str] = None) -> d
         }
 
     try:
-        import tweepy
         import asyncio
         from concurrent.futures import ThreadPoolExecutor
+
+        import tweepy
 
         def _post():
             auth   = tweepy.OAuthHandler(consumer_key, consumer_secret)
@@ -426,7 +427,7 @@ async def research_hashtags(
     count:    int = 15,
 ) -> list[str]:
     """Generate optimized hashtags for a topic and platform using Ollama."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     limit = _PLATFORM_CONFIG.get(platform, {}).get("hashtag_limit", 10)
     count = min(count, limit)
@@ -466,8 +467,9 @@ async def plan_content_calendar(
     language:     str = "en",
 ) -> list[dict]:
     """Generate a content calendar plan for the next N days (Ollama-first)."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
     import json
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = (
         f"You are an expert social media content strategist for {industry}. "
@@ -503,7 +505,7 @@ async def plan_content_calendar(
     except Exception as e:
         logger.error("Content calendar generation failed: %s", e)
         # Return structured mock calendar
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
         result = []
         types = ["educational", "promotional", "engagement", "story"]
         base = datetime.now(timezone.utc)
@@ -530,7 +532,7 @@ async def repurpose_content(
     language:       str = "en",
 ) -> dict:
     """One piece of content → 6 platform-ready formats."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = (
         f"You are a content repurposing expert. Transform the given {content_type} into "
@@ -548,7 +550,8 @@ async def repurpose_content(
             max_tokens=1200,
             temperature=0.7,
         )
-        import json, re
+        import json
+        import re
         match = re.search(r'\{.*\}', raw, re.DOTALL)
         if match:
             return {"action": "repurpose", "formats": json.loads(match.group())}
@@ -568,7 +571,7 @@ async def competitor_social_audit(
     platforms:        list[str] | None = None,
 ) -> dict:
     """Analyze competitor's social strategy and identify gaps we can exploit."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     plats = ", ".join(platforms or ["LinkedIn", "Twitter", "Instagram"])
     system = (
@@ -616,7 +619,7 @@ async def generate_ad_copy(
     language:     str = "en",
 ) -> dict:
     """Generate platform-specific ad copy with headlines, descriptions, and CTAs."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     char_limits = {
         "meta":     {"headline": 40, "desc": 125, "cta_options": ["Learn More","Shop Now","Sign Up","Get Quote","Book Now"]},
@@ -670,7 +673,7 @@ async def generate_influencer_brief(
     dos_donts:        str = "",
 ) -> dict:
     """Generate a complete influencer campaign brief."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = "You are a brand partnerships manager who creates clear, comprehensive influencer briefs that drive authentic content and measurable results."
     prompt = (
@@ -718,7 +721,7 @@ async def generate_crisis_response(
     severity:      str = "medium",  # low | medium | high | critical
 ) -> dict:
     """Draft calm, professional brand crisis response for different severity levels."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = (
         "You are a PR crisis communications expert. You draft measured, empathetic, "
@@ -766,7 +769,7 @@ async def generate_youtube_script(
     language:    str = "en",
 ) -> dict:
     """Generate a structured YouTube video script with timestamps."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = (
         f"You are a YouTube content strategist and scriptwriter. "
@@ -815,7 +818,7 @@ async def generate_email_sequence(
     language:      str = "en",
 ) -> dict:
     """Generate a multi-email campaign sequence with subject lines and body copy."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = (
         f"You are an email marketing specialist with expertise in lifecycle campaigns. "
@@ -863,7 +866,7 @@ async def generate_reel_script(
     language:   str = "en",
 ) -> dict:
     """Generate a punchy reel/short video script with visual direction notes."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = (
         f"You are a short-form video content creator. Write scripts that stop the scroll "
@@ -910,8 +913,9 @@ async def generate_monthly_report(
     language:    str = "en",
 ) -> dict:
     """Turn raw social media metrics into a written narrative report."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
     import json
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = (
         "You are a social media analyst. Transform raw metrics into a clear, insightful "
@@ -959,7 +963,7 @@ async def build_keyword_cluster(
     market:      str = "India",
 ) -> dict:
     """Build a full SEO topic cluster — pillar page + supporting articles + keyword intent mapping."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = (
         f"You are an SEO strategist specializing in topic clustering and content architecture. "
@@ -1007,7 +1011,7 @@ async def suggest_best_post_time(
     timezone:  str = "IST",
 ) -> dict:
     """Suggest optimal posting times based on platform + industry + Indian audience patterns."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = "You are a social media analytics expert specializing in Indian B2B and B2C markets."
     prompt = (
@@ -1042,7 +1046,7 @@ async def benchmark_engagement_rate(
     content_type:    str = "mixed",
 ) -> dict:
     """Compare your engagement rate to industry benchmarks and give improvement plan."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = "You are a social media analyst with deep knowledge of industry engagement benchmarks."
     prompt = (
@@ -1077,7 +1081,7 @@ async def score_content_performance(
     audience:       str = "",
 ) -> dict:
     """Predict if a post will perform well before posting — score 0-100 with improvement tips."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = "You are a social media performance analyst. You predict post engagement before it's published."
     prompt = (
@@ -1114,8 +1118,9 @@ async def generate_india_trends(
     month:     str = "",
 ) -> dict:
     """Generate India-specific trending content ideas — festivals, news, events, seasons."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
     from datetime import datetime, timezone
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
     current_month = month or datetime.now(timezone.utc).strftime("%B %Y")
 
     system = "You are an India-focused content strategist. You create culturally relevant content tied to Indian events, festivals, and trends."
@@ -1152,7 +1157,7 @@ async def generate_regional_post(
     tone:             str = "professional",
 ) -> dict:
     """Generate social media post in Tamil, Hindi, or other Indian regional languages."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     lang_map = {
         "tamil":     "Tamil (தமிழ்)",
@@ -1202,7 +1207,7 @@ async def generate_whatsapp_content(
     audience:     str = "",
 ) -> dict:
     """Generate WhatsApp Business content — status, broadcast messages, catalogue copy."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     content_specs = {
         "status":       "WhatsApp Status (30 seconds max, very visual, single message, personal tone)",
@@ -1251,8 +1256,9 @@ async def generate_niche_templates(
     platform:   str = "all",
 ) -> dict:
     """Industry-specific social media template packs for Indian professional services."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
     from datetime import datetime, timezone
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
     current_month = month or datetime.now(timezone.utc).strftime("%B %Y")
 
     niche_context = {
@@ -1326,7 +1332,7 @@ async def build_content_pillar_plan(
     language:   str = "en",
 ) -> dict:
     """Define content pillars, allocate % of posts, and generate topic ideas per pillar."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     custom_pillars = ""
     if pillars:
@@ -1365,7 +1371,7 @@ async def monitor_brand_mentions(
     language:    str = "en",
 ) -> dict:
     """Simulate brand monitoring intelligence — mention alerts, sentiment, competitor activity."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     comp_list = ", ".join(competitors or []) or "none specified"
     system = (
@@ -1414,7 +1420,7 @@ async def track_competitor_posts(
     our_brand:       str = "",
 ) -> dict:
     """Deep-dive competitor weekly posting analysis — content pillars, hooks, engagement tactics."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = "You are a competitive intelligence analyst. You reverse-engineer competitor social strategies."
     prompt = (
@@ -1464,7 +1470,7 @@ async def generate_cross_agent_content(
     language:     str = "en",
 ) -> dict:
     """Convert business events from other agents into social media posts automatically."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     trigger_templates = {
         "crm_deal_won":    "A sales deal was just closed. Client: {client}, Value: {value}, Industry: {industry}",
@@ -1518,8 +1524,9 @@ async def generate_unified_analytics(
     language:     str = "en",
 ) -> dict:
     """Generate unified cross-platform analytics narrative + recommendations."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
     import json
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     system = f"You are a cross-platform social media analyst. Language: {language}."
     prompt = (
@@ -1630,8 +1637,9 @@ async def plan_cultural_calendar(
     language:     str = "en",
 ) -> dict:
     """Generate campaign briefs for Indian festivals and national days — months ahead."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
     import json
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     events_block = ""
     for m in months:
@@ -1698,7 +1706,7 @@ async def generate_whatsapp_content(
     tone:         str = "friendly",
 ) -> dict:
     """Generate WhatsApp Business messages — broadcasts, catalogues, automations."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     TYPE_DESC = {
         "broadcast":       "promotional broadcast message to opted-in customers",
@@ -1736,7 +1744,8 @@ async def generate_whatsapp_content(
             messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
             model=OLLAMA_MODEL, max_tokens=800, temperature=0.7,
         )
-        import json, re
+        import json
+        import re
         try:
             match = re.search(r'\{.*\}', raw, re.DOTALL)
             data = json.loads(match.group()) if match else {}
@@ -1758,7 +1767,7 @@ async def generate_whatsapp_content(
 # ── Mission Control: AI Morning Briefing ─────────────────────────────────────
 
 async def generate_mission_control(workspace: dict, language: str = "en") -> dict:
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     brand       = workspace.get("brand_name", "Your Brand")
     industry    = workspace.get("industry", "business")
@@ -1822,7 +1831,7 @@ async def generate_goal_campaign(
     budget:    str = "₹50,000",
     language:  str = "en",
 ) -> dict:
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     brand     = workspace.get("brand_name", "Your Brand")
     industry  = workspace.get("industry", "business")
@@ -1898,7 +1907,7 @@ async def score_creative_content(
     industry:   str = "",
     tone:       str = "professional",
 ) -> dict:
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     prompt = (
         f"You are an expert social media content quality analyst. Score this {platform} post.\n\n"
@@ -1972,7 +1981,7 @@ async def run_ai_team_meeting(
     focus:     str = "growth",
     language:  str = "en",
 ) -> dict:
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     brand       = workspace.get("brand_name", "Your Brand")
     industry    = workspace.get("industry", "business")
@@ -3674,8 +3683,6 @@ def generate_twitter_thread(
     tweets = []
     for i, tweet_type in enumerate(structure[:num_tweets]):
         tweet_info = _THREAD_TWEET_TYPES.get(tweet_type, "")
-        num_label  = f"{i+1}/" if i > 0 else "🧵"
-
         if tweet_type == "hook":
             text = f"🧵 THREAD: {topic}\n\nIf you're in {industry}, you need to read this."
         elif tweet_type == "context":
@@ -3833,17 +3840,16 @@ def generate_meme_caption(
         panel_captions = list(preset[hash(topic) % len(preset)])
     else:
         # Generate generic captions based on topic
-        industry_ideas = _MEME_INDUSTRIES.get(industry, _MEME_INDUSTRIES["general"])
         panel_captions = [f"Dealing with {topic}", f"Finding {brand_name}"]
 
     # Build output
     panel_map = {panels[i]: panel_captions[i] if i < len(panel_captions) else "" for i in range(len(panels))}
 
     caption_variants = [
-        f"Tag someone who needs to see this 👇",
+        "Tag someone who needs to see this 👇",
         f"Every {industry} person will relate to this 😅",
-        f"Save this for later! You'll need it 📌",
-        f"Which one are you? Comment below! 👇",
+        "Save this for later! You'll need it 📌",
+        "Which one are you? Comment below! 👇",
     ]
     post_caption = f"{caption_variants[hash(topic) % len(caption_variants)]}\n\n#{brand_name.replace(' ','')} #Meme #{industry.capitalize()} #RelateableMemes #Trending"
 
@@ -3907,50 +3913,50 @@ def generate_facebook_post(
     if post_format == "list_post":
         body_lines = [
             f"{hook}",
-            f"",
+            "",
             f"Here are 5 reasons why {brand_name} stands out:",
-            f"",
-            f"1️⃣ Quality you can trust",
-            f"2️⃣ Prices that make sense",
-            f"3️⃣ Service that actually cares",
+            "",
+            "1️⃣ Quality you can trust",
+            "2️⃣ Prices that make sense",
+            "3️⃣ Service that actually cares",
             f"4️⃣ {post_topic}",
-            f"5️⃣ A brand that grows with you",
+            "5️⃣ A brand that grows with you",
         ]
     elif post_format == "question":
         body_lines = [
             f"Quick question for you {emoji1}",
-            f"",
+            "",
             f"When it comes to {post_topic} — what matters most to you?",
-            f"",
-            f"A) Quality",
-            f"B) Price",
-            f"C) Speed",
-            f"D) All of the above 😄",
+            "",
+            "A) Quality",
+            "B) Price",
+            "C) Speed",
+            "D) All of the above 😄",
         ]
     elif post_format == "poll_intro":
         body_lines = [
             f"We want to hear from YOU! {emoji1}",
-            f"",
+            "",
             f"Tell us about {post_topic}. Vote below and comment why! {emoji2}",
         ]
     elif post_format == "share_post":
         body_lines = [
             f"If this helped you, tag a friend who needs to see this {emoji1}",
-            f"",
+            "",
             f"{hook}",
-            f"",
+            "",
             f"{post_topic}",
-            f"",
-            f"Share this with someone it could help today 🙏",
+            "",
+            "Share this with someone it could help today 🙏",
         ]
     else:
         body_lines = [
             f"{hook}",
-            f"",
+            "",
             f"{emoji1} {post_topic}",
-            f"",
+            "",
             f"At {brand_name}, we believe every customer deserves the best.",
-            f"{product_or_offer}" if product_or_offer else f"That's why we keep raising the bar every single day.",
+            f"{product_or_offer}" if product_or_offer else "That's why we keep raising the bar every single day.",
         ]
 
     body_lines += ["", cta]
@@ -3996,7 +4002,6 @@ def generate_comment_replies(
     include_cta: bool = True,
     language: str = "en",
 ) -> dict:
-    tone_desc = _COMMENT_TONES.get(brand_tone, _COMMENT_TONES["friendly"])
     replies = []
 
     for i, comment_item in enumerate(comments[:10]):
@@ -4137,8 +4142,8 @@ def generate_bio_optimizer(
         "cta_options": [
             cta_goal,
             f"DM '{kws[0].split('|')[0].strip()}' to get started",
-            f"Free consultation → Link below",
-            f"Download my free guide 👇",
+            "Free consultation → Link below",
+            "Download my free guide 👇",
         ],
         "tone": tone,
         "headline_options": [
@@ -4285,11 +4290,9 @@ def generate_bulk_posts(
     brand_keywords: list,
     usp: str,
 ) -> dict:
-    import random
     co = company_name or "Your Company"
     count = min(max(count, 5), 30)
     topics = _BULK_TOPICS.get(industry, _BULK_TOPICS["technology"])
-    tone_guide = _BRAND_TONE_GUIDES.get(tone, _BRAND_TONE_GUIDES["professional"])
     fmt = _BULK_FORMATS.get(platform, _BULK_FORMATS["instagram"])
     structures = fmt["structures"]
     hooks = fmt.get("hooks", ["💡", "🔥", "✅"])
@@ -4319,7 +4322,7 @@ def generate_bulk_posts(
             headline = f"Real talk about {topic} — what nobody says out loud"
             body = f"We get it. {topic} can feel overwhelming. But here at {co}, we've helped dozens of {target_audience or 'businesses'} crack the code. The secret? {usp or kw}."
             point1 = f"Don't overthink it — start small with {topic}"
-            point2 = f"One step at a time beats zero steps forever"
+            point2 = "One step at a time beats zero steps forever"
             point3 = f"The right partner ({co}!) makes all the difference"
             question = f"Struggling with {topic}? You're not alone."
         else:
@@ -4494,8 +4497,6 @@ def generate_content_calendar(
     co = company_name or "Your Company"
     plats = platforms if platforms else ["instagram", "linkedin"]
     pillars = _CONTENT_PILLARS_BY_INDUSTRY.get(industry, _CONTENT_PILLARS_BY_INDUSTRY["technology"])
-    tone_guide = _BRAND_TONE_GUIDES.get(tone, _BRAND_TONE_GUIDES["professional"])
-
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     calendar = []
 
@@ -4743,7 +4744,7 @@ def generate_youtube_description(
     full_description = _YT_DESCRIPTION_TEMPLATE.format(
         hook=hook, body=body, chapters_section=chapters_section,
         about_section=about_section, links_section=links_section,
-        category=video_category, subscribe_cta=f"[Subscribe button]",
+        category=video_category, subscribe_cta="[Subscribe button]",
         tags_section=tags_section,
     )
 
@@ -4827,7 +4828,7 @@ def generate_reel_script(
         f"🎬 HOOK — {hook_filled}",
         f"📌 Introduce the core problem/topic: {topic} and why it matters to {audience}",
         f"💡 Key insight or step 1 related to {topic} — keep it visual and punchy",
-        f"✨ Key insight or step 2 / result — show don't tell",
+        "✨ Key insight or step 2 / result — show don't tell",
         f"🚀 CTA: {goal_info['cta']}",
     ]
     for i, (scene, content) in enumerate(zip(structure, scene_contents[:len(structure)])):
@@ -4877,12 +4878,12 @@ def generate_reel_script(
 
     # Pro tips
     pro_tips = [
-        f"Post between 7-9 PM IST for maximum Indian audience reach",
+        "Post between 7-9 PM IST for maximum Indian audience reach",
         f"First 3 seconds decide everything — nail the hook: '{hook_filled}'",
-        f"Add closed captions — 85% of Reels are watched without sound",
-        f"Use the 'Collab' feature to co-post with complementary brands",
+        "Add closed captions — 85% of Reels are watched without sound",
+        "Use the 'Collab' feature to co-post with complementary brands",
         f"Target metric for this Reel: {goal_info['metric']}",
-        f"Repurpose this script for YouTube Shorts and LinkedIn Video",
+        "Repurpose this script for YouTube Shorts and LinkedIn Video",
     ]
 
     return {
@@ -4920,7 +4921,6 @@ def generate_review_testimonial_kit(
     company   = business_name or "Your Business"
     owner     = owner_name or "The Team"
     product   = product_service or "our products/services"
-    biz_type  = business_type or "retail"
     platform  = _REVIEW_CHANNELS.get(review_platform, _REVIEW_CHANNELS["google"])
     wa_key    = "b2b_professional" if customer_type == "b2b" else "b2c_warm"
 
@@ -4995,8 +4995,8 @@ def generate_review_testimonial_kit(
         "incentive_ideas": _INCENTIVE_IDEAS,
         "timing_guide": _REVIEW_TIMING,
         "pro_tips": [
-            f"India-specific: WhatsApp has 90%+ open rate vs 20% for email — always lead with WhatsApp",
-            f"Best time to send: 7-9 PM IST (post-dinner, highest phone usage in India)",
+            "India-specific: WhatsApp has 90%+ open rate vs 20% for email — always lead with WhatsApp",
+            "Best time to send: 7-9 PM IST (post-dinner, highest phone usage in India)",
             f"{platform['name']}: {platform['impact']}",
             "Never ask for '5 stars' explicitly — just ask for 'honest feedback' to avoid policy violations",
             "Personalise the customer's name — personalised requests get 3x higher response rates",
@@ -5026,10 +5026,10 @@ def generate_linkedin_article(
 
     demo_points = key_points if key_points else [
         f"Most {ind} companies optimise for acquisition but lose on retention — the math doesn't work",
-        f"The top 3 loyalty drivers in Indian B2B are response time, personalisation, and perceived value (not price)",
-        f"A 5% improvement in retention increases profit by 25-95% (Bain & Company)",
-        f"WhatsApp-first support has 3x higher satisfaction scores than email-first for Indian SMBs",
-        f"Loyalty programs that reward behaviour (not just spend) drive 40% higher engagement",
+        "The top 3 loyalty drivers in Indian B2B are response time, personalisation, and perceived value (not price)",
+        "A 5% improvement in retention increases profit by 25-95% (Bain & Company)",
+        "WhatsApp-first support has 3x higher satisfaction scores than email-first for Indian SMBs",
+        "Loyalty programs that reward behaviour (not just spend) drive 40% higher engagement",
     ]
 
     structure = goal_cfg["structure"]
@@ -5163,16 +5163,16 @@ def generate_podcast_content_kit(
     demo_points = key_points if key_points else [
         f"Most {audience} make the mistake of scaling headcount before product-market fit",
         f"Revenue-based financing is an underused alternative to VC in {ind}",
-        f"The 'default alive' metric: if you stopped hiring today, would you reach profitability?",
-        f"Building in public increases trust and reduces CAC by 30-40% for B2B brands",
-        f"The best time to fundraise is when you don't need it — leverage matters",
+        "The 'default alive' metric: if you stopped hiring today, would you reach profitability?",
+        "Building in public increases trust and reduces CAC by 30-40% for B2B brands",
+        "The best time to fundraise is when you don't need it — leverage matters",
     ]
 
     guest_or_host = guest if guest else host
     topic_short = title.split(":")[0].strip() if ":" in title else title[:40]
 
     # LinkedIn post
-    linkedin_hook = f"I just finished recording an episode with {guest_or_host} and I'm still thinking about it." if guest else f"We just released a new episode and I can't stop thinking about one insight from it."
+    linkedin_hook = f"I just finished recording an episode with {guest_or_host} and I'm still thinking about it." if guest else "We just released a new episode and I can't stop thinking about one insight from it."
     linkedin_points = "\n".join([f"→ {pt}" for pt in demo_points[:4]])
     linkedin_post = f"""{linkedin_hook}
 
@@ -5340,7 +5340,7 @@ def _generate_twitter_thread_legacy(
         })
 
     engagement_hooks = [
-        f"Tweet 2: Ask 'Which of these surprised you most?' — easy reply, algorithm boost",
+        "Tweet 2: Ask 'Which of these surprised you most?' — easy reply, algorithm boost",
         f"Tweet {len(pattern)//2}: Add a poll 'Do you do X or Y?' — polls get 10x more engagement than regular tweets",
         f"Final tweet: 'RT if this helped one person in {industry or 'your industry'}' — social proof ask works",
     ]
@@ -5578,7 +5578,7 @@ Follow {brand} for weekly {topic_clean} insights.
         "Slide 1 thumbnail is critical — it shows in the feed. Make it bold, high-contrast, and text-heavy.",
         "Comment on your own post within the first 60 minutes — it boosts early algorithmic distribution.",
         "Repurpose this carousel: break each slide into a standalone Twitter thread post.",
-        f"Tag 2-3 relevant people in the caption who'd find this useful (not random tagging — genuine picks).",
+        "Tag 2-3 relevant people in the caption who'd find this useful (not random tagging — genuine picks).",
         "First carousel usually gets 50% less reach than your 5th — consistency beats perfection.",
     ]
 
@@ -5728,12 +5728,12 @@ Best,
     brief_outline = [
         f"Brand Overview: {brand} — {industry or 'leading brand'} focused on {campaign_goal}",
         f"Product to Feature: {product}",
-        f"Key Message: [1-2 sentence message you want the audience to take away]",
+        "Key Message: [1-2 sentence message you want the audience to take away]",
         f"Dos: Authentic storytelling, show product in real use, tag @{brand.lower().replace(' ', '')}",
-        f"Don'ts: No competitor mentions, no false claims, disclose #ad or #sponsored",
+        "Don'ts: No competitor mentions, no false claims, disclose #ad or #sponsored",
         f"Hashtags: #{brand.lower().replace(' ', '')} + [2-3 campaign hashtags]",
-        f"Approval: Send draft 72h before posting for brand review",
-        f"Payment: Within 7 days of content going live (with invoice)",
+        "Approval: Send draft 72h before posting for brand review",
+        "Payment: Within 7 days of content going live (with invoice)",
     ]
 
     do_dont = {
@@ -5973,7 +5973,7 @@ def generate_viral_hooks(
         "platform_tips": platform_tips,
         "top_pick":     top_hook.get("formula", ""),
         "top_hook_text": top_hook.get("main_hook", ""),
-        "pro_tip": f"Test 2-3 hooks per week. Track 48h engagement. The hook that gets 2x comments becomes your content pillar for the month.",
+        "pro_tip": "Test 2-3 hooks per week. Track 48h engagement. The hook that gets 2x comments becomes your content pillar for the month.",
         "summary": f"Generated {len(hooks_generated)} viral hook formulas for '{topic_clean}'. Top pick: {top_hook.get('formula','')} ({top_hook.get('ctr_boost','')}) — {top_hook.get('psychology','')}.",
     }
 
@@ -6001,9 +6001,10 @@ async def plan_content_scheduler(
     language:   str = "en",
 ) -> dict:
     """Rich AI content scheduler with optimal times, captions, and pillar distribution."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
-    from datetime import datetime, timedelta, timezone
     import json
+    from datetime import datetime, timedelta, timezone
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     today = datetime.now(timezone.utc)
     platform_str = ", ".join(platforms)
@@ -6127,8 +6128,10 @@ async def generate_ab_copy(
     language:   str = "en",
 ) -> dict:
     """Generate N post variations with different hooks, score each, rank by predicted engagement."""
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
-    import json, random
+    import json
+    import random
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     variations = min(max(variations, 2), 6)
     hooks = random.sample(_HOOK_TYPES, variations)
@@ -6229,8 +6232,9 @@ async def respond_to_mentions(
     Categorize and draft replies for social media mentions/comments.
     Each mention: {id, platform, author, text, likes, is_verified}
     """
-    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
     import json
+
+    from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
 
     if not mentions:
         return {"error": "No mentions provided"}
@@ -6363,8 +6367,12 @@ def calculate_social_roi(
         cvr    = round(conv  / leads * 100, 1) if leads else 0
         profit = round(rev - spend, 0)
 
-        total_spend += spend; total_rev += rev; total_leads += leads
-        total_conv  += conv;  total_impressions += impr; total_clicks += clicks
+        total_spend += spend
+        total_rev += rev
+        total_leads += leads
+        total_conv += conv
+        total_impressions += impr
+        total_clicks += clicks
 
         platform_rows.append({
             "platform":    c.get("platform", "Unknown"),
@@ -6466,7 +6474,7 @@ async def generate_employee_advocacy(
     hooks = _ADVOCACY_HOOKS[hook_cat][:num_variants]
 
     try:
-        from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+        from backend.llm.ollama_openai import OLLAMA_MODEL, ollama_chat_completion
         posts_raw = await ollama_chat_completion(
             messages=[
                 {"role": "system", "content": f"You generate {num_variants} distinct LinkedIn/social posts for employee advocacy. Language: {language}. Tone: {tone}. Each post: 3-5 sentences, starts with a hook, ends with a question or CTA. Output as JSON array with keys: hook, body, cta, hashtags (array of 3-5)."},
@@ -6550,8 +6558,6 @@ def competitor_content_spy(
 
     # Gap analysis — what competitors aren't doing
     comp_strengths = " ".join(c.get("strengths", "") for c in competitors).lower()
-    comp_weaknesses = " ".join(c.get("weaknesses", "") for c in competitors).lower()
-
     gaps = []
     if "regional" not in comp_strengths and "tamil" not in comp_strengths and "hindi" not in comp_strengths:
         gaps.append({"gap": "Regional Language Content", "opportunity": f"None of your competitors post in regional languages. {brand_name} can own Tamil/Hindi audience.", "priority": "High"})

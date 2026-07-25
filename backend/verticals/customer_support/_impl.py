@@ -1,11 +1,14 @@
 """Customer Support Agent — WhatsApp-first, India SMB focused."""
 from __future__ import annotations
+
 import json
 from datetime import datetime
 
 
 def _llm(prompt: str, system: str = "") -> str:
-    import asyncio, concurrent.futures, time
+    import asyncio
+    import concurrent.futures
+    import time
 
     msgs: list[dict] = []
     if system:
@@ -14,7 +17,8 @@ def _llm(prompt: str, system: str = "") -> str:
 
     def _run_in_thread() -> str:
         from openai import AsyncOpenAI
-        from backend.llm.ollama_openai import OLLAMA_BASE_URL, OLLAMA_API_KEY, OLLAMA_MODEL
+
+        from backend.llm.ollama_openai import OLLAMA_API_KEY, OLLAMA_BASE_URL, OLLAMA_MODEL
 
         async def _call() -> str:
             client = AsyncOpenAI(base_url=OLLAMA_BASE_URL, api_key=OLLAMA_API_KEY, timeout=90.0, max_retries=0)
@@ -362,7 +366,7 @@ Format as JSON array "templates" with objects having keys: variation, subject_or
             },
             {
                 "variation": "Friendly",
-                "subject_or_opening": f"Hey [CUSTOMER_NAME]! 👋",
+                "subject_or_opening": "Hey [CUSTOMER_NAME]! 👋",
                 "body": f"Thanks for getting in touch about your {scenario}. We're on it and will get back to you soon!",
                 "closing": "Cheers! 😊\nSupport Team",
                 "use_case": "Casual customer communication",
@@ -593,7 +597,8 @@ Output JSON:
 }}"""
             raw = _llm(prompt, system=sys_prompt)
             try:
-                start = raw.index("{"); end = raw.rindex("}") + 1
+                start = raw.index("{")
+                end = raw.rindex("}") + 1
                 data = json.loads(raw[start:end])
             except Exception:
                 data = {"suggested_text": raw[:200], "category": "other", "confidence": "low"}
@@ -902,8 +907,8 @@ Output JSON:
 
 
 async def call_llm(prompt: str, system: str = "") -> str:
-    from backend.llm.ollama_openai import ollama_chat_completion
-    return await ollama_chat_completion(messages=[{"role": "user", "content": prompt}], system=system)
+    from backend.llm.llm_router import call_llm as _router
+    return await _router(prompt, system)
 
 
 # ── Support Command Center ────────────────────────────────────────────────────
@@ -994,7 +999,8 @@ Return ONLY valid JSON in this exact format:
   "top_improvement": "single most impactful change to make"
 }}"""
     raw = await call_llm(prompt, "You are a CX quality expert.")
-    import json, re
+    import json
+    import re
     try:
         m = re.search(r'\{[\s\S]*\}', raw)
         parsed = json.loads(m.group()) if m else {}
@@ -1064,13 +1070,14 @@ def _analyze_sla(tickets: list[dict], sla_rules: dict, business_name: str = "") 
     Each ticket: {id, subject, priority, created_at (ISO), first_response_at (ISO|null), resolved_at (ISO|null), assignee}
     sla_rules overrides _DEFAULT_SLA per priority.
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timezone
 
     rules = {**_DEFAULT_SLA, **sla_rules}
     now   = datetime.now(timezone.utc)
 
     def parse_dt(s):
-        if not s: return None
+        if not s:
+            return None
         try:
             if s.endswith("Z"):
                 s = s[:-1] + "+00:00"
@@ -1156,8 +1163,10 @@ def _analyze_sla(tickets: list[dict], sla_rules: dict, business_name: str = "") 
             if a not in assignee_map:
                 assignee_map[a] = {"assignee": a, "total": 0, "breached": 0, "resolved": 0}
             assignee_map[a]["total"] += 1
-            if t.get("res_breached"): assignee_map[a]["breached"] += 1
-            if t.get("resolved"):     assignee_map[a]["resolved"] += 1
+            if t.get("res_breached"):
+                assignee_map[a]["breached"] += 1
+            if t.get("resolved"):
+                assignee_map[a]["resolved"] += 1
 
     return {
         "action":           "analyze_sla",
@@ -1741,7 +1750,6 @@ def _escalation_manager(
     escalation_email: str  = "",
     language:         str  = "en",
 ) -> dict:
-    import re
     from datetime import datetime, timezone
 
     r = {**_DEFAULT_ESC_RULES, **rules}
@@ -2138,7 +2146,7 @@ If you've moved on for good, no hard feelings — just let me know and I'll stop
         {
             "sequence_day": 45,
             "label":        "Email 4 — The Breakup (Final)",
-            "subject":      f"This is our last email, {{first_name}} — closing your file",
+            "subject":      "This is our last email, {first_name} — closing your file",
             "body":         f"""Hi {{first_name}},
 
 I don't want to fill your inbox if {product} isn't right for you anymore.
@@ -2474,16 +2482,24 @@ def _agent_performance_scorecard(
             return 100
         ratio = actual / target
         if lower_is_better:
-            if ratio <= 0.5:  return 100
-            if ratio <= 0.75: return 90
-            if ratio <= 1.0:  return 75
-            if ratio <= 1.5:  return 50
+            if ratio <= 0.5:
+                return 100
+            if ratio <= 0.75:
+                return 90
+            if ratio <= 1.0:
+                return 75
+            if ratio <= 1.5:
+                return 50
             return 20
         else:
-            if ratio >= 1.5:  return 100
-            if ratio >= 1.2:  return 90
-            if ratio >= 1.0:  return 75
-            if ratio >= 0.8:  return 50
+            if ratio >= 1.5:
+                return 100
+            if ratio >= 1.2:
+                return 90
+            if ratio >= 1.0:
+                return 75
+            if ratio >= 0.8:
+                return 50
             return 20
 
     metric_defs = {
@@ -2669,11 +2685,14 @@ def _nps_campaign_builder(
     for r in demo_responses:
         s = int(r.get("score", 7))
         if s >= 9:
-            seg = "promoter"; promoters += 1
+            seg = "promoter"
+            promoters += 1
         elif s >= 7:
-            seg = "passive"; passives += 1
+            seg = "passive"
+            passives += 1
         else:
-            seg = "detractor"; detractors += 1
+            seg = "detractor"
+            detractors += 1
 
         follow_up_template = _NPS_FOLLOW_UP[seg]
         _name_parts = r.get("name","Customer").split()
@@ -3685,10 +3704,10 @@ def generate_voc_report(
             "Churn": {"desc":"Monthly churn rate", "target":"<2% for SaaS / <5% for e-com"},
         },
         "next_steps": [
-            f"Share report with all department heads within 3 days",
-            f"Assign owners to each action item in the plan",
-            f"Schedule follow-up VOC review in 90 days",
-            f"Close the loop with Detractors (NPS 0–6) within 48 hours",
+            "Share report with all department heads within 3 days",
+            "Assign owners to each action item in the plan",
+            "Schedule follow-up VOC review in 90 days",
+            "Close the loop with Detractors (NPS 0–6) within 48 hours",
             f"Publish internal highlights — what customers love about {company_name}",
         ],
         "cs_notes": [
@@ -3733,20 +3752,20 @@ def generate_review_response_kit(
     if sentiment == "positive":
         bodies = [
             f"It's wonderful to know that {product_name or 'our product'} met your expectations.",
-            f"Reviews like yours remind us why we do what we do every day.",
-            f"We've shared your feedback with the team — they'll be absolutely delighted!",
+            "Reviews like yours remind us why we do what we do every day.",
+            "We've shared your feedback with the team — they'll be absolutely delighted!",
         ]
     elif sentiment == "neutral":
         bodies = [
-            f"We're glad parts of your experience were positive, and we're sorry we fell short in some areas.",
+            "We're glad parts of your experience were positive, and we're sorry we fell short in some areas.",
             f"We've noted your feedback about {product_name or 'your experience'} and are working to improve.",
-            f"Your 3-star experience tells us we have room to grow, and we take that seriously.",
+            "Your 3-star experience tells us we have room to grow, and we take that seriously.",
         ]
     else:
         resolutions = [
-            f"Please reach out to us directly so we can arrange a replacement or full refund",
-            f"We'd like to offer you a complimentary replacement at no charge",
-            f"Our team will personally follow up to make this right",
+            "Please reach out to us directly so we can arrange a replacement or full refund",
+            "We'd like to offer you a complimentary replacement at no charge",
+            "Our team will personally follow up to make this right",
         ]
         bodies = resolutions
 
@@ -4051,11 +4070,11 @@ def generate_chatbot_script(
         "faqs_covered": [{"question": q, "answer": a} for q, a in faq_list],
         "escalation_triggers": _CHATBOT_ESCALATION_TRIGGERS,
         "setup_tips": [
-            f"Upload this script to your WhatsApp Business API provider (Interakt, Wati, AiSensy)",
+            "Upload this script to your WhatsApp Business API provider (Interakt, Wati, AiSensy)",
             "Set business hours so customers know when humans are available",
             "Test every flow before going live — use a separate test number",
             "Add your most common complaint keywords to escalation triggers",
-            f"Review bot conversations weekly and add new FAQs to reduce escalations",
+            "Review bot conversations weekly and add new FAQs to reduce escalations",
         ],
         "platforms_supported": ["WhatsApp Business API", "Instagram DM", "Website chat widget", "Telegram Bot"],
     }
@@ -4280,10 +4299,10 @@ def generate_support_analytics(
         "channel_breakdown": channel_breakdown,
         "insights": insights,
         "action_items": [
-            f"Send this week's CSAT report to all agents by Monday morning.",
+            "Send this week's CSAT report to all agents by Monday morning.",
             f"Investigate the top ticket category ({category_breakdown[0]['category'] if category_breakdown else 'N/A'}) — can it be automated?",
             f"{'Reward' if agent_board else 'Track'} the top-performing agent this week — recognition drives performance.",
-            f"Review all CSAT < 3 tickets personally — find the pattern.",
+            "Review all CSAT < 3 tickets personally — find the pattern.",
         ],
     }
 
@@ -4308,24 +4327,37 @@ def generate_customer_360(
     # Health score calculation
     score = 100
     # Recency
-    if last_order_days_ago > 90:   score -= 30
-    elif last_order_days_ago > 30: score -= 15
-    elif last_order_days_ago > 14: score -= 5
+    if last_order_days_ago > 90:
+        score -= 30
+    elif last_order_days_ago > 30:
+        score -= 15
+    elif last_order_days_ago > 14:
+        score -= 5
     # Support load
-    if open_tickets > 3:  score -= 20
-    elif open_tickets > 1: score -= 10
+    if open_tickets > 3:
+        score -= 20
+    elif open_tickets > 1:
+        score -= 10
     # CSAT
-    if avg_csat < 3:   score -= 25
-    elif avg_csat < 4: score -= 10
+    if avg_csat < 3:
+        score -= 25
+    elif avg_csat < 4:
+        score -= 10
     # Resolution time
-    if avg_resolution_hrs > 48: score -= 10
-    elif avg_resolution_hrs > 24: score -= 5
+    if avg_resolution_hrs > 48:
+        score -= 10
+    elif avg_resolution_hrs > 24:
+        score -= 5
     # Payment
-    if payment_status == "overdue": score -= 20
-    elif payment_status == "at_risk": score -= 10
+    if payment_status == "overdue":
+        score -= 20
+    elif payment_status == "at_risk":
+        score -= 10
     # Positive signals
-    if has_referred: score += 10
-    if total_orders > 10: score += 5
+    if has_referred:
+        score += 10
+    if total_orders > 10:
+        score += 5
     score = max(0, min(100, score))
 
     # Segment
@@ -4370,8 +4402,8 @@ def generate_customer_360(
 
     # Timeline summary (last 5 interactions simulated)
     timeline = [
-        {"event": f"Customer joined", "days_ago": customer_since_months * 30, "type": "onboarding"},
-        {"event": f"Last order placed", "days_ago": last_order_days_ago, "type": "purchase"},
+        {"event": "Customer joined", "days_ago": customer_since_months * 30, "type": "onboarding"},
+        {"event": "Last order placed", "days_ago": last_order_days_ago, "type": "purchase"},
         {"event": f"{total_tickets} support ticket(s) raised (total)", "days_ago": 0, "type": "support"},
     ]
     if open_tickets > 0:
@@ -4660,10 +4692,10 @@ Thank you for the time you spent with us. We're rooting for you either way. 💙
 
     # WhatsApp messages
     wa_messages = {
-        f"Day 0": _WHATSAPP_WINBACK["day0"].format(customer=cust, product=product, rep=rep, business=biz),
-        f"Day 7": _WHATSAPP_WINBACK["day7"].format(customer=cust, product=product, rep=rep, business=biz),
-        f"Day 14": _WHATSAPP_WINBACK["day14"].format(customer=cust, product=product, rep=rep, business=biz, offer=offer_label),
-        f"Day 21": _WHATSAPP_WINBACK["day21"].format(customer=cust, product=product, rep=rep, business=biz, offer=offer_label),
+        "Day 0": _WHATSAPP_WINBACK["day0"].format(customer=cust, product=product, rep=rep, business=biz),
+        "Day 7": _WHATSAPP_WINBACK["day7"].format(customer=cust, product=product, rep=rep, business=biz),
+        "Day 14": _WHATSAPP_WINBACK["day14"].format(customer=cust, product=product, rep=rep, business=biz, offer=offer_label),
+        "Day 21": _WHATSAPP_WINBACK["day21"].format(customer=cust, product=product, rep=rep, business=biz, offer=offer_label),
     }
 
     # Segmentation strategy
@@ -4718,7 +4750,8 @@ def _escalation_email_generator(
     current_status: str,
     customer_tier: str,
 ) -> dict:
-    from datetime import datetime as _dt, timedelta as _td
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
 
     priority_cfg   = _PRIORITY_CONFIG.get(priority, _PRIORITY_CONFIG["high"])
     tier_note      = _CUSTOMER_TIER_NOTES.get(customer_tier, _CUSTOMER_TIER_NOTES["standard"])
@@ -4870,7 +4903,7 @@ def _kb_article_generator(
             content_hint = "List 4-6 related help articles as bullet links. Pick titles that logically follow from this article."
             sample = "\n".join(f"• [{a}](#)" for a in rel_arts[:5])
         elif section_name == "Still Need Help?" or section_name == "Contact Us" or section_name == "When to Contact Support":
-            content_hint = f"Friendly closing section with support channels. Include WhatsApp number, email, chat, and response SLA."
+            content_hint = "Friendly closing section with support channels. Include WhatsApp number, email, chat, and response SLA."
             sample = f"Can't find what you're looking for? Our support team is here to help!\n\n💬 Live Chat: Available in-app (9 AM – 6 PM IST)\n📱 WhatsApp: [Your number]\n📧 Email: support@{company.lower().replace(' ','')}.com\nWe typically respond within 4 business hours."
         elif section_name == "Top Questions" or section_name == "Detailed Answers":
             content_hint = f"List 5-8 frequently asked questions about {topic}. For each, provide a clear 1-3 sentence answer."
@@ -4966,11 +4999,11 @@ def _onboarding_sequence_builder(
     cs_rep = cs_rep_name or "Your CS Team"
 
     demo_features = key_features if key_features else [
-        f"Core dashboard and reporting",
-        f"Team collaboration and sharing",
-        f"Integrations with existing tools",
-        f"Automated workflows",
-        f"Analytics and insights",
+        "Core dashboard and reporting",
+        "Team collaboration and sharing",
+        "Integrations with existing tools",
+        "Automated workflows",
+        "Analytics and insights",
     ]
 
     default_metric = success_metric or _SUCCESS_METRICS_BY_INDUSTRY[ind_key][0]
