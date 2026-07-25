@@ -863,6 +863,10 @@ export default function CAPage() {
           { id: 'capital_gains',   label: 'Capital Gains Calc',         icon: '📈' },
           { id: 'rent_receipts',   label: 'Rent Receipts',              icon: '🏠' },
           { id: 'hra_80c',         label: 'HRA & 80C Planner',          icon: '💰' },
+          { id: 'ca_command',      label: 'CA Command Center',           icon: '🎯' },
+          { id: 'ca_goal',         label: 'CA Goal Planner',             icon: '🏆' },
+          { id: 'ca_health',       label: 'Client Health Score',         icon: '❤️' },
+          { id: 'ca_meeting',      label: 'CA Strategy Meeting',         icon: '🤖' },
         ]}
         active={tab} onChange={setTab}
         accentColor="#F59E0B"
@@ -873,6 +877,7 @@ export default function CAPage() {
           { label: 'Audit & Compliance', ids: ['audit','deadlines','compliance_cal','mca_calendar','itr','itr_checklist','directors_report','tally_analysis'] },
           { label: 'Finance',      ids: ['cashflow','pl','balance_sheet','overdue','loan','advance_tax','valuation','depreciation','capital_gains','partnership_deed','hra_80c','client_dash','startup_guide'] },
           { label: 'Client & Social', ids: ['client_email','client_query','ca_post','proposal'] },
+          { label: 'AI Brain',     ids: ['ca_command','ca_goal','ca_health','ca_meeting'] },
         ]}
       />
 
@@ -3642,6 +3647,10 @@ export default function CAPage() {
       {tab === 'capital_gains'   && <CapitalGainsTab />}
       {tab === 'rent_receipts'   && <RentReceiptsTab />}
       {tab === 'hra_80c'         && <Hra80cTab />}
+      {tab === 'ca_command'      && <CACommandCenterTab />}
+      {tab === 'ca_goal'         && <CAGoalPlannerTab />}
+      {tab === 'ca_health'       && <ClientHealthScoreTab />}
+      {tab === 'ca_meeting'      && <CAStrategyMeetingTab />}
     </PageShell>
   )
 }
@@ -5176,3 +5185,309 @@ function BalanceSheetTab() {
     </div>
   )
 }
+
+// ── CA Command Center Tab ─────────────────────────────────────────────────────
+export function CACommandCenterTab() {
+  const ws = getWorkspace<CAWorkspace>('ca')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult]   = useState<any>(null)
+  const [err, setErr]         = useState('')
+  const run = async () => {
+    if (!ws) return
+    setLoading(true); setErr(''); setResult(null)
+    try { setResult(await caAction('ca_command_center', { ...ws }, 'en')) }
+    catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="CA Command Center" sub="AI daily briefing — deadlines, client alerts, compliance health" />
+        {!ws ? (
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>Set up your workspace first to get a personalised briefing.</div>
+        ) : (
+          <>
+            <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8, fontWeight: 600 }}>Firm loaded</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {[ws.firm_name || ws.client_name, ws.business_type, ws.financial_year].filter(Boolean).map(v => (
+                  <span key={v} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}>{v}</span>
+                ))}
+                {ws.gstin && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}>GSTIN set</span>}
+              </div>
+            </div>
+            <Btn onClick={run} disabled={loading} style={{ width: '100%', padding: '14px 0', fontSize: 14, fontWeight: 700, background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#fff', border: 'none' }}>
+              {loading ? '⏳ Generating briefing…' : '🎯 Generate Morning Briefing'}
+            </Btn>
+            {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+          </>
+        )}
+      </Card>
+      <Card>
+        {result?.briefing ? (
+          <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8, color: 'var(--text-2)', overflowY: 'auto', maxHeight: 600 }}>{result.briefing}</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>🎯</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>Your CA Morning Briefing</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>Critical deadlines · Client alerts · Filing pipeline · Top 3 actions · Compliance health score</div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
+  )
+}
+
+// ── CA Goal Planner Tab ───────────────────────────────────────────────────────
+const _CA_GOALS = [
+  { label: 'GST Filing Cleanup',     value: 'gst_cleanup' },
+  { label: 'Year-End Close & Audit', value: 'year_end_close' },
+  { label: 'New Client Onboarding',  value: 'new_client' },
+  { label: 'TDS Compliance Drive',   value: 'tds_compliance' },
+  { label: 'ITR Filing Season',      value: 'itr_season' },
+  { label: 'Invoice & Receivables',  value: 'invoice_backlog' },
+  { label: 'Startup Filing',         value: 'startup_filing' },
+  { label: 'MSME Loan / Credit',     value: 'msme_loan' },
+]
+
+export function CAGoalPlannerTab() {
+  const ws = getWorkspace<CAWorkspace>('ca')
+  const [goal, setGoal]         = useState('gst_cleanup')
+  const [timeline, setTimeline] = useState('30 days')
+  const [loading, setLoading]   = useState(false)
+  const [result, setResult]     = useState<any>(null)
+  const [err, setErr]           = useState('')
+  const run = async () => {
+    if (!ws) return
+    setLoading(true); setErr(''); setResult(null)
+    try { setResult(await caAction('ca_goal_planner', { goal, timeline, ...ws }, 'en')) }
+    catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="CA Goal Planner" sub="Pick a goal — AI builds the full CA action plan" />
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>What's your goal?</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {_CA_GOALS.map(g => (
+              <button key={g.value} onClick={() => setGoal(g.value)} style={{
+                padding: '10px 14px', borderRadius: 10, fontSize: 13, textAlign: 'left', cursor: 'pointer',
+                border: `1px solid ${goal === g.value ? 'rgba(245,158,11,0.6)' : 'var(--border)'}`,
+                background: goal === g.value ? 'rgba(245,158,11,0.12)' : 'var(--surface-2)',
+                color: goal === g.value ? '#fbbf24' : 'var(--text-2)',
+                fontWeight: goal === g.value ? 600 : 400, transition: 'all 0.15s',
+              }}>{g.label}</button>
+            ))}
+          </div>
+        </div>
+        <Input label="Timeline" value={timeline} onChange={setTimeline} placeholder="e.g. 30 days, Q1 filing season" />
+        {!ws && <div style={{ fontSize: 12, color: 'var(--warning)', marginBottom: 8 }}>Set up your workspace for a personalised plan.</div>}
+        <Btn onClick={run} disabled={loading || !ws} style={{ width: '100%', padding: '12px 0', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#fff', border: 'none', marginTop: 6 }}>
+          {loading ? '⏳ Building action plan…' : '🏆 Generate Action Plan'}
+        </Btn>
+        {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+      </Card>
+      <Card>
+        {result?.campaign ? (
+          <>
+            <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}>
+              <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600 }}>🏆 {result.goal}</span>
+              {result.firm && <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 8 }}>for {result.firm}</span>}
+            </div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8, color: 'var(--text-2)', overflowY: 'auto', maxHeight: 560 }}>{result.campaign}</div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 360, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>🏆</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>Full CA Action Plan</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 280, lineHeight: 1.7 }}>Week-by-week plan · Documents needed · Compliance checkpoints · Client comms · KPIs</div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
+  )
+}
+
+// ── Client Health Score Tab ───────────────────────────────────────────────────
+const _CA_HEALTH_DIMS = [
+  { key: 'gst_compliance',   label: 'GST Compliance',   icon: '📊' },
+  { key: 'tds_status',       label: 'TDS Status',       icon: '📋' },
+  { key: 'invoice_health',   label: 'Invoice Health',   icon: '🧾' },
+  { key: 'payment_behavior', label: 'Payment Behavior', icon: '💰' },
+  { key: 'record_keeping',   label: 'Record Keeping',   icon: '📁' },
+  { key: 'risk_level',       label: 'Risk Level',       icon: '⚠️' },
+] as const
+
+export function ClientHealthScoreTab() {
+  const ws = getWorkspace<CAWorkspace>('ca')
+  const [clientName, setClientName] = useState(ws?.client_name ?? '')
+  const [gstin, setGstin]           = useState(ws?.gstin ?? '')
+  const [issues, setIssues]         = useState('')
+  const [loading, setLoading]       = useState(false)
+  const [result, setResult]         = useState<any>(null)
+  const [err, setErr]               = useState('')
+  const run = async () => {
+    setLoading(true); setErr(''); setResult(null)
+    try {
+      setResult(await caAction('client_health_score', {
+        client_name: clientName, gstin, issues,
+        filing_frequency: ws?.filing_frequency ?? 'monthly',
+      }, 'en'))
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="Client Health Score" sub="AI scores a client's financial & compliance health across 6 dimensions" />
+        <Input label="Client Name" value={clientName} onChange={setClientName} placeholder="e.g. Sharma Exports Pvt Ltd" />
+        <Input label="GSTIN" value={gstin} onChange={setGstin} placeholder="e.g. 29AADCB2230M1Z2" />
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Known Issues (optional)</label>
+          <textarea value={issues} onChange={e => setIssues(e.target.value)}
+            placeholder="e.g. 3 months GSTR-3B pending, TDS not deducted for Q2, receivables 90+ days overdue…"
+            rows={5} style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+        </div>
+        <Btn onClick={run} disabled={loading || !clientName.trim()} style={{ width: '100%', padding: '12px 0', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#fff', border: 'none' }}>
+          {loading ? '⏳ Scoring…' : '❤️ Score Client Health'}
+        </Btn>
+        {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+      </Card>
+      <Card>
+        {result?.scores ? (() => {
+          const s = result.scores
+          const r = result.reasons
+          const overall = s.overall ?? 0
+          const overallColor = overall >= 80 ? '#10B981' : overall >= 60 ? '#F59E0B' : '#EF4444'
+          return (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20, padding: '16px 20px', borderRadius: 14, background: 'var(--surface-2)', border: `1px solid ${overallColor}44` }}>
+                <div style={{ width: 70, height: 70, borderRadius: '50%', border: `4px solid ${overallColor}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: `${overallColor}12` }}>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: overallColor, lineHeight: 1 }}>{overall}</span>
+                  <span style={{ fontSize: 9, color: 'var(--text-3)' }}>/100</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+                    {overall >= 80 ? '✅ Low Risk Client' : overall >= 60 ? '⚠️ Medium Risk' : '🔴 High Risk — Act Now'}
+                  </div>
+                  {result.verdict && <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{result.verdict}</div>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                {_CA_HEALTH_DIMS.map(d => {
+                  const val = (s as any)[d.key] ?? 70
+                  const color = val >= 80 ? '#10B981' : val >= 60 ? '#F59E0B' : '#EF4444'
+                  return (
+                    <div key={d.key}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{d.icon} {d.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color }}>{val}/100</span>
+                      </div>
+                      <div style={{ height: 5, borderRadius: 3, background: 'var(--surface-2)', overflow: 'hidden' }}>
+                        <div style={{ width: `${val}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.5s ease' }} />
+                      </div>
+                      {(r as any)[d.key] && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.4 }}>{(r as any)[d.key]}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+              {result.top_action && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', marginBottom: 4 }}>💡 Top Action</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{result.top_action}</div>
+                </div>
+              )}
+            </div>
+          )
+        })() : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 360, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>❤️</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>Client Financial Health</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 260, lineHeight: 1.7 }}>GST Compliance · TDS Status · Invoice Health · Payment Behavior · Record Keeping · Risk Level</div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
+  )
+}
+
+// ── CA Strategy Meeting Tab ───────────────────────────────────────────────────
+const _CA_FOCUS = [
+  { label: 'GST & Compliance Strategy', value: 'compliance' },
+  { label: 'Tax Planning & Savings',    value: 'tax_planning' },
+  { label: 'Client Retention & Growth', value: 'client_retention' },
+  { label: 'Year-End Close Strategy',   value: 'year_end' },
+  { label: 'Audit Preparation',         value: 'audit_prep' },
+  { label: 'Business Expansion',        value: 'expansion' },
+]
+
+export function CAStrategyMeetingTab() {
+  const ws = getWorkspace<CAWorkspace>('ca')
+  const [focus, setFocus]     = useState('compliance')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult]   = useState<any>(null)
+  const [err, setErr]         = useState('')
+  const run = async () => {
+    if (!ws) return
+    setLoading(true); setErr(''); setResult(null)
+    try { setResult(await caAction('ca_strategy_meeting', { ...ws, focus }, 'en')) }
+    catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="CA Strategy Meeting" sub="4 AI agents discuss your firm — Tax Expert, Compliance, CFO, Risk Analyst" />
+        {!ws ? (
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>Set up your workspace so the agents know your firm.</div>
+        ) : (
+          <>
+            <div style={{ padding: '12px 14px', marginBottom: 14, borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {[ws.firm_name || ws.client_name, ws.business_type].filter(Boolean).map(v => (
+                <span key={v} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}>{v}</span>
+              ))}
+            </div>
+            <Select label="Meeting Focus" value={focus} onChange={setFocus} options={_CA_FOCUS} />
+            <div style={{ marginTop: 6, marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+              <strong style={{ fontSize: 12, color: 'var(--text-2)' }}>Agents in the meeting:</strong>
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {['🧑‍💼 Arjun — Tax Expert', '📋 Meena — Compliance Officer', '💼 Vikram — CFO Advisor', '⚠️ Priya — Risk Analyst'].map(a => (
+                  <span key={a} style={{ fontSize: 12, color: 'var(--text-2)' }}>{a}</span>
+                ))}
+              </div>
+            </div>
+            <Btn onClick={run} disabled={loading} style={{ width: '100%', padding: '12px 0', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#fff', border: 'none' }}>
+              {loading ? '⏳ Meeting in progress…' : '🤖 Start CA Strategy Meeting'}
+            </Btn>
+            {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+          </>
+        )}
+      </Card>
+      <Card>
+        {result?.meeting ? (
+          <>
+            <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 600 }}>🤖 CA Team — {_CA_FOCUS.find(f => f.value === focus)?.label}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{result.firm}</span>
+            </div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8, color: 'var(--text-2)', overflowY: 'auto', maxHeight: 560 }}>{result.meeting}</div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 360, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>🤖</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>CA Strategy Meeting</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 280, lineHeight: 1.7 }}>4 specialised AI agents discuss your firm's tax, compliance, financial and risk situation</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {['🧑‍💼 Tax', '📋 Compliance', '💼 CFO', '⚠️ Risk'].map(a => (
+                <span key={a} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-2)' }}>{a}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
+  )
+}
+

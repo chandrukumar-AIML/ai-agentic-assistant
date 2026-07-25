@@ -1,7 +1,7 @@
 // frontend/src/pages/CustomerSupportPage.tsx - AI Customer Support Agent
 import { useState } from 'react'
 import { csAction } from '../lib/api'
-import { PageShell, Card, Btn, Input, Select, Tabs, SectionHead, useApi } from '../components/ui'
+import { PageShell, Card, Btn, Input, Select, Tabs, SectionHead, TwoCol, useApi } from '../components/ui'
 import WorkspaceSetup from '../components/WorkspaceSetup'
 import WorkspaceBar from '../components/WorkspaceBar'
 import { getWorkspace, clearWorkspace, CSWorkspace } from '../lib/workspace'
@@ -76,6 +76,10 @@ const TABS = [
   { id: 'review_response', label: 'Review Responses' },
   { id: 'voc_report',      label: 'Voice of Customer' },
   { id: 'ticket_triage',   label: 'Ticket Triage' },
+  { id: 'cs_command',      label: 'Support Command Center' },
+  { id: 'cx_goal',         label: 'CX Goal Planner' },
+  { id: 'response_score',  label: 'Response Quality Score' },
+  { id: 'cs_meeting',      label: 'CS Strategy Meeting' },
 ]
 
 const WA_TYPES = [
@@ -1336,6 +1340,7 @@ export default function CustomerSupportPage() {
           { label: 'Customer Success', ids: ['health','churn','nps','cx360','onboarding','onboarding_seq','winback','winback_campaign','lead'] },
           { label: 'Analytics',        ids: ['sentiment','report','analytics','voc_report','scorecard','csat','csat_builder'] },
           { label: 'Content & KB',     ids: ['kb','kb_article','returns_policy','chatbot','agent_training'] },
+          { label: 'AI Brain',         ids: ['cs_command','cx_goal','response_score','cs_meeting'] },
         ]}
       />
       <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }}>
@@ -1374,6 +1379,10 @@ export default function CustomerSupportPage() {
         {tab === 'csat_builder'   && <CsatSurveyBuilderTab lang={lang} />}
         {tab === 'cx360'          && <Customer360Tab lang={lang} />}
         {tab === 'analytics'      && <SupportAnalyticsTab lang={lang} />}
+        {tab === 'cs_command'     && <SupportCommandCenterTab />}
+        {tab === 'cx_goal'        && <CXGoalPlannerTab />}
+        {tab === 'response_score' && <ResponseQualityScoreTab />}
+        {tab === 'cs_meeting'     && <CSStrategyMeetingTab />}
       </div>
     </PageShell>
   )
@@ -5258,5 +5267,313 @@ export function ReturnsPolicyTab({ lang }: { lang: string }) {
         })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill in details and click Generate Policy →</div>}
       </div>
     </div>
+  )
+}
+
+// ── Support Command Center Tab ────────────────────────────────────────────────
+export function SupportCommandCenterTab() {
+  const ws = getWorkspace<CSWorkspace>('cs')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult]   = useState<any>(null)
+  const [err, setErr]         = useState('')
+  const run = async () => {
+    if (!ws) return
+    setLoading(true); setErr(''); setResult(null)
+    try { setResult(await csAction('support_command_center', { ...ws }, 'en')) }
+    catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="Support Command Center" sub="AI daily briefing — ticket pulse, CSAT, top issues, top 3 actions" />
+        {!ws ? (
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>Set up your workspace first to get a personalised briefing.</div>
+        ) : (
+          <>
+            <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8, fontWeight: 600 }}>Workspace loaded</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {[ws.company_name, ws.business_type, ws.support_tone].filter(Boolean).map(v => (
+                  <span key={v} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>{v}</span>
+                ))}
+                {ws.sla_first_response && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}>SLA {ws.sla_first_response}h</span>}
+              </div>
+            </div>
+            <Btn onClick={run} disabled={loading} style={{ width: '100%', padding: '14px 0', fontSize: 14, fontWeight: 700, background: 'linear-gradient(135deg, #10B981, #059669)', color: '#fff', border: 'none' }}>
+              {loading ? '⏳ Generating briefing…' : '🎯 Generate Morning Briefing'}
+            </Btn>
+            {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+          </>
+        )}
+      </Card>
+      <Card>
+        {result?.briefing ? (
+          <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8, color: 'var(--text-2)', overflowY: 'auto', maxHeight: 600 }}>{result.briefing}</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>🎯</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>Your Support Morning Briefing</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>Ticket pulse · CSAT watch · Top issues · Agent health · Top 3 actions · Support health score</div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
+  )
+}
+
+// ── CX Goal Planner Tab ───────────────────────────────────────────────────────
+const _CX_GOALS = [
+  { label: 'Improve CSAT Score',          value: 'improve_csat' },
+  { label: 'Reduce First Response Time',  value: 'reduce_response' },
+  { label: 'Reduce Customer Churn',       value: 'reduce_churn' },
+  { label: 'Handle Ticket Spike',         value: 'handle_spike' },
+  { label: 'Launch Knowledge Base',       value: 'launch_kb' },
+  { label: 'Improve First Contact Res.',  value: 'improve_fcr' },
+  { label: 'Agent Skill Improvement',     value: 'agent_coaching' },
+  { label: 'NPS Improvement Campaign',    value: 'nps_campaign' },
+]
+
+export function CXGoalPlannerTab() {
+  const ws = getWorkspace<CSWorkspace>('cs')
+  const [goal, setGoal]         = useState('improve_csat')
+  const [timeline, setTimeline] = useState('30 days')
+  const [loading, setLoading]   = useState(false)
+  const [result, setResult]     = useState<any>(null)
+  const [err, setErr]           = useState('')
+  const run = async () => {
+    if (!ws) return
+    setLoading(true); setErr(''); setResult(null)
+    try { setResult(await csAction('cx_goal_planner', { goal, timeline, ...ws }, 'en')) }
+    catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="CX Goal Planner" sub="Pick a goal — AI builds the full CX action plan" />
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>What's your goal?</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {_CX_GOALS.map(g => (
+              <button key={g.value} onClick={() => setGoal(g.value)} style={{
+                padding: '10px 14px', borderRadius: 10, fontSize: 13, textAlign: 'left', cursor: 'pointer',
+                border: `1px solid ${goal === g.value ? 'rgba(16,185,129,0.6)' : 'var(--border)'}`,
+                background: goal === g.value ? 'rgba(16,185,129,0.12)' : 'var(--surface-2)',
+                color: goal === g.value ? '#34d399' : 'var(--text-2)',
+                fontWeight: goal === g.value ? 600 : 400, transition: 'all 0.15s',
+              }}>{g.label}</button>
+            ))}
+          </div>
+        </div>
+        <Input label="Timeline" value={timeline} onChange={setTimeline} placeholder="e.g. 30 days, Q3 2026" />
+        {!ws && <div style={{ fontSize: 12, color: 'var(--warning)', marginBottom: 8 }}>Set up your workspace for a personalised plan.</div>}
+        <Btn onClick={run} disabled={loading || !ws} style={{ width: '100%', padding: '12px 0', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, #10B981, #059669)', color: '#fff', border: 'none', marginTop: 6 }}>
+          {loading ? '⏳ Building action plan…' : '🏆 Generate CX Action Plan'}
+        </Btn>
+        {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+      </Card>
+      <Card>
+        {result?.campaign ? (
+          <>
+            <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)' }}>
+              <span style={{ fontSize: 12, color: '#34d399', fontWeight: 600 }}>🏆 {result.goal}</span>
+              {result.company && <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 8 }}>for {result.company}</span>}
+            </div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8, color: 'var(--text-2)', overflowY: 'auto', maxHeight: 560 }}>{result.campaign}</div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 360, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>🏆</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>Full CX Action Plan</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 280, lineHeight: 1.7 }}>Week-by-week plan · Quick wins · KPIs · Agent enablement · Customer comms · Risk flags</div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
+  )
+}
+
+// ── Response Quality Score Tab ────────────────────────────────────────────────
+const _CS_SCORE_DIMS = [
+  { key: 'empathy',      label: 'Empathy',       icon: '❤️' },
+  { key: 'clarity',      label: 'Clarity',        icon: '💡' },
+  { key: 'resolution',   label: 'Resolution',     icon: '✅' },
+  { key: 'tone',         label: 'Tone',           icon: '🎙️' },
+  { key: 'completeness', label: 'Completeness',   icon: '📋' },
+  { key: 'brand_voice',  label: 'Brand Voice',    icon: '🏷️' },
+] as const
+
+const _CS_TIERS = [
+  { label: 'Standard', value: 'Standard' }, { label: 'Premium', value: 'Premium' },
+  { label: 'Enterprise', value: 'Enterprise' }, { label: 'VIP', value: 'VIP' },
+]
+
+export function ResponseQualityScoreTab() {
+  const [responseText, setResponseText] = useState('')
+  const [subject, setSubject]           = useState('')
+  const [tier, setTier]                 = useState('Standard')
+  const [loading, setLoading]           = useState(false)
+  const [result, setResult]             = useState<any>(null)
+  const [err, setErr]                   = useState('')
+  const run = async () => {
+    setLoading(true); setErr(''); setResult(null)
+    try {
+      setResult(await csAction('response_quality_score', {
+        response_text: responseText, ticket_subject: subject, customer_tier: tier,
+      }, 'en'))
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="Response Quality Score" sub="AI scores your draft reply before you send — know if it will satisfy the customer" />
+        <Input label="Ticket Subject (optional)" value={subject} onChange={setSubject} placeholder="e.g. Refund not processed after 30 days" />
+        <Select label="Customer Tier" value={tier} onChange={setTier} options={_CS_TIERS} />
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Draft Response</label>
+          <textarea value={responseText} onChange={e => setResponseText(e.target.value)}
+            placeholder="Paste your draft customer response here…"
+            rows={8} style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+        </div>
+        <Btn onClick={run} disabled={loading || !responseText.trim()} style={{ width: '100%', padding: '12px 0', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, #10B981, #059669)', color: '#fff', border: 'none' }}>
+          {loading ? '⏳ Scoring…' : '⭐ Score My Response'}
+        </Btn>
+        {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+      </Card>
+      <Card>
+        {result?.scores ? (() => {
+          const s = result.scores
+          const r = result.reasons
+          const overall = s.overall ?? 0
+          const overallColor = overall >= 80 ? '#10B981' : overall >= 60 ? '#F59E0B' : '#EF4444'
+          return (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20, padding: '16px 20px', borderRadius: 14, background: 'var(--surface-2)', border: `1px solid ${overallColor}44` }}>
+                <div style={{ width: 70, height: 70, borderRadius: '50%', border: `4px solid ${overallColor}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: `${overallColor}12` }}>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: overallColor, lineHeight: 1 }}>{overall}</span>
+                  <span style={{ fontSize: 9, color: 'var(--text-3)' }}>/100</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+                    {overall >= 80 ? '🚀 Send it — strong response' : overall >= 60 ? '⚠️ Revise before sending' : '🔧 Major rewrite needed'}
+                  </div>
+                  {result.verdict && <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{result.verdict}</div>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                {_CS_SCORE_DIMS.map(d => {
+                  const val = (s as any)[d.key] ?? 70
+                  const color = val >= 80 ? '#10B981' : val >= 60 ? '#F59E0B' : '#EF4444'
+                  return (
+                    <div key={d.key}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{d.icon} {d.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color }}>{val}/100</span>
+                      </div>
+                      <div style={{ height: 5, borderRadius: 3, background: 'var(--surface-2)', overflow: 'hidden' }}>
+                        <div style={{ width: `${val}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.5s ease' }} />
+                      </div>
+                      {(r as any)[d.key] && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.4 }}>{(r as any)[d.key]}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+              {result.top_improvement && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', marginBottom: 4 }}>💡 Top Improvement</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{result.top_improvement}</div>
+                </div>
+              )}
+            </div>
+          )
+        })() : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 360, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>⭐</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>Response Quality Scores</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 260, lineHeight: 1.7 }}>Empathy · Clarity · Resolution · Tone · Completeness · Brand Voice — scored 0–100 before you send</div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
+  )
+}
+
+// ── CS Strategy Meeting Tab ───────────────────────────────────────────────────
+const _CS_FOCUS = [
+  { label: 'CSAT & Satisfaction',     value: 'csat' },
+  { label: 'Churn Prevention',        value: 'churn' },
+  { label: 'Escalation Management',   value: 'escalation' },
+  { label: 'Team Capacity & Hiring',  value: 'capacity' },
+  { label: 'Automation & Self-Service', value: 'automation' },
+  { label: 'Voice of Customer',       value: 'voc' },
+]
+
+export function CSStrategyMeetingTab() {
+  const ws = getWorkspace<CSWorkspace>('cs')
+  const [focus, setFocus]     = useState('csat')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult]   = useState<any>(null)
+  const [err, setErr]         = useState('')
+  const run = async () => {
+    if (!ws) return
+    setLoading(true); setErr(''); setResult(null)
+    try { setResult(await csAction('cs_strategy_meeting', { ...ws, focus }, 'en')) }
+    catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="CS Strategy Meeting" sub="4 AI agents discuss your support — CX Director, Quality, Retention, Escalation" />
+        {!ws ? (
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>Set up your workspace so the agents know your company.</div>
+        ) : (
+          <>
+            <div style={{ padding: '12px 14px', marginBottom: 14, borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {[ws.company_name, ws.business_type].filter(Boolean).map(v => (
+                <span key={v} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)' }}>{v}</span>
+              ))}
+            </div>
+            <Select label="Meeting Focus" value={focus} onChange={setFocus} options={_CS_FOCUS} />
+            <div style={{ marginTop: 6, marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+              <strong style={{ fontSize: 12, color: 'var(--text-2)' }}>Agents in the meeting:</strong>
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {['👩‍💼 Kavitha — CX Director', '🔍 Rohan — Quality Lead', '💚 Ananya — Retention Specialist', '⚡ Dev — Escalation Manager'].map(a => (
+                  <span key={a} style={{ fontSize: 12, color: 'var(--text-2)' }}>{a}</span>
+                ))}
+              </div>
+            </div>
+            <Btn onClick={run} disabled={loading} style={{ width: '100%', padding: '12px 0', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, #10B981, #059669)', color: '#fff', border: 'none' }}>
+              {loading ? '⏳ Meeting in progress…' : '🤖 Start CS Strategy Meeting'}
+            </Btn>
+            {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+          </>
+        )}
+      </Card>
+      <Card>
+        {result?.meeting ? (
+          <>
+            <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: '#34d399', fontWeight: 600 }}>🤖 CS Team — {_CS_FOCUS.find(f => f.value === focus)?.label}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{result.company}</span>
+            </div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8, color: 'var(--text-2)', overflowY: 'auto', maxHeight: 560 }}>{result.meeting}</div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 360, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>🤖</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>CS Strategy Meeting</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 280, lineHeight: 1.7 }}>4 specialised AI agents discuss your support situation and make decisions together</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {['👩‍💼 CX Director', '🔍 Quality', '💚 Retention', '⚡ Escalation'].map(a => (
+                <span key={a} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-2)' }}>{a}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
   )
 }

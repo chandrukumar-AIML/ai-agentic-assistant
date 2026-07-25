@@ -1351,7 +1351,168 @@ async def ca_agent(
             language=language,
         )
 
+    elif action == "ca_command_center":
+        return await generate_ca_command_center(payload, language)
+    elif action == "ca_goal_planner":
+        return await generate_ca_goal_plan(
+            goal=payload.get("goal", "gst_cleanup"),
+            workspace=payload,
+            timeline=payload.get("timeline", "30 days"),
+            language=language,
+        )
+    elif action == "client_health_score":
+        return await score_client_health(
+            client_name=payload.get("client_name", ""),
+            gstin=payload.get("gstin", ""),
+            issues=payload.get("issues", ""),
+            filing_frequency=payload.get("filing_frequency", "monthly"),
+            language=language,
+        )
+    elif action == "ca_strategy_meeting":
+        return await run_ca_strategy_meeting(
+            workspace=payload,
+            focus=payload.get("focus", "compliance"),
+            language=language,
+        )
+
     return {"error": f"Unknown CA action: {action}"}
+
+
+# ── CA Command Center ─────────────────────────────────────────────────────────
+async def generate_ca_command_center(workspace: dict, language: str) -> dict:
+    firm = workspace.get("firm_name") or workspace.get("client_name") or "the firm"
+    fy   = workspace.get("financial_year", "2025-26")
+    freq = workspace.get("filing_frequency", "monthly")
+    btype= workspace.get("business_type", "")
+    prompt = f"""You are an expert CA assistant giving a morning command center briefing.
+
+Firm: {firm} | FY: {fy} | Filing: {freq} | Type: {btype}
+
+Generate a structured daily CA briefing with these exact sections:
+1. CRITICAL DEADLINES THIS WEEK — List the top 3 compliance deadlines with dates
+2. CLIENT ALERTS — 3 things that need immediate CA attention
+3. FILING PIPELINE — Status of key returns (GSTR-1, GSTR-3B, TDS, ITR, etc.) for {freq} frequency
+4. CASH FLOW WATCH — Key financial indicators to monitor today
+5. TOP 3 ACTIONS — The 3 most important things to do today
+6. COMPLIANCE HEALTH SCORE — Rate the overall compliance health 0-100 with one-line verdict
+
+Format clearly with bold section headers. Be specific and actionable for an Indian CA.
+Language: {language}"""
+    result = await call_llm(prompt, "You are an expert Indian CA assistant.")
+    return {"briefing": result, "firm": firm, "fy": fy}
+
+
+# ── CA Goal Planner ──────────────────────────────────────────────────────────
+_CA_GOAL_LABELS = {
+    "gst_cleanup":     "GST Filing Cleanup",
+    "year_end_close":  "Year-End Close & Audit Prep",
+    "new_client":      "New Client Onboarding",
+    "tds_compliance":  "TDS Compliance Drive",
+    "itr_season":      "ITR Filing Season",
+    "invoice_backlog": "Invoice & Receivables Cleanup",
+    "startup_filing":  "Startup Incorporation & Filing",
+    "msme_loan":       "MSME Loan / Credit Support",
+}
+
+async def generate_ca_goal_plan(goal: str, workspace: dict, timeline: str, language: str) -> dict:
+    firm  = workspace.get("firm_name") or workspace.get("client_name") or "the firm"
+    gstin = workspace.get("gstin", "")
+    btype = workspace.get("business_type", "")
+    label = _CA_GOAL_LABELS.get(goal, goal.replace("_", " ").title())
+    prompt = f"""You are an expert Indian CA creating a full action plan.
+
+Goal: {label}
+Firm: {firm} | GSTIN: {gstin} | Type: {btype} | Timeline: {timeline}
+
+Generate a detailed CA action plan with:
+1. GOAL SUMMARY — What success looks like in one sentence
+2. WEEK-BY-WEEK PLAN — Break {timeline} into weekly milestones with specific tasks
+3. KEY DOCUMENTS REQUIRED — Checklist of documents to gather
+4. COMPLIANCE CHECKPOINTS — Critical deadlines and filings along the way
+5. CLIENT COMMUNICATION — Template messages/emails to send to client
+6. RISK FLAGS — Potential issues to watch out for
+7. SUCCESS KPIs — How to measure completion
+
+Be specific to Indian CA practice. Language: {language}"""
+    result = await call_llm(prompt, "You are an expert Indian Chartered Accountant.")
+    return {"campaign": result, "goal": label, "firm": firm}
+
+
+# ── Client Financial Health Score ────────────────────────────────────────────
+async def score_client_health(client_name: str, gstin: str, issues: str, filing_frequency: str, language: str) -> dict:
+    prompt = f"""You are an expert CA scoring a client's financial compliance health.
+
+Client: {client_name} | GSTIN: {gstin} | Filing Frequency: {filing_frequency}
+Reported Issues: {issues or 'None specified'}
+
+Score this client on 6 dimensions (0-100 each):
+
+1. GST_COMPLIANCE — Timely GSTR filings, no late fees, ITC matching
+2. TDS_STATUS — TDS deducted, deposited on time, returns filed
+3. INVOICE_HEALTH — GST invoices properly raised, e-invoice compliance
+4. PAYMENT_BEHAVIOR — Timely payments, no bounced cheques, receivables age
+5. RECORD_KEEPING — Books up to date, Tally/accounting software in use
+6. RISK_LEVEL — Overall regulatory risk (higher score = lower risk)
+
+Return ONLY valid JSON in this exact format:
+{{
+  "scores": {{"gst_compliance": 0-100, "tds_status": 0-100, "invoice_health": 0-100, "payment_behavior": 0-100, "record_keeping": 0-100, "risk_level": 0-100, "overall": 0-100}},
+  "reasons": {{"gst_compliance": "one line", "tds_status": "one line", "invoice_health": "one line", "payment_behavior": "one line", "record_keeping": "one line", "risk_level": "one line"}},
+  "verdict": "one sentence overall verdict",
+  "top_action": "single most important thing to fix right now"
+}}"""
+    raw = await call_llm(prompt, "You are an expert Indian CA scoring client health.")
+    import json, re
+    try:
+        m = re.search(r'\{[\s\S]*\}', raw)
+        parsed = json.loads(m.group()) if m else {}
+    except Exception:
+        parsed = {}
+    if "scores" not in parsed:
+        parsed = {
+            "scores":  {"gst_compliance": 70, "tds_status": 70, "invoice_health": 70, "payment_behavior": 70, "record_keeping": 70, "risk_level": 70, "overall": 70},
+            "reasons": {"gst_compliance": "Unable to parse", "tds_status": "", "invoice_health": "", "payment_behavior": "", "record_keeping": "", "risk_level": ""},
+            "verdict": raw[:200], "top_action": "",
+        }
+    return {**parsed, "client": client_name}
+
+
+# ── CA Strategy Meeting ──────────────────────────────────────────────────────
+_CA_FOCUS_LABELS = {
+    "compliance": "GST & Compliance Strategy",
+    "tax_planning": "Tax Planning & Savings",
+    "client_retention": "Client Retention & Growth",
+    "year_end": "Year-End Close Strategy",
+    "audit_prep": "Audit Preparation",
+    "expansion": "Business Expansion Advisory",
+}
+
+async def run_ca_strategy_meeting(workspace: dict, focus: str, language: str) -> dict:
+    firm  = workspace.get("firm_name") or workspace.get("client_name") or "the client"
+    gstin = workspace.get("gstin", "")
+    btype = workspace.get("business_type", "")
+    fy    = workspace.get("financial_year", "2025-26")
+    label = _CA_FOCUS_LABELS.get(focus, focus.replace("_", " ").title())
+    prompt = f"""You are running an AI CA strategy meeting with 4 expert agents.
+
+Firm: {firm} | GSTIN: {gstin} | Type: {btype} | FY: {fy}
+Meeting Focus: {label}
+
+Each agent speaks in their own voice with their name prefix:
+
+🧑‍💼 ARJUN (Tax Expert): Opens with the key tax angle — risks, savings, planning opportunities
+📋 MEENA (Compliance Officer): Flags regulatory concerns, upcoming deadlines, filing gaps
+💼 VIKRAM (CFO Advisor): Gives the financial health and cash flow perspective
+⚠️ PRIYA (Risk Analyst): Identifies the top 3 compliance and financial risks
+
+Then:
+✅ DECISIONS: 3 concrete decisions the team agrees on
+📋 ACTION ITEMS: 5 specific next steps with owner names
+🎯 MEETING VERDICT: One-sentence summary of the meeting outcome
+
+Be specific to Indian CA/taxation context. Language: {language}"""
+    result = await call_llm(prompt, "You are a senior Indian CA running a strategy meeting.")
+    return {"meeting": result, "firm": firm, "focus": label}
 
 
 # ── GST Invoice Generator (Round 4) ──────────────────────────────────────────

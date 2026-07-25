@@ -872,10 +872,173 @@ Output JSON:
                 business_name=payload.get("business_name", ""),
             )
 
+        elif action == "support_command_center":
+            return await generate_support_command_center(payload, language)
+        elif action == "cx_goal_planner":
+            return await generate_cx_goal_plan(
+                goal=payload.get("goal", "improve_csat"),
+                workspace=payload,
+                timeline=payload.get("timeline", "30 days"),
+                language=language,
+            )
+        elif action == "response_quality_score":
+            return await score_response_quality(
+                response_text=payload.get("response_text", ""),
+                ticket_subject=payload.get("ticket_subject", ""),
+                customer_tier=payload.get("customer_tier", "Standard"),
+                language=language,
+            )
+        elif action == "cs_strategy_meeting":
+            return await run_cs_strategy_meeting(
+                workspace=payload,
+                focus=payload.get("focus", "csat"),
+                language=language,
+            )
+
         else:
             return {"error": f"Unknown action: {action}"}
     except Exception as e:
         return {"error": str(e), "action": action}
+
+
+# ── Support Command Center ────────────────────────────────────────────────────
+async def generate_support_command_center(workspace: dict, language: str) -> dict:
+    company   = workspace.get("company_name", "the company")
+    btype     = workspace.get("business_type", "")
+    tone      = workspace.get("support_tone", "professional")
+    sla_resp  = workspace.get("sla_first_response", "4")
+    prompt = f"""You are an expert Customer Support Director giving a daily command center briefing.
+
+Company: {company} | Type: {btype} | Tone: {tone} | SLA First Response: {sla_resp}h
+
+Generate a structured daily support briefing with these exact sections:
+1. TICKET PULSE — Open tickets by priority (Critical/High/Medium/Low), SLA violations count
+2. CSAT WATCH — Today's satisfaction score estimate, trend (up/down), key driver
+3. TOP ISSUES — 3 most common complaint themes this week
+4. AGENT PERFORMANCE — Team health: who's overloaded, who needs support
+5. TOP 3 ACTIONS — The 3 most critical things for the support lead to do right now
+6. SUPPORT HEALTH SCORE — Rate overall support operations 0-100 with one-line verdict
+
+Format with bold headers. Be specific and actionable for an Indian SMB support team.
+Language: {language}"""
+    result = await call_llm(prompt, "You are an expert Customer Support Director.")
+    return {"briefing": result, "company": company}
+
+
+# ── CX Goal Planner ───────────────────────────────────────────────────────────
+_CX_GOAL_LABELS = {
+    "improve_csat":      "Improve CSAT Score",
+    "reduce_response":   "Reduce First Response Time",
+    "reduce_churn":      "Reduce Customer Churn",
+    "handle_spike":      "Handle Ticket Spike / Peak Season",
+    "launch_kb":         "Launch Knowledge Base",
+    "improve_fcr":       "Improve First Contact Resolution",
+    "agent_coaching":    "Agent Skill Improvement Program",
+    "nps_campaign":      "NPS Improvement Campaign",
+}
+
+async def generate_cx_goal_plan(goal: str, workspace: dict, timeline: str, language: str) -> dict:
+    company = workspace.get("company_name", "the company")
+    btype   = workspace.get("business_type", "")
+    tone    = workspace.get("support_tone", "professional")
+    label   = _CX_GOAL_LABELS.get(goal, goal.replace("_", " ").title())
+    prompt = f"""You are an expert CX Director building a full action plan.
+
+Goal: {label}
+Company: {company} | Type: {btype} | Tone: {tone} | Timeline: {timeline}
+
+Generate a detailed CX action plan with:
+1. GOAL SUMMARY — What success looks like in one sentence
+2. WEEK-BY-WEEK PLAN — Break {timeline} into weekly milestones with specific tasks
+3. QUICK WINS — 3 things you can do in the first 48 hours
+4. METRICS TO TRACK — 5 KPIs with target values and how to measure them
+5. AGENT ENABLEMENT — Training, tools, or process changes needed
+6. CUSTOMER COMMUNICATION — Messages to send to customers as part of this initiative
+7. RISK FLAGS — What could go wrong and how to handle it
+
+Be specific and actionable for an Indian SMB. Language: {language}"""
+    result = await call_llm(prompt, "You are an expert CX Director at an Indian company.")
+    return {"campaign": result, "goal": label, "company": company}
+
+
+# ── Response Quality Score ────────────────────────────────────────────────────
+async def score_response_quality(response_text: str, ticket_subject: str, customer_tier: str, language: str) -> dict:
+    prompt = f"""You are a CX quality expert scoring a customer support response.
+
+Ticket Subject: {ticket_subject or 'General inquiry'}
+Customer Tier: {customer_tier}
+Draft Response:
+---
+{response_text}
+---
+
+Score this response on 6 dimensions (0-100 each):
+
+1. EMPATHY — Does it acknowledge the customer's emotion and situation?
+2. CLARITY — Is the response clear, concise, and easy to understand?
+3. RESOLUTION — Does it actually solve or address the customer's problem?
+4. TONE — Is the tone appropriate (not too formal, not too casual)?
+5. COMPLETENESS — Does it cover all parts of the customer's issue?
+6. BRAND_VOICE — Does it reflect a professional, trustworthy brand?
+
+Return ONLY valid JSON in this exact format:
+{{
+  "scores": {{"empathy": 0-100, "clarity": 0-100, "resolution": 0-100, "tone": 0-100, "completeness": 0-100, "brand_voice": 0-100, "overall": 0-100}},
+  "reasons": {{"empathy": "one line", "clarity": "one line", "resolution": "one line", "tone": "one line", "completeness": "one line", "brand_voice": "one line"}},
+  "verdict": "one sentence overall verdict",
+  "top_improvement": "single most impactful change to make"
+}}"""
+    raw = await call_llm(prompt, "You are a CX quality expert.")
+    import json, re
+    try:
+        m = re.search(r'\{[\s\S]*\}', raw)
+        parsed = json.loads(m.group()) if m else {}
+    except Exception:
+        parsed = {}
+    if "scores" not in parsed:
+        parsed = {
+            "scores":  {"empathy": 70, "clarity": 70, "resolution": 70, "tone": 70, "completeness": 70, "brand_voice": 70, "overall": 70},
+            "reasons": {"empathy": "", "clarity": "", "resolution": "", "tone": "", "completeness": "", "brand_voice": ""},
+            "verdict": raw[:200], "top_improvement": "",
+        }
+    return parsed
+
+
+# ── CS Strategy Meeting ───────────────────────────────────────────────────────
+_CS_FOCUS_LABELS = {
+    "csat":       "CSAT & Customer Satisfaction",
+    "churn":      "Churn Prevention Strategy",
+    "escalation": "Escalation Management",
+    "capacity":   "Team Capacity & Hiring",
+    "automation": "Automation & Self-Service",
+    "voc":        "Voice of Customer Analysis",
+}
+
+async def run_cs_strategy_meeting(workspace: dict, focus: str, language: str) -> dict:
+    company = workspace.get("company_name", "the company")
+    btype   = workspace.get("business_type", "")
+    tone    = workspace.get("support_tone", "professional")
+    label   = _CS_FOCUS_LABELS.get(focus, focus.replace("_", " ").title())
+    prompt = f"""You are running an AI Customer Support strategy meeting with 4 expert agents.
+
+Company: {company} | Type: {btype} | Tone: {tone}
+Meeting Focus: {label}
+
+Each agent speaks in their own voice with their name prefix:
+
+👩‍💼 KAVITHA (CX Director): Opens with the big picture — customer experience vision and metrics
+🔍 ROHAN (Quality Lead): Highlights quality gaps, common failure points, coaching opportunities
+💚 ANANYA (Retention Specialist): Focuses on churn signals, at-risk customers, win-back plays
+⚡ DEV (Escalation Manager): Identifies systemic issues causing escalations and fixes needed
+
+Then:
+✅ DECISIONS: 3 concrete decisions the team agrees on
+📋 ACTION ITEMS: 5 specific next steps with owner names and deadlines
+🎯 MEETING VERDICT: One-sentence summary of the meeting outcome
+
+Be specific and actionable for an Indian SMB support team. Language: {language}"""
+    result = await call_llm(prompt, "You are a senior CX Director running a strategy meeting.")
+    return {"meeting": result, "company": company, "focus": label}
 
 
 # ── SLA Tracker (Round 4) ─────────────────────────────────────────────────────
