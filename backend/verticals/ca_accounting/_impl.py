@@ -1378,6 +1378,11 @@ async def ca_agent(
     return {"error": f"Unknown CA action: {action}"}
 
 
+async def call_llm(prompt: str, system: str = "") -> str:
+    from backend.llm.ollama_openai import ollama_chat_completion
+    return await ollama_chat_completion(messages=[{"role": "user", "content": prompt}], system=system)
+
+
 # ── CA Command Center ─────────────────────────────────────────────────────────
 async def generate_ca_command_center(workspace: dict, language: str) -> dict:
     firm = workspace.get("firm_name") or workspace.get("client_name") or "the firm"

@@ -167,7 +167,7 @@ export default function SettingsPage() {
             <SectionHead title="Platform Details" sub="What powers your AI workspace" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {[
-                { label: 'AI Models',    value: 'Groq · Gemini · OpenAI' },
+                { label: 'AI Models',    value: 'Groq · Gemini · Ollama' },
                 { label: 'Languages',    value: 'English · Tamil · Hindi' },
                 { label: 'AI Features',  value: '135 AI-powered tools' },
                 { label: 'Security',     value: 'JWT Auth · PII-safe' },

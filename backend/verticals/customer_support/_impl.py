@@ -901,6 +901,11 @@ Output JSON:
         return {"error": str(e), "action": action}
 
 
+async def call_llm(prompt: str, system: str = "") -> str:
+    from backend.llm.ollama_openai import ollama_chat_completion
+    return await ollama_chat_completion(messages=[{"role": "user", "content": prompt}], system=system)
+
+
 # ── Support Command Center ────────────────────────────────────────────────────
 async def generate_support_command_center(workspace: dict, language: str) -> dict:
     company   = workspace.get("company_name", "the company")
