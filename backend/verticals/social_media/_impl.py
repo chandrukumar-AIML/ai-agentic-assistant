@@ -242,20 +242,19 @@ async def post_to_linkedin(
     access_token: str,
     post_text:    str,
     image_b64:    Optional[str] = None,
+    linkedin_urn: str = "",
 ) -> dict:
     """
     Post to LinkedIn via LinkedIn API v2.
-    Supports text posts and image posts (single image).
+    linkedin_urn can be passed from frontend (per-user) or fall back to env var.
     """
     import httpx
 
-    linkedin_urn = settings.linkedin_author_urn
+    linkedin_urn = linkedin_urn or settings.linkedin_author_urn
+    if not access_token:
+        return {"status": "mock", "note": "No LinkedIn access token provided.", "text": post_text[:100]}
     if not linkedin_urn:
-        return {
-            "status": "mock",
-            "note":   "Configure LINKEDIN_AUTHOR_URN (urn:li:person:xxxx) to post.",
-            "text":   post_text[:100],
-        }
+        return {"status": "mock", "note": "No LinkedIn Person URN. Add urn:li:person:XXXXX.", "text": post_text[:100]}
 
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -1756,6 +1755,277 @@ async def generate_whatsapp_content(
         return {"error": "WhatsApp content generation failed.", "detail": str(e)}
 
 
+# ── Mission Control: AI Morning Briefing ─────────────────────────────────────
+
+async def generate_mission_control(workspace: dict, language: str = "en") -> dict:
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+
+    brand       = workspace.get("brand_name", "Your Brand")
+    industry    = workspace.get("industry", "business")
+    audience    = workspace.get("target_audience", "general audience")
+    platforms   = workspace.get("platforms", ["Instagram", "LinkedIn"])
+    competitors = workspace.get("competitor_brands", "major industry players")
+    usp         = workspace.get("usp", "")
+    products    = workspace.get("products_services", "")
+    plat_str    = ", ".join(platforms) if isinstance(platforms, list) else str(platforms)
+
+    prompt = (
+        f"You are an AI Marketing CEO. Generate a 'Mission Control' morning briefing for {brand}.\n\n"
+        f"Brand Profile:\n"
+        f"- Industry: {industry}\n"
+        f"- Target Audience: {audience}\n"
+        f"- Active Platforms: {plat_str}\n"
+        f"- Competitors: {competitors}\n"
+        f"- USP: {usp or 'Not specified'}\n"
+        f"- Products/Services: {products or 'Not specified'}\n\n"
+        "Generate a structured morning briefing with these exact sections:\n\n"
+        "## 📊 Yesterday's Performance Pulse\n"
+        f"(Simulate realistic estimated metrics for a {industry} brand in India — followers growth, engagement rate, reach, best content type)\n\n"
+        "## 🔥 Today's Trending Opportunities\n"
+        f"(3 specific trending topics in {industry} in India that {brand} can leverage today)\n\n"
+        "## 🕵️ Competitor Pulse\n"
+        f"(What {competitors} are likely doing this week — content strategy, campaigns, promotions)\n\n"
+        "## ✅ Top 3 AI Recommendations\n"
+        "(Specific, actionable actions for today with expected impact. Format: Action → Expected Result)\n\n"
+        "## 💡 Marketing Health Score\n"
+        "Content Quality: XX/100\n"
+        "Engagement Rate: XX/100\n"
+        "Brand Consistency: XX/100\n"
+        "Growth Trajectory: XX/100\n"
+        "Overall Score: XX/100\n\n"
+        "## 🎯 Today's Single Focus\n"
+        f"(One sentence: the most important thing {brand} should do today for maximum marketing ROI)\n\n"
+        f"Make this feel like a real executive briefing. Be specific and India-market relevant.\nLanguage: {language}"
+    )
+    try:
+        result = await ollama_chat_completion(
+            messages=[
+                {"role": "system", "content": "You are an expert AI Marketing CEO delivering concise, actionable marketing intelligence briefings."},
+                {"role": "user",   "content": prompt},
+            ],
+            model=OLLAMA_MODEL,
+            max_tokens=1200,
+            temperature=0.7,
+        )
+        return {"action": "mission_control", "brand": brand, "briefing": result}
+    except Exception as e:
+        logger.error("Mission control generation failed: %s", e)
+        return {"error": "Mission control generation failed.", "detail": str(e)}
+
+
+# ── Goal Engine: Goal → Full Campaign Plan ────────────────────────────────────
+
+async def generate_goal_campaign(
+    goal:      str,
+    workspace: dict,
+    timeline:  str = "30 days",
+    budget:    str = "₹50,000",
+    language:  str = "en",
+) -> dict:
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+
+    brand     = workspace.get("brand_name", "Your Brand")
+    industry  = workspace.get("industry", "business")
+    audience  = workspace.get("target_audience", "general audience")
+    platforms = workspace.get("platforms", ["Instagram", "LinkedIn"])
+    usp       = workspace.get("usp", "")
+    products  = workspace.get("products_services", "")
+    plat_str  = ", ".join(platforms) if isinstance(platforms, list) else str(platforms)
+
+    goal_labels = {
+        "more_sales":      "Increase Sales / Revenue",
+        "more_leads":      "Generate More Leads",
+        "more_followers":  "Grow Social Media Following",
+        "product_launch":  "Launch a New Product/Service",
+        "brand_awareness": "Build Brand Awareness",
+        "webinar_event":   "Promote a Webinar / Event",
+        "hiring":          "Attract Talent / Hiring Campaign",
+        "festival_offer":  "Festival / Seasonal Offer Campaign",
+    }
+    goal_label = goal_labels.get(goal, goal.replace("_", " ").title())
+
+    prompt = (
+        f"You are an AI Campaign Strategist. Create a complete marketing campaign plan.\n\n"
+        f"Goal: {goal_label}\n"
+        f"Brand: {brand} | Industry: {industry}\n"
+        f"Target Audience: {audience}\n"
+        f"Platforms: {plat_str}\n"
+        f"Timeline: {timeline}\n"
+        f"Budget: {budget}\n"
+        f"USP: {usp or 'Not specified'}\n"
+        f"Products/Services: {products or 'Not specified'}\n\n"
+        "Generate a complete, executable campaign plan:\n\n"
+        "## 🎯 Campaign Name & Tagline\n"
+        f"(Creative campaign name and tagline for {brand})\n\n"
+        "## 📋 Campaign Strategy\n"
+        f"(3-4 sentences on overall approach and why it will work for {audience})\n\n"
+        "## 📅 Week-by-Week Execution Plan\n"
+        "Week 1: [actions]\nWeek 2: [actions]\nWeek 3: [actions]\nWeek 4: [actions]\n\n"
+        f"## 📱 Platform-by-Platform Content Plan\n"
+        f"For each platform in {plat_str}: posting frequency, content types, 2-3 specific post ideas\n\n"
+        "## 📣 5 Hero Content Pieces\n"
+        "(The 5 most important pieces of content to create)\n\n"
+        f"## 💰 Budget Allocation ({budget})\n"
+        "(How to split across platforms and content types)\n\n"
+        "## 📊 Success Metrics (KPIs)\n"
+        "(5 specific metrics with target numbers)\n\n"
+        "## ⚡ Quick Start: First 3 Actions\n"
+        "(What to do TODAY to kick off this campaign)\n\n"
+        f"Be specific, actionable, India-market relevant. Language: {language}"
+    )
+    try:
+        result = await ollama_chat_completion(
+            messages=[
+                {"role": "system", "content": "You are an expert marketing strategist who creates detailed, executable campaign plans for Indian businesses."},
+                {"role": "user",   "content": prompt},
+            ],
+            model=OLLAMA_MODEL,
+            max_tokens=1400,
+            temperature=0.7,
+        )
+        return {"action": "goal_engine", "goal": goal_label, "brand": brand, "campaign": result}
+    except Exception as e:
+        logger.error("Goal engine failed: %s", e)
+        return {"error": "Goal campaign generation failed.", "detail": str(e)}
+
+
+# ── Creative Score: AI Content Quality Scorer ─────────────────────────────────
+
+async def score_creative_content(
+    post_text:  str,
+    platform:   str = "instagram",
+    brand_name: str = "",
+    industry:   str = "",
+    tone:       str = "professional",
+) -> dict:
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+
+    prompt = (
+        f"You are an expert social media content quality analyst. Score this {platform} post.\n\n"
+        f'Post Text:\n"""\n{post_text}\n"""\n\n'
+        f"Brand: {brand_name or 'Not specified'} | Industry: {industry or 'Not specified'} | Expected Tone: {tone}\n\n"
+        "Score each dimension 0-100 in this EXACT format:\n"
+        "HOOK_SCORE: [number]\nHOOK_REASON: [one sentence]\n"
+        "EMOTION_SCORE: [number]\nEMOTION_REASON: [one sentence]\n"
+        "CLARITY_SCORE: [number]\nCLARITY_REASON: [one sentence]\n"
+        "VIRALITY_SCORE: [number]\nVIRALITY_REASON: [one sentence]\n"
+        "BRAND_MATCH_SCORE: [number]\nBRAND_MATCH_REASON: [one sentence]\n"
+        "CTA_SCORE: [number]\nCTA_REASON: [one sentence]\n"
+        "OVERALL_SCORE: [number]\n"
+        "VERDICT: [one sentence overall verdict]\n"
+        "TOP_IMPROVEMENT: [the single most important improvement to make]"
+    )
+    try:
+        raw = await ollama_chat_completion(
+            messages=[
+                {"role": "system", "content": "You are a precise content quality analyst. Follow the exact output format requested."},
+                {"role": "user",   "content": prompt},
+            ],
+            model=OLLAMA_MODEL,
+            max_tokens=500,
+            temperature=0.3,
+        )
+        parsed: dict = {}
+        for line in raw.split("\n"):
+            line = line.strip()
+            if ":" in line:
+                key, _, val = line.partition(":")
+                key = key.strip().upper()
+                val = val.strip()
+                if key.endswith("_SCORE"):
+                    digits = "".join(c for c in val if c.isdigit())[:3]
+                    parsed[key] = int(digits) if digits else 70
+                else:
+                    parsed[key] = val
+        return {
+            "action":   "creative_score",
+            "platform": platform,
+            "scores": {
+                "hook":        parsed.get("HOOK_SCORE", 70),
+                "emotion":     parsed.get("EMOTION_SCORE", 70),
+                "clarity":     parsed.get("CLARITY_SCORE", 70),
+                "virality":    parsed.get("VIRALITY_SCORE", 70),
+                "brand_match": parsed.get("BRAND_MATCH_SCORE", 70),
+                "cta":         parsed.get("CTA_SCORE", 70),
+                "overall":     parsed.get("OVERALL_SCORE", 70),
+            },
+            "reasons": {
+                "hook":        parsed.get("HOOK_REASON", ""),
+                "emotion":     parsed.get("EMOTION_REASON", ""),
+                "clarity":     parsed.get("CLARITY_REASON", ""),
+                "virality":    parsed.get("VIRALITY_REASON", ""),
+                "brand_match": parsed.get("BRAND_MATCH_REASON", ""),
+                "cta":         parsed.get("CTA_REASON", ""),
+            },
+            "verdict":         parsed.get("VERDICT", ""),
+            "top_improvement": parsed.get("TOP_IMPROVEMENT", ""),
+        }
+    except Exception as e:
+        logger.error("Creative score failed: %s", e)
+        return {"error": "Creative scoring failed.", "detail": str(e)}
+
+
+# ── AI Team Meeting ───────────────────────────────────────────────────────────
+
+async def run_ai_team_meeting(
+    workspace: dict,
+    focus:     str = "growth",
+    language:  str = "en",
+) -> dict:
+    from backend.llm.ollama_openai import ollama_chat_completion, OLLAMA_MODEL
+
+    brand       = workspace.get("brand_name", "Your Brand")
+    industry    = workspace.get("industry", "business")
+    audience    = workspace.get("target_audience", "general audience")
+    competitors = workspace.get("competitor_brands", "major players")
+    usp         = workspace.get("usp", "")
+    icp         = workspace.get("icp", "")
+
+    prompt = (
+        f"Facilitate an AI Marketing Team standup for {brand} ({industry}).\n\n"
+        f"Context:\n"
+        f"- Target Audience: {audience}\n"
+        f"- Competitors: {competitors}\n"
+        f"- USP: {usp or 'Not specified'}\n"
+        f"- ICP: {icp or 'Not specified'}\n"
+        f"- Meeting Focus: {focus}\n\n"
+        "Simulate a 5-minute morning standup between 4 AI agents. Each speaks once.\n\n"
+        "---\n"
+        "🤖 CEO AGENT (Charu):\n"
+        "[2-3 sentences: overall business situation, today's priority, key decision]\n\n"
+        "📊 ANALYTICS AGENT (Arya):\n"
+        "[2-3 sentences: what the data shows, what's working, one key insight]\n\n"
+        "📈 GROWTH AGENT (Gokul):\n"
+        "[2-3 sentences: growth opportunity spotted, specific tactic to try, expected impact]\n\n"
+        "🔎 COMPETITOR AGENT (Kiran):\n"
+        "[2-3 sentences: what competitors are doing, a gap to exploit, urgency level]\n\n"
+        "---\n"
+        "✅ MEETING DECISIONS:\n"
+        "1. [Action item with owner and timeline]\n"
+        "2. [Action item with owner and timeline]\n"
+        "3. [Action item with owner and timeline]\n\n"
+        "⚡ EXECUTE NOW:\n"
+        "[The one thing to start in the next 30 minutes]\n"
+        "---\n\n"
+        f"Make it specific to {brand} in {industry}. Sound like real people, not a template.\n"
+        f"Language: {language}"
+    )
+    try:
+        result = await ollama_chat_completion(
+            messages=[
+                {"role": "system", "content": "You are a facilitator of an AI marketing team. Generate realistic, specific team discussions."},
+                {"role": "user",   "content": prompt},
+            ],
+            model=OLLAMA_MODEL,
+            max_tokens=900,
+            temperature=0.8,
+        )
+        return {"action": "ai_team_meeting", "brand": brand, "meeting": result}
+    except Exception as e:
+        logger.error("AI team meeting failed: %s", e)
+        return {"error": "AI team meeting generation failed.", "detail": str(e)}
+
+
 # ── Main social media agent dispatcher ───────────────────────────────────────
 
 async def social_agent(
@@ -1822,7 +2092,8 @@ async def social_agent(
         image_b64    = payload.get("image_b64")
 
         if platform == "linkedin":
-            return await post_to_linkedin(access_token, post_text, image_b64)
+            return await post_to_linkedin(access_token, post_text, image_b64,
+                                          linkedin_urn=payload.get("linkedin_urn", ""))
         elif platform == "twitter":
             return await post_to_twitter(post_text, image_b64)
         elif platform == "instagram":
@@ -2370,6 +2641,34 @@ async def social_agent(
             industry=payload.get("industry", ""),
             goal=payload.get("goal", "engagement"),
             variations=int(payload.get("variations", 4)),
+            language=language,
+        )
+
+    elif action == "mission_control":
+        return await generate_mission_control(payload, language)
+
+    elif action == "goal_engine":
+        return await generate_goal_campaign(
+            goal=payload.get("goal", "brand_awareness"),
+            workspace=payload.get("workspace", {}),
+            timeline=payload.get("timeline", "30 days"),
+            budget=payload.get("budget", "₹50,000"),
+            language=language,
+        )
+
+    elif action == "creative_score":
+        return await score_creative_content(
+            post_text=payload.get("post_text", ""),
+            platform=platform,
+            brand_name=payload.get("brand_name", ""),
+            industry=payload.get("industry", ""),
+            tone=payload.get("tone", "professional"),
+        )
+
+    elif action == "ai_team_meeting":
+        return await run_ai_team_meeting(
+            workspace=payload,
+            focus=payload.get("focus", "growth"),
             language=language,
         )
 

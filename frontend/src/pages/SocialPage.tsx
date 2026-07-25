@@ -5,6 +5,7 @@ import { generateContent, generateHashtags, generateImage, socialEnhance, social
 import WorkspaceSetup from '../components/WorkspaceSetup'
 import WorkspaceBar from '../components/WorkspaceBar'
 import { getWorkspace, clearWorkspace, SMWorkspace } from '../lib/workspace'
+import { getSocialTokens, isLinkedInConnected, isBufferConnected } from '../lib/socialTokens'
 
 const PLATFORMS  = [{ label: 'LinkedIn', value: 'linkedin' }, { label: 'Twitter/X', value: 'twitter' }, { label: 'Instagram', value: 'instagram' }, { label: 'Facebook', value: 'facebook' }]
 const TONES      = [{ label: 'Professional', value: 'professional' }, { label: 'Casual', value: 'casual' }, { label: 'Inspirational', value: 'inspirational' }, { label: 'Educational', value: 'educational' }, { label: 'Humorous', value: 'humorous' }]
@@ -30,6 +31,74 @@ const POST_STATUSES = ['Draft', 'Scheduled', 'Posted', 'Failed'] as const
 type PostStatus = typeof POST_STATUSES[number]
 interface QueuePost { id: string; topic: string; platform: string; text: string; status: PostStatus; createdAt: string; scheduledFor?: string }
 const STATUS_COLORS: Record<PostStatus, string> = { Draft: '#6b7280', Scheduled: '#3b82f6', Posted: '#22c55e', Failed: '#ef4444' }
+
+function PostNowButtons({ postText, platform }: { postText: string; platform: string }) {
+  const liConnected = isLinkedInConnected()
+  const bufConnected = isBufferConnected()
+  const [liStatus, setLiStatus]   = useState<'idle'|'loading'|'ok'|'err'>('idle')
+  const [bufStatus, setBufStatus] = useState<'idle'|'loading'|'ok'|'err'>('idle')
+  const [liMsg, setLiMsg]         = useState('')
+  const [bufMsg, setBufMsg]       = useState('')
+
+  if (!liConnected && !bufConnected) return null
+
+  async function postLinkedIn() {
+    const tokens = getSocialTokens()
+    setLiStatus('loading'); setLiMsg('')
+    try {
+      const res = await socialAction('post', {
+        platform: 'linkedin',
+        post_text: postText,
+        access_token: tokens.linkedin_access_token,
+        linkedin_urn: tokens.linkedin_person_urn,
+      })
+      if (res?.status === 'success') { setLiStatus('ok'); setLiMsg('Posted to LinkedIn!') }
+      else { setLiStatus('err'); setLiMsg(res?.note || res?.error || 'Post failed') }
+    } catch (e: any) { setLiStatus('err'); setLiMsg(String(e)) }
+  }
+
+  async function scheduleBuffer() {
+    const tokens = getSocialTokens()
+    setBufStatus('loading'); setBufMsg('')
+    try {
+      const res = await socialAction('schedule', {
+        platform,
+        post_text: postText,
+        access_token: tokens.buffer_access_token,
+      })
+      if (res?.status === 'success') { setBufStatus('ok'); setBufMsg('Scheduled via Buffer!') }
+      else { setBufStatus('err'); setBufMsg(res?.note || res?.error || 'Schedule failed') }
+    } catch (e: any) { setBufStatus('err'); setBufMsg(String(e)) }
+  }
+
+  const statusStyle = (s: typeof liStatus) => ({
+    fontSize: 11, padding: '4px 10px', borderRadius: 6,
+    background: s === 'ok' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+    border: `1px solid ${s === 'ok' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+    color: s === 'ok' ? '#22c55e' : '#f87171',
+  })
+
+  return (
+    <>
+      {liConnected && (
+        <>
+          <Btn onClick={postLinkedIn} disabled={liStatus === 'loading'} style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(10,102,194,0.2)', border: '1px solid rgba(10,102,194,0.4)', color: '#60a5fa' }}>
+            {liStatus === 'loading' ? 'Posting…' : '🔵 Post to LinkedIn'}
+          </Btn>
+          {(liStatus === 'ok' || liStatus === 'err') && <div style={statusStyle(liStatus)}>{liMsg}</div>}
+        </>
+      )}
+      {bufConnected && (
+        <>
+          <Btn onClick={scheduleBuffer} disabled={bufStatus === 'loading'} style={{ fontSize: 11, padding: '4px 10px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.35)', color: '#fbbf24' }}>
+            {bufStatus === 'loading' ? 'Scheduling…' : '⏰ Schedule via Buffer'}
+          </Btn>
+          {(bufStatus === 'ok' || bufStatus === 'err') && <div style={statusStyle(bufStatus)}>{bufMsg}</div>}
+        </>
+      )}
+    </>
+  )
+}
 
 export default function SocialPage() {
   const [tab, setTab] = useState('content')
@@ -865,14 +934,19 @@ export default function SocialPage() {
           { id: 'story_highlights',  label: 'Story Highlights',      icon: '✨' },
           { id: 'twitter_thread',    label: 'X/Twitter Thread',      icon: '🐦' },
           { id: 'festive_post',      label: 'Festive Post',          icon: '🪔' },
+          { id: 'mission',           label: 'Mission Control',       icon: '🎯' },
+          { id: 'goal',              label: 'Goal Engine',           icon: '🏆' },
+          { id: 'score',             label: 'Creative Score',        icon: '⭐' },
+          { id: 'ai_team',           label: 'AI Team Meeting',       icon: '🤖' },
         ]}
         active={tab} onChange={setTab}
         accentColor="#8B5CF6"
         groups={[
           { label: 'Create',    ids: ['content','hashtags','image','repurpose','adcopy','email','short_reel','twitter','carousel','article','reel','youtube','lcp','facebook_post','meme_caption','comment_reply','bio_opt','bulk','brand_voice','festive_post'] },
-          { label: 'Research',  ids: ['competitor','spy','seo','kwcluster','monitor','mention','roi','hooks','analytics'] },
-          { label: 'Strategy',  ids: ['campaign','launch_kit','brandkit','influencer','outreach','advocacy','india','templates','abtest'] },
+          { label: 'Research',  ids: ['competitor','spy','seo','kwcluster','monitor','mention','roi','hooks','analytics','score'] },
+          { label: 'Strategy',  ids: ['campaign','launch_kit','brandkit','influencer','outreach','advocacy','india','templates','abtest','goal','ai_team'] },
           { label: 'Schedule',  ids: ['calendar','cal','scheduler','bridge','report'] },
+          { label: 'AI Brain',  ids: ['mission','goal','ai_team','score'] },
         ]}
       />
 
@@ -939,6 +1013,7 @@ export default function SocialPage() {
                           ✅ Submitted — ID: {approvalId}
                         </div>
                       )}
+                      <PostNowButtons postText={postText} platform={platform} />
                     </div>
                   )}
                 </Card>
@@ -1481,6 +1556,10 @@ export default function SocialPage() {
       {tab === 'story_highlights' && <StoryHighlightsTab />}
       {tab === 'twitter_thread'   && <TwitterThreadTab />}
       {tab === 'festive_post'     && <FestivePostTab />}
+      {tab === 'mission'          && <MissionControlTab />}
+      {tab === 'goal'             && <GoalEngineTab />}
+      {tab === 'score'            && <CreativeScoreTab />}
+      {tab === 'ai_team'          && <AITeamMeetingTab />}
 
       {/* ── ANALYTICS ── */}
       {tab === 'analytics' && (
@@ -4956,6 +5035,319 @@ export function LaunchKitTab() {
             </div>
           )
         })() : <div style={{ color: '#4b5563', fontSize: 13, textAlign: 'center', marginTop: 60 }}>Fill in product details and click Generate →</div>}
+      </Card>
+    </TwoCol>
+  )
+
+}
+
+
+// ── Mission Control Tab ───────────────────────────────────────────────────────
+export function MissionControlTab() {
+  const ws = getWorkspace<SMWorkspace>('sm')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult]   = useState<any>(null)
+  const [err, setErr]         = useState('')
+  const run = async () => {
+    if (!ws) return
+    setLoading(true); setErr(''); setResult(null)
+    try { setResult(await socialAction('mission_control', { ...ws }, 'all', 'en')) }
+    catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="Mission Control" sub="AI morning briefing — what happened, what's trending, what to do today" />
+        {!ws ? (
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>Set up your workspace first to get a personalised briefing.</div>
+        ) : (
+          <>
+            <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8, fontWeight: 600 }}>Brand Brain loaded</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {[ws.brand_name, ws.industry, ws.tone].filter(Boolean).map(v => (
+                  <span key={v} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }}>{v}</span>
+                ))}
+                {ws.usp && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}>USP set</span>}
+                {ws.products_services && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}>Products set</span>}
+              </div>
+            </div>
+            <Btn onClick={run} disabled={loading} style={{ width: '100%', padding: '14px 0', fontSize: 14, fontWeight: 700, background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', color: '#fff', border: 'none' }}>
+              {loading ? '⏳ Generating briefing…' : '🎯 Generate Morning Briefing'}
+            </Btn>
+            {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+          </>
+        )}
+      </Card>
+      <Card>
+        {result?.briefing ? (
+          <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8, color: 'var(--text-2)', overflowY: 'auto', maxHeight: 600 }}>{result.briefing}</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>🎯</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>Your AI Morning Briefing</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 260, lineHeight: 1.6 }}>What happened yesterday · Today's trends · Competitor pulse · Top 3 actions · Marketing health score</div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
+  )
+}
+
+// ── Goal Engine Tab ───────────────────────────────────────────────────────────
+const _GOAL_OPTIONS = [
+  { label: 'Increase Sales / Revenue',    value: 'more_sales' },
+  { label: 'Generate More Leads',         value: 'more_leads' },
+  { label: 'Grow Social Following',       value: 'more_followers' },
+  { label: 'Launch a Product / Service',  value: 'product_launch' },
+  { label: 'Build Brand Awareness',       value: 'brand_awareness' },
+  { label: 'Promote Webinar / Event',     value: 'webinar_event' },
+  { label: 'Hiring / Talent Campaign',    value: 'hiring' },
+  { label: 'Festival / Seasonal Offer',   value: 'festival_offer' },
+]
+
+export function GoalEngineTab() {
+  const ws = getWorkspace<SMWorkspace>('sm')
+  const [goal, setGoal]         = useState('more_sales')
+  const [timeline, setTimeline] = useState('30 days')
+  const [budget, setBudget]     = useState('₹50,000')
+  const [loading, setLoading]   = useState(false)
+  const [result, setResult]     = useState<any>(null)
+  const [err, setErr]           = useState('')
+  const run = async () => {
+    if (!ws) return
+    setLoading(true); setErr(''); setResult(null)
+    try { setResult(await socialAction('goal_engine', { goal, workspace: ws, timeline, budget }, 'all', 'en')) }
+    catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="Goal Engine" sub="Pick a business goal — AI builds the full campaign plan" />
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>What's your goal?</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {_GOAL_OPTIONS.map(g => (
+              <button key={g.value} onClick={() => setGoal(g.value)} style={{
+                padding: '10px 14px', borderRadius: 10, fontSize: 13, textAlign: 'left', cursor: 'pointer',
+                border: `1px solid ${goal === g.value ? 'rgba(139,92,246,0.6)' : 'var(--border)'}`,
+                background: goal === g.value ? 'rgba(139,92,246,0.12)' : 'var(--surface-2)',
+                color: goal === g.value ? '#a78bfa' : 'var(--text-2)',
+                fontWeight: goal === g.value ? 600 : 400, transition: 'all 0.15s',
+              }}>{g.label}</button>
+            ))}
+          </div>
+        </div>
+        <Input label="Timeline" value={timeline} onChange={setTimeline} placeholder="e.g. 30 days, Q3 2026" />
+        <Input label="Budget"   value={budget}   onChange={setBudget}   placeholder="e.g. ₹50,000 / month" />
+        {!ws && <div style={{ fontSize: 12, color: 'var(--warning)', marginBottom: 8 }}>Set up your workspace for a personalised campaign.</div>}
+        <Btn onClick={run} disabled={loading || !ws} style={{ width: '100%', padding: '12px 0', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', color: '#fff', border: 'none', marginTop: 6 }}>
+          {loading ? '⏳ Building campaign plan…' : '🏆 Generate Campaign Plan'}
+        </Btn>
+        {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+      </Card>
+      <Card>
+        {result?.campaign ? (
+          <>
+            <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)' }}>
+              <span style={{ fontSize: 12, color: '#a78bfa', fontWeight: 600 }}>🏆 {result.goal}</span>
+              {result.brand && <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 8 }}>for {result.brand}</span>}
+            </div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8, color: 'var(--text-2)', overflowY: 'auto', maxHeight: 560 }}>{result.campaign}</div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 360, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>🏆</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>Full Campaign Plan</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 280, lineHeight: 1.7 }}>
+              Select a goal → AI generates: campaign name · week-by-week plan · platform strategy · hero content · KPIs · quick-start actions
+            </div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
+  )
+}
+
+// ── Creative Score Tab ────────────────────────────────────────────────────────
+const _SCORE_PLATFORMS = [
+  { label: 'Instagram', value: 'instagram' }, { label: 'LinkedIn', value: 'linkedin' },
+  { label: 'Twitter/X', value: 'twitter' },   { label: 'Facebook', value: 'facebook' },
+]
+const _SCORE_DIMS = [
+  { key: 'hook',        label: 'Hook Strength',   icon: '🎣' },
+  { key: 'emotion',     label: 'Emotional Pull',  icon: '❤️' },
+  { key: 'clarity',     label: 'Clarity',         icon: '💡' },
+  { key: 'virality',    label: 'Viral Potential', icon: '🔥' },
+  { key: 'brand_match', label: 'Brand Match',     icon: '🏷️' },
+  { key: 'cta',         label: 'Call to Action',  icon: '📣' },
+] as const
+
+export function CreativeScoreTab() {
+  const ws = getWorkspace<SMWorkspace>('sm')
+  const [text, setText]         = useState('')
+  const [platform, setPlatform] = useState('instagram')
+  const [loading, setLoading]   = useState(false)
+  const [result, setResult]     = useState<any>(null)
+  const [err, setErr]           = useState('')
+  const run = async () => {
+    setLoading(true); setErr(''); setResult(null)
+    try {
+      setResult(await socialAction('creative_score', {
+        post_text: text, brand_name: ws?.brand_name ?? '', industry: ws?.industry ?? '', tone: ws?.tone ?? 'professional',
+      }, platform, 'en'))
+    } catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="Creative Score" sub="AI scores your content before you publish — know if it will perform" />
+        <Select label="Platform" value={platform} onChange={setPlatform} options={_SCORE_PLATFORMS} />
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>Post Text</label>
+          <textarea value={text} onChange={e => setText(e.target.value)}
+            placeholder="Paste your post here — caption, tweet, LinkedIn post, ad copy…"
+            rows={8} style={{ width: '100%', boxSizing: 'border-box', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+        </div>
+        <Btn onClick={run} disabled={loading || !text.trim()} style={{ width: '100%', padding: '12px 0', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', color: '#fff', border: 'none' }}>
+          {loading ? '⏳ Scoring…' : '⭐ Score My Content'}
+        </Btn>
+        {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+      </Card>
+      <Card>
+        {result?.scores ? (() => {
+          const s = result.scores
+          const r = result.reasons
+          const overall = s.overall ?? 0
+          const overallColor = overall >= 80 ? '#10B981' : overall >= 60 ? '#F59E0B' : '#EF4444'
+          return (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20, padding: '16px 20px', borderRadius: 14, background: 'var(--surface-2)', border: `1px solid ${overallColor}44` }}>
+                <div style={{ width: 70, height: 70, borderRadius: '50%', border: `4px solid ${overallColor}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: `${overallColor}12` }}>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: overallColor, lineHeight: 1 }}>{overall}</span>
+                  <span style={{ fontSize: 9, color: 'var(--text-3)' }}>/100</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+                    {overall >= 80 ? '🚀 Strong content' : overall >= 60 ? '⚠️ Needs polish' : '🔧 Major revision needed'}
+                  </div>
+                  {result.verdict && <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{result.verdict}</div>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                {_SCORE_DIMS.map(d => {
+                  const val = (s as any)[d.key] ?? 70
+                  const color = val >= 80 ? '#10B981' : val >= 60 ? '#F59E0B' : '#EF4444'
+                  return (
+                    <div key={d.key}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{d.icon} {d.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color }}>{val}/100</span>
+                      </div>
+                      <div style={{ height: 5, borderRadius: 3, background: 'var(--surface-2)', overflow: 'hidden' }}>
+                        <div style={{ width: `${val}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.5s ease' }} />
+                      </div>
+                      {(r as any)[d.key] && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3, lineHeight: 1.4 }}>{(r as any)[d.key]}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+              {result.top_improvement && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', marginBottom: 4 }}>💡 Top Improvement</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{result.top_improvement}</div>
+                </div>
+              )}
+            </div>
+          )
+        })() : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 360, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>⭐</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>Content Quality Scores</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 260, lineHeight: 1.7 }}>Hook · Emotion · Clarity · Virality · Brand Match · CTA — scored 0–100 before you publish</div>
+          </div>
+        )}
+      </Card>
+    </TwoCol>
+  )
+}
+
+// ── AI Team Meeting Tab ───────────────────────────────────────────────────────
+const _TEAM_FOCUS = [
+  { label: 'Growth & Acquisition', value: 'growth' },
+  { label: 'Content Strategy',     value: 'content' },
+  { label: 'Competitor Response',  value: 'competitor' },
+  { label: 'Campaign Planning',    value: 'campaign' },
+  { label: 'Crisis Management',    value: 'crisis' },
+  { label: 'Revenue & ROI',        value: 'revenue' },
+]
+
+export function AITeamMeetingTab() {
+  const ws = getWorkspace<SMWorkspace>('sm')
+  const [focus, setFocus]     = useState('growth')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult]   = useState<any>(null)
+  const [err, setErr]         = useState('')
+  const run = async () => {
+    if (!ws) return
+    setLoading(true); setErr(''); setResult(null)
+    try { setResult(await socialAction('ai_team_meeting', { ...ws, focus }, 'all', 'en')) }
+    catch (e: any) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  return (
+    <TwoCol>
+      <Card>
+        <SectionHead title="AI Team Meeting" sub="4 AI agents discuss your brand — CEO, Analytics, Growth, Competitor" />
+        {!ws ? (
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>Set up your workspace first so the agents know your brand.</div>
+        ) : (
+          <>
+            <div style={{ padding: '12px 14px', marginBottom: 14, borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {[ws.brand_name, ws.industry].filter(Boolean).map(v => (
+                <span key={v} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }}>{v}</span>
+              ))}
+            </div>
+            <Select label="Meeting Focus" value={focus} onChange={setFocus} options={_TEAM_FOCUS} />
+            <div style={{ marginTop: 6, marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+              <strong style={{ fontSize: 12, color: 'var(--text-2)' }}>Agents in the meeting:</strong>
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {['🤖 Charu — CEO Agent', '📊 Arya — Analytics Agent', '📈 Gokul — Growth Agent', '🔎 Kiran — Competitor Agent'].map(a => (
+                  <span key={a} style={{ fontSize: 12, color: 'var(--text-2)' }}>{a}</span>
+                ))}
+              </div>
+            </div>
+            <Btn onClick={run} disabled={loading} style={{ width: '100%', padding: '12px 0', fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, #8B5CF6, #6366F1)', color: '#fff', border: 'none' }}>
+              {loading ? '⏳ Meeting in progress…' : '🤖 Start AI Team Meeting'}
+            </Btn>
+            {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{err}</div>}
+          </>
+        )}
+      </Card>
+      <Card>
+        {result?.meeting ? (
+          <>
+            <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: '#a78bfa', fontWeight: 600 }}>🤖 AI Team — {_TEAM_FOCUS.find(f => f.value === focus)?.label}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{result.brand}</span>
+            </div>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.8, color: 'var(--text-2)', overflowY: 'auto', maxHeight: 560 }}>{result.meeting}</div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 360, gap: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: 40 }}>🤖</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>AI Team Standup</div>
+            <div style={{ fontSize: 12, textAlign: 'center', maxWidth: 280, lineHeight: 1.7 }}>4 specialised AI agents discuss your brand situation and make decisions — each agent brings a different perspective</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {['🤖 CEO', '📊 Analytics', '📈 Growth', '🔎 Competitor'].map(a => (
+                <span key={a} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-2)' }}>{a}</span>
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
     </TwoCol>
   )

@@ -9,6 +9,11 @@ export interface SMWorkspace {
   competitor_brands: string
   content_pillars:   string
   hashtag_style:     string
+  // Brand Brain fields
+  products_services: string
+  usp:               string
+  icp:               string
+  pricing:           string
 }
 
 export interface CSWorkspace {

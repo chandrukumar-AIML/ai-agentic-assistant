@@ -111,7 +111,7 @@ function SMWizard({ step, data, setData }: { step: number; data: Partial<SMWorks
       <Field label="Hashtag Style"><TextInput value={data.hashtag_style ?? ''} onChange={v => set('hashtag_style', v)} placeholder="e.g. #MakeInIndia #StartupIndia — max 5" /></Field>
     </StepWrap>
   )
-  return (
+  if (step === 2) return (
     <StepWrap title="Content Strategy" sub="AI will use this to make content that stands out">
       <Field label="Competitor Brands"><TextInput value={data.competitor_brands ?? ''} onChange={v => set('competitor_brands', v)} placeholder="e.g. Meesho, Flipkart, Nykaa" /></Field>
       <Field label="Content Pillars">
@@ -122,6 +122,28 @@ function SMWizard({ step, data, setData }: { step: number; data: Partial<SMWorks
             padding: '10px 12px', color: 'var(--text)', fontSize: 13, outline: 'none',
             width: '100%', boxSizing: 'border-box' as const, fontFamily: 'inherit', resize: 'vertical',
           }} />
+      </Field>
+    </StepWrap>
+  )
+  return (
+    <StepWrap title="Brand Brain" sub="AI uses this to plan campaigns, score content, and run team meetings">
+      <Field label="Products / Services">
+        <textarea value={data.products_services ?? ''} onChange={e => set('products_services', e.target.value)}
+          placeholder="e.g. AI-powered SaaS platform for Indian SMBs — Social Media, Customer Support, Accounting tools"
+          rows={2} style={{
+            background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8,
+            padding: '10px 12px', color: 'var(--text)', fontSize: 13, outline: 'none',
+            width: '100%', boxSizing: 'border-box' as const, fontFamily: 'inherit', resize: 'vertical',
+          }} />
+      </Field>
+      <Field label="Unique Selling Proposition (USP)">
+        <TextInput value={data.usp ?? ''} onChange={v => set('usp', v)} placeholder="e.g. Only platform that combines 3 AI agents for Indian SMBs at ₹999/month" />
+      </Field>
+      <Field label="Ideal Customer Profile (ICP)">
+        <TextInput value={data.icp ?? ''} onChange={v => set('icp', v)} placeholder="e.g. Indian SMB owners, 30–50 yrs, revenue ₹50L–5Cr, non-tech savvy" />
+      </Field>
+      <Field label="Pricing / Offers">
+        <TextInput value={data.pricing ?? ''} onChange={v => set('pricing', v)} placeholder="e.g. ₹999/month Starter, ₹2499/month Pro, annual discount 20%" />
       </Field>
     </StepWrap>
   )
@@ -261,7 +283,7 @@ function CAWizard({ step, data, setData }: { step: number; data: Partial<CAWorks
 const AGENT_CONFIG = {
   sm: {
     accent: '#8B5CF6', icon: '📱', name: 'Social Media',
-    steps: ['Brand Basics', 'Platforms & Tone', 'Strategy'],
+    steps: ['Brand Basics', 'Platforms & Tone', 'Strategy', 'Brand Brain'],
   },
   cs: {
     accent: '#10B981', icon: '💬', name: 'Customer Support',
