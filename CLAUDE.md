@@ -25,37 +25,57 @@
 ```
 ai-agentic-assistant/
 ├── backend/
-│   ├── main.py               ← FastAPI app, middleware, logging, auth
-│   ├── verticals/
-│   │   ├── social/           ← SM agent (37 actions)
-│   │   ├── customer_support/ ← CS agent (37 actions)
-│   │   └── ca_accounting/    ← CA agent (40 actions)
-│   │       ├── router.py     ← POST /api/{vertical}/action
-│   │       ├── _impl.py      ← dispatcher → action functions
-│   │       └── prompts.py    ← all prompt templates
-│   └── auth.py, models.py, db.py
+│   ├── main.py               ← FastAPI app, middleware, logging, auth routers
+│   ├── config.py             ← Settings (pydantic-settings, all env vars)
+│   ├── api/
+│   │   ├── auth.py           ← JWT login/me, rate limiter
+│   │   ├── auth_social.py    ← LinkedIn + Buffer OAuth callbacks
+│   │   ├── health.py         ← GET /api/health, /api/health/deep
+│   │   └── vertical_routes.py ← POST /api/verticals/{social|ca|cs}/action
+│   ├── llm/
+│   │   ├── llm_router.py     ← call_llm() — Groq → Gemini → OpenAI → Ollama fallback
+│   │   ├── groq_client.py    ← Groq async client
+│   │   ├── gemini_client.py  ← Gemini async client
+│   │   ├── ollama_openai.py  ← Ollama via OpenAI-compatible API
+│   │   ├── cost_tracker.py   ← per-query token cost logging
+│   │   └── demo_responder.py ← DEMO_MODE canned responses
+│   └── verticals/
+│       ├── social_media/     ← SM agent (53 actions: 37 core + 4 AI Brain + 12 advanced)
+│       │   ├── agent.py      ← thin dispatcher (imports from _impl)
+│       │   ├── _impl.py      ← all action handlers
+│       │   ├── constants.py  ← festive calendar, platform config, etc.
+│       │   ├── schemas.py    ← Pydantic models (SocialRequest, etc.)
+│       │   └── tools/        ← action tool functions
+│       ├── customer_support/ ← CS agent (37 actions)
+│       │   └── (same pattern: agent.py, _impl.py, constants.py, schemas.py, tools/)
+│       └── ca_accounting/    ← CA agent (44 actions: 40 core + 4 AI Brain)
+│           └── (same pattern: agent.py, _impl.py, constants.py, schemas.py, tools/)
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── ui.tsx         ← ALL shared primitives (PageShell, Card, Btn, Input, Tabs...)
-│   │   │   ├── Sidebar.tsx    ← animated sidebar (Framer Motion)
+│   │   │   ├── ui.tsx             ← ALL shared primitives (PageShell, Card, Btn, Input, Tabs...)
+│   │   │   ├── Sidebar.tsx        ← animated sidebar (Framer Motion)
 │   │   │   ├── WorkspaceSetup.tsx ← 3-step wizard per agent
-│   │   │   └── WorkspaceBar.tsx   ← context bar showing saved profile
+│   │   │   ├── WorkspaceBar.tsx   ← context bar showing saved profile
+│   │   │   └── ErrorBoundary.tsx  ← React error boundary
 │   │   ├── pages/
 │   │   │   ├── LandingPage.tsx
 │   │   │   ├── LoginPage.tsx
 │   │   │   ├── DashboardPage.tsx
-│   │   │   ├── SocialPage.tsx       ← 37 SM features (300KB+)
-│   │   │   ├── CustomerSupportPage.tsx ← 37 CS features (300KB+)
-│   │   │   └── CAPage.tsx           ← 40 CA features (300KB+)
+│   │   │   ├── SocialPage.tsx          ← SM features (300KB+)
+│   │   │   ├── CustomerSupportPage.tsx ← CS features (300KB+)
+│   │   │   ├── CAPage.tsx              ← CA features (300KB+)
+│   │   │   └── SettingsPage.tsx        ← social token config, plan info
 │   │   ├── lib/
-│   │   │   ├── api.ts         ← all API calls
-│   │   │   └── workspace.ts   ← workspace hook (localStorage per agent)
-│   │   └── index.css          ← CSS design system (all --var tokens)
+│   │   │   ├── api.ts           ← all API calls
+│   │   │   ├── workspace.ts     ← workspace hook (localStorage per agent)
+│   │   │   └── socialTokens.ts  ← LinkedIn/Buffer token storage
+│   │   └── index.css            ← CSS design system (all --var tokens)
 │   └── package.json
 ├── qa/
+│   ├── qa_sm_full.py          ← 53/53 SM action tests
 │   ├── qa_cs_full.py          ← 37/37 CS action tests
-│   ├── qa_ca_full.py          ← 40/40 CA action tests
+│   ├── qa_ca_full.py          ← 44/44 CA action tests
 │   └── eval_llm.py            ← LLM quality eval (grades A-F)
 ├── prompts/README.md          ← prompt versioning registry
 ├── ENGINEERING_PLAYBOOK.md    ← 17-level engineering audit framework
@@ -71,39 +91,45 @@ ai-agentic-assistant/
 ## Core Patterns — MUST follow
 
 ### Backend: Dispatcher Pattern
-Every vertical has ONE endpoint: `POST /api/{vertical}/action`
+Every vertical has ONE endpoint:
+- SM:  `POST /api/verticals/social/action`
+- CA:  `POST /api/verticals/ca/action`
+- CS:  `POST /api/verticals/cs/action`
+
+All three are wired in `backend/api/vertical_routes.py`. Each calls `{vertical}_agent()` from its `agent.py`.
 
 ```python
-# router.py
-@router.post("/action")
-async def action(req: ActionRequest, user=Depends(get_current_user)):
-    return await dispatch(req.action, req.payload, req.language)
+# api/vertical_routes.py
+@router.post("/ca/action")
+async def ca_action(req: CARequest, token: dict = Depends(verify_token)):
+    from backend.verticals.ca_accounting.agent import ca_agent
+    return await ca_agent(action=req.action, payload=req.payload, language=req.language)
 
-# _impl.py
-async def dispatch(action: str, payload: dict, language: str):
+# verticals/ca_accounting/_impl.py — all handlers live here
+async def ca_agent(action: str, payload: dict, language: str):
     handlers = {
-        "gst_query":    gst_query,
-        "tds_calc":     tds_calc,
-        # ... 40 handlers
+        "gst_query":    answer_gst_query,
+        "tds_calc":     calculate_tds,
+        # ... 44 handlers
     }
     fn = handlers.get(action)
     if not fn: raise HTTPException(404, f"Unknown action: {action}")
-    return await fn(payload, language)
+    return await fn(**payload, language=language)
 ```
 
-**Never create separate routes per feature.** Always add to dispatcher.
+**Never create separate routes per feature.** Always add to the dispatcher in `_impl.py`.
 
 ### Backend: LLM Call Pattern
 ```python
-async def call_llm(prompt: str, system: str = "") -> str:
-    # Groq → Gemini → OpenAI → Ollama — automatic fallback
-    for provider in ["groq", "gemini", "openai", "ollama"]:
-        try:
-            return await _call(provider, prompt, system)
-        except Exception:
-            continue
-    raise RuntimeError("All LLM providers failed")
+# backend/llm/llm_router.py — Groq → Gemini → OpenAI → Ollama automatic fallback
+from backend.llm.llm_router import call_llm
+
+result = await call_llm(prompt="...", system="...", action="gst_query")
 ```
+- `GROQ_API_KEY` set → tries Groq first (fastest, free tier)
+- `GEMINI_API_KEY` set → fallback to Gemini 2.0 Flash
+- `OPENAI_API_KEY` set → fallback to GPT-4o
+- Always falls back to local Ollama (llama3.2) — zero-cost guaranteed
 
 ### Frontend: All UI from ui.tsx
 **Never hardcode colors in page files.** Always use:
@@ -139,20 +165,21 @@ Tabs auto-show search input when `tabs.length > 8`.
 
 ## Adding a New Agent Vertical
 
-Follow the 5-file pattern:
+Follow the established pattern (see `ca_accounting/` or `customer_support/` as reference):
 
 ```
 backend/verticals/{name}/
   __init__.py
-  router.py      ← POST /api/{name}/action + register in main.py
-  _impl.py       ← dispatch() + all action handlers
-  prompts.py     ← all prompt templates
-  models.py      ← Pydantic models (ActionRequest, etc.)
+  agent.py       ← thin dispatcher: `from ._impl import {name}_agent`
+  _impl.py       ← dispatch() function + all action handler functions
+  constants.py   ← domain constants (lookup tables, templates, config)
+  schemas.py     ← Pydantic request/response models
+  tools/         ← individual tool functions (optional, for complex tools)
 
 frontend/src/pages/{Name}Page.tsx   ← all features in one file
 ```
 
-1. Add router to `main.py`: `app.include_router(router, prefix="/api/{name}")`
+1. Add route to `backend/api/vertical_routes.py` — new `@router.post("/{name}/action")`
 2. Add to `Sidebar.tsx` NAV array and ICONS map
 3. Add to `App.tsx` PAGE_MAP
 4. Add to `DashboardPage.tsx` AGENTS array
@@ -164,16 +191,17 @@ frontend/src/pages/{Name}Page.tsx   ← all features in one file
 ## Development Commands
 
 ```bash
-# Backend
-cd backend && uvicorn main:app --reload --port 8000
-APP_ENV=development uvicorn main:app --reload   # skips JWT
+# Backend — run from project root (imports use backend.* package)
+uvicorn backend.main:app --reload --port 8000
+APP_ENV=development uvicorn backend.main:app --reload   # skips JWT
 
 # Frontend
 cd frontend && npm run dev                       # port 5173
 
-# QA
+# QA (run from project root, backend must be running)
+python qa/qa_sm_full.py                          # 53 SM tests
 python qa/qa_cs_full.py                          # 37 CS tests
-python qa/qa_ca_full.py                          # 40 CA tests
+python qa/qa_ca_full.py                          # 44 CA tests
 python qa/eval_llm.py --vertical all             # LLM quality A-F
 
 # Type check
@@ -233,7 +261,7 @@ VITE_POSTHOG_KEY=...         # optional analytics
 
 ## QA Checklist (before every PR)
 
-- [ ] All existing QA scripts pass: `python qa/qa_cs_full.py` + `python qa/qa_ca_full.py`
+- [ ] All existing QA scripts pass: `python qa/qa_sm_full.py` + `python qa/qa_cs_full.py` + `python qa/qa_ca_full.py`
 - [ ] TypeScript: `npx tsc --noEmit` — zero errors
 - [ ] Lint: `ruff check backend/` — zero errors
 - [ ] UI: open browser, test the changed feature end-to-end
@@ -252,7 +280,7 @@ railway up
 vercel --prod
 
 # Smoke test after deploy
-curl https://ai-agentic-backend.railway.app/health
+curl https://ai-agentic-backend.railway.app/api/health
 ```
 
 ---
