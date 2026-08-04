@@ -95,7 +95,21 @@ async def ollama_chat_completion(
             from backend.llm.gemini_client import gemini_chat
             return await gemini_chat(messages, temperature=temperature, max_tokens=max_tokens, action=action)
         except Exception as e:
-            logger.warning("Gemini failed, falling back to Ollama: %s", e)
+            logger.warning("Gemini failed, falling back to OpenAI/Ollama: %s", e)
+
+    # OPENAI: when OPENAI_API_KEY is set, use GPT-4o.
+    if cfg.openai_api_key:
+        try:
+            client_oai = AsyncOpenAI(api_key=cfg.openai_api_key)
+            resp_oai = await client_oai.chat.completions.create(
+                model=cfg.openai_model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return resp_oai.choices[0].message.content or ""
+        except Exception as e:
+            logger.warning("OpenAI failed, falling back to Ollama: %s", e)
 
     # LOCAL DEV: use Ollama.
     import time
