@@ -66,20 +66,35 @@ _ITR_FORMS = {
 
 # ── 1. GST Query Bot ──────────────────────────────────────────────────────────
 
+def _gst_rate_grounding(query: str) -> str:
+    """Look up deterministic GST rate for the query topic. Returns grounding fact or empty string."""
+    q = query.lower()
+    for rate, categories in _GST_RATES.items():
+        for cat in categories:
+            if cat in q:
+                return (
+                    f"VERIFIED FACT — use this exact rate, do not change it: "
+                    f"'{cat}' attracts {rate} GST as per CGST Act 2017 Schedule."
+                )
+    return ""
+
+
 async def answer_gst_query(
     query: str,
     context: str = "",
     language: str = "en",
 ) -> dict:
-    """Answer any GST/HSN/rate/compliance question using AI."""
+    """Answer any GST/HSN/rate/compliance question using AI with deterministic rate grounding."""
     from backend.llm.ollama_openai import ollama_chat_completion
 
+    grounding = _gst_rate_grounding(query)
     system = (
         "You are an expert Chartered Accountant with 15 years of India GST experience. "
         "You know the CGST Act 2017, IGST Act, GST rules, circulars, and recent notifications. "
         "Give accurate, practical answers. When in doubt, advise consulting GSTN portal or a CA. "
         f"Language: {language}. "
         "Format your response clearly with sections if needed."
+        + (f"\n\n{grounding}" if grounding else "")
     )
     user = f"GST Query: {query}"
     if context:

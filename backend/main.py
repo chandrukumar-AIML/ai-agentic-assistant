@@ -13,8 +13,10 @@ from backend.api.auth import limiter
 from backend.api.auth import router as auth_router
 from backend.api.auth_social import router as auth_social_router
 from backend.api.health import router as health_router
+from backend.api.history import router as history_router
 from backend.api.vertical_routes import router as vertical_router
 from backend.config import get_settings
+from backend.db import history as hist_db
 
 
 class _JSONFormatter(logging.Formatter):
@@ -115,6 +117,13 @@ app.include_router(auth_router,        prefix="/api")
 app.include_router(auth_social_router, prefix="/api")
 app.include_router(health_router,      prefix="/api")
 app.include_router(vertical_router,    prefix="/api")
+app.include_router(history_router,     prefix="/api")
+
+
+@app.on_event("startup")
+async def on_startup():
+    hist_db.init_db()
+    logger.info("History DB initialised")
 
 
 @app.get("/")

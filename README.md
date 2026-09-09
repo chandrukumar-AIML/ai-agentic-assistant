@@ -481,15 +481,56 @@ cd frontend && npm run build
 ## 📁 Project Stats
 
 ```
-AI tools / verticals:      24+ (across 14 domains)
-Frontend pages:            34 (all client-facing polished)
-API Endpoints:             190+ routes across 18 router modules
-Multi-tenant:              per-client tool entitlements + Admin Panel
-Billing:                   Stripe + Razorpay (UPI)
-Demo runner:               demo.py — 43 checks, all agents/features
-Deploy:                    Render (backend, branch `master`) + Vercel (frontend)
-Deploy cost:               $0/month (free tier; DEMO_MODE = zero LLM cost)
+AI tools / verticals:      3 live agents · 135 features (Social Media, CA, Customer Support)
+API Endpoints:             3 vertical dispatchers + auth + health + history
+Multi-tenant:              JWT role-based feature gating (admin / client)
+Testing:                   14 unit tests + 127 QA integration tests + CI on every push
+Deploy:                    Render (backend) + Vercel (frontend) — both free tier
+Deploy cost:               $0/month (DEMO_MODE = zero LLM cost)
 ```
+
+---
+
+## ⚡ Performance
+
+Measured with `qa/load_test.py` — 10 concurrent users · 30s · localhost · **DEMO_MODE=true** (2026-09-09):
+
+| Metric | Measured | Notes |
+|--------|----------|-------|
+| Total requests | 84 | 30s window, 10 users |
+| Success rate | **100%** | 0 errors |
+| Throughput | **2.8 req/s** | async httpx shared client |
+| p50 latency | **1562ms** | median response |
+| p95 latency | **14984ms** | tail under contention |
+| p99 latency | **16563ms** | worst-case tail |
+| Min / Max | 31ms / 16563ms | — |
+
+Per-vertical p95 (DEMO_MODE):
+
+| Vertical | p95 |
+|---|---|
+| CA Accounting | 5047ms |
+| Social Media | 11265ms |
+| Customer Support | 16563ms |
+
+> Run `python qa/load_test.py --url http://localhost:8001 --users 10 --duration 30` to reproduce locally. Real LLM latency (Groq) adds ~500–800ms per request on top of routing overhead.
+
+---
+
+## ⚠️ Known Limitations
+
+Being honest about tradeoffs is part of engineering discipline:
+
+| Limitation | Current state | Planned fix |
+|---|---|---|
+| **Content persistence** | History saved to SQLite (local). On Render free tier, ephemeral filesystem — history resets on redeploy | Move to Postgres (docker-compose already has it) |
+| **Live LLM on Render** | Render free tier has no API keys by default → enable `DEMO_MODE=true` or add `GROQ_API_KEY` | Set env vars on Render dashboard |
+| **Cold start** | Render free tier sleeps after 15 min inactivity → ~50s cold start on first request | Upgrade to paid tier or use UptimeRobot ping to keep alive |
+| **Hardcoded demo users** | Two demo users in JWT auth. No self-serve signup yet | Add `POST /api/auth/register` + email verification |
+| **Multi-tenancy depth** | Feature gating via JWT claims. No data-level tenant isolation (all users share same DB) | Add `tenant_id` column to all tables |
+| **GST advice liability** | LLM explains GST rules; rates are grounded in deterministic lookup table. Still recommend verifying with GSTN portal | Add structured citations to every GST answer |
+| **docker-compose services** | Compose defines Neo4j, ChromaDB, MLflow, Playwright — these are planned integrations, not yet wired into application code | Incremental integration per roadmap |
+| **No billing** | Stripe + Razorpay planned. Not yet implemented | Q3 2026 roadmap |
 
 ---
 
