@@ -86,15 +86,23 @@ export default function App() {
     return () => { active = false }
   }, [authed])
 
+  const [loginMode, setLoginMode] = useState<'login' | 'signup'>('login')
+
   const handleLogout = () => {
     sessionStorage.removeItem('aaa_token')
+    sessionStorage.removeItem('aaa_refresh')
     sessionStorage.removeItem('aaa_profile')
-    setProfile(null); setAuthed(false); setShowLogin(true); setPage('dashboard')
+    setProfile(null); setAuthed(false); setLoginMode('login'); setShowLogin(true); setPage('dashboard')
   }
 
   if (!authed) {
-    if (showLogin) return <LoginPage onLogin={() => setAuthed(true)} />
-    return <LandingPage onSignIn={() => setShowLogin(true)} />
+    if (showLogin) return <LoginPage onLogin={() => setAuthed(true)} initialMode={loginMode} />
+    return (
+      <LandingPage
+        onSignIn={() => { setLoginMode('login'); setShowLogin(true) }}
+        onSignUp={() => { setLoginMode('signup'); setShowLogin(true) }}
+      />
+    )
   }
 
   const PAGE_MAP = makePAGE_MAP((id) => setPage(id as PageId))

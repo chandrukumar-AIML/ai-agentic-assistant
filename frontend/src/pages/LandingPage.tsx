@@ -1,7 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 
-interface Props { onSignIn: () => void }
+interface Props {
+  onSignIn: () => void
+  onSignUp: () => void
+}
 
 const AGENTS = [
   {
@@ -194,7 +197,13 @@ function Modal({ title, text, onClose }: { title: string; text: string; onClose:
   )
 }
 
-export default function LandingPage({ onSignIn }: Props) {
+const HOW_STEPS = [
+  { n: '01', icon: '✍️', title: 'Create your account', desc: 'Sign up in 30 seconds. No credit card required for the free tier.' },
+  { n: '02', icon: '⚙️', title: 'Set up your workspace', desc: 'Tell each agent about your business — name, industry, tone. One-time setup.' },
+  { n: '03', icon: '🚀', title: 'Generate AI content instantly', desc: 'Click any of the 115+ tools and get structured, ready-to-use output in seconds.' },
+]
+
+export default function LandingPage({ onSignIn, onSignUp }: Props) {
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [showTerms,   setShowTerms]   = useState(false)
 
@@ -232,8 +241,11 @@ export default function LandingPage({ onSignIn }: Props) {
               className="btn btn-ghost"
               style={{ padding: '7px 14px', fontSize: 13 }}
             >GitHub</a>
-            <button onClick={onSignIn} className="btn btn-primary" style={{ padding: '7px 18px', fontSize: 13 }}>
-              Sign In →
+            <button onClick={onSignIn} className="btn btn-ghost" style={{ padding: '7px 14px', fontSize: 13 }}>
+              Sign In
+            </button>
+            <button onClick={onSignUp} className="btn btn-primary" style={{ padding: '7px 18px', fontSize: 13 }}>
+              Start Free →
             </button>
           </div>
         </div>
@@ -287,16 +299,12 @@ export default function LandingPage({ onSignIn }: Props) {
           </motion.p>
 
           <motion.div variants={fadeUp} style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={onSignIn} className="btn btn-primary" style={{ padding: '13px 32px', fontSize: 15 }}>
-              Launch Dashboard
+            <button onClick={onSignUp} className="btn btn-primary" style={{ padding: '13px 32px', fontSize: 15 }}>
+              Start Free — No card needed
             </button>
-            <a
-              href="https://github.com/chandrukumar-AIML/ai-agentic-assistant"
-              target="_blank" rel="noopener noreferrer"
-              className="btn btn-outline" style={{ padding: '13px 32px', fontSize: 15, textDecoration: 'none' }}
-            >
-              View Source
-            </a>
+            <button onClick={onSignIn} className="btn btn-outline" style={{ padding: '13px 32px', fontSize: 15 }}>
+              Sign In →
+            </button>
           </motion.div>
 
           <motion.div variants={fadeUp} style={{ marginTop: 20, color: 'var(--text-3)', fontSize: 12 }}>
@@ -417,6 +425,54 @@ export default function LandingPage({ onSignIn }: Props) {
         </motion.div>
       </section>
 
+      {/* ── How it works ── */}
+      <section style={{ padding: '96px 24px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }} transition={{ duration: 0.5 }}
+            style={{ textAlign: 'center', marginBottom: 56 }}
+          >
+            <p style={{ fontSize: 12, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>Getting Started</p>
+            <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 700, letterSpacing: '-0.02em' }}>
+              Up and running in 2 minutes
+            </h2>
+          </motion.div>
+          <motion.div
+            initial="hidden" whileInView="show" viewport={{ once: true }} variants={stagger}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24 }}
+          >
+            {HOW_STEPS.map((step, i) => (
+              <motion.div key={step.n} variants={fadeUp} style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+                <div style={{
+                  flexShrink: 0, width: 48, height: 48, borderRadius: 14,
+                  background: 'var(--surface-2)', border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
+                }}>{step.icon}</div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: 4 }}>STEP {step.n}</div>
+                  <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>{step.title}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>{step.desc}</div>
+                </div>
+                {i < HOW_STEPS.length - 1 && (
+                  <div style={{
+                    display: 'none', // shown on desktop via grid, arrow between cards
+                  }} />
+                )}
+              </motion.div>
+            ))}
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+            style={{ textAlign: 'center', marginTop: 48 }}
+          >
+            <button onClick={onSignUp} className="btn btn-primary" style={{ padding: '12px 36px', fontSize: 15 }}>
+              Create Free Account →
+            </button>
+          </motion.div>
+        </div>
+      </section>
+
       {/* ── Pricing ── */}
       <section id="pricing" style={{ padding: '96px 24px', borderTop: '1px solid var(--border)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -470,7 +526,7 @@ export default function LandingPage({ onSignIn }: Props) {
                     </div>
                   ))}
                 </div>
-                <button onClick={onSignIn} className="btn"
+                <button onClick={onSignUp} className="btn"
                   style={{
                     width: '100%', padding: '11px',
                     background: plan.featured ? plan.accent : 'transparent',
@@ -509,16 +565,21 @@ export default function LandingPage({ onSignIn }: Props) {
           viewport={{ once: true }} transition={{ duration: 0.5 }}
         >
           <h2 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 16 }}>
-            Ready to explore?
+            Start building smarter today
           </h2>
           <p style={{ color: 'var(--text-2)', fontSize: 16, marginBottom: 40 }}>
-            Log in with demo credentials — no setup, no API keys needed.
+            Free tier available. No credit card. Works in English, Tamil, and Hindi.
           </p>
-          <button onClick={onSignIn} className="btn btn-primary" style={{ padding: '14px 48px', fontSize: 16 }}>
-            Launch Dashboard →
-          </button>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button onClick={onSignUp} className="btn btn-primary" style={{ padding: '14px 40px', fontSize: 16 }}>
+              Start Free →
+            </button>
+            <button onClick={onSignIn} className="btn btn-outline" style={{ padding: '14px 32px', fontSize: 16 }}>
+              Sign In
+            </button>
+          </div>
           <div style={{ marginTop: 20, color: 'var(--text-3)', fontSize: 12 }}>
-            demo@agentic.local / demo123 &nbsp;·&nbsp; admin@agentic.local / admin123
+            Demo: <code style={{ color: 'var(--text-2)' }}>admin@agentic.local</code> / <code style={{ color: 'var(--text-2)' }}>admin123</code>
           </div>
         </motion.div>
       </section>
@@ -559,6 +620,26 @@ export default function LandingPage({ onSignIn }: Props) {
           AI outputs are for guidance only. Verify CA/tax advice with a licensed Chartered Accountant.
         </div>
       </footer>
+
+      {/* ── WhatsApp Support Button ── */}
+      <a
+        href="https://wa.me/919999999999?text=Hi%2C%20I%27m%20interested%20in%20AI%20Agentic%20for%20my%20business"
+        target="_blank" rel="noopener noreferrer"
+        title="Chat with us on WhatsApp"
+        style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 200,
+          width: 52, height: 52, borderRadius: '50%',
+          background: '#25D366',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(37,211,102,0.5)',
+          textDecoration: 'none', fontSize: 26,
+          transition: 'transform 0.2s, box-shadow 0.2s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 6px 28px rgba(37,211,102,0.65)' }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(37,211,102,0.5)' }}
+      >
+        💬
+      </a>
 
       {/* ── Modals ── */}
       <AnimatePresence>

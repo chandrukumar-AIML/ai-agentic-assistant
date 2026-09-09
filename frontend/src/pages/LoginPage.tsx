@@ -1,12 +1,15 @@
 import { useState, FormEvent } from 'react'
 import { motion } from 'framer-motion'
 
-interface Props { onLogin: () => void }
+interface Props {
+  onLogin: () => void
+  initialMode?: 'login' | 'signup'
+}
 
 const API = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api')
 
-export default function LoginPage({ onLogin }: Props) {
-  const [mode,     setMode]     = useState<'login' | 'signup'>('login')
+export default function LoginPage({ onLogin, initialMode = 'login' }: Props) {
+  const [mode,     setMode]     = useState<'login' | 'signup'>(initialMode)
   const [email,    setEmail]    = useState('admin@agentic.local')
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('admin123')
