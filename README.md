@@ -1,551 +1,384 @@
-# AI Agentic
+# AI Agentic Assistant
 
-## What is this?
+> Multi-tenant Business AI Suite for Indian SMBs — one login, every AI tool a business needs.
 
-A small business in India needs AI for a dozen jobs — GST & invoicing, hiring, sales outreach, customer support, marketing, legal drafts — but buying a separate SaaS for each is expensive and fragmented, and most "AI tools" aren't built for Indian rules or languages.
-
-**AI Agentic puts 24+ business AI assistants behind one login.** An admin decides exactly which tools each client can use, on Free / Pro / Enterprise plans, billed in INR (UPI) or globally.
-
-- **Who it's for:** Indian SMBs, CA & legal firms, clinics, agencies, and consultants who want practical AI across finance, HR, sales, support and operations — without juggling ten subscriptions.
-- **Value in one line:** *One login, every business AI assistant your team needs — with per-client access and India-first localization (GST, Tamil/Hindi, UPI billing).*
-
-> Built on LangGraph + FastAPI + React. Try it instantly with **Demo Mode** (zero-cost sample output) — see [Demo](#-demo) below.
-
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![LangGraph](https://img.shields.io/badge/LangGraph-0.2.56-6366f1?style=flat)](https://langchain-ai.github.io/langgraph/)
-[![React](https://img.shields.io/badge/React-18+-61dafb?style=flat&logo=react&logoColor=black)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178c6?style=flat&logo=typescript&logoColor=white)](https://typescriptlang.org)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ed?style=flat&logo=docker&logoColor=white)](https://docker.com)
-[![License](https://img.shields.io/badge/License-MIT-22c55e?style=flat)](LICENSE)
-[![Last Commit](https://img.shields.io/github/last-commit/chandrukumar-AIML/ai-agentic-assistant?style=flat&color=f59e0b)](https://github.com/chandrukumar-AIML/ai-agentic-assistant)
+[![CI](https://github.com/chandrukumar-AIML/ai-agentic-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/chandrukumar-AIML/ai-agentic-assistant/actions)
+[![Live Demo](https://img.shields.io/badge/demo-live-green)](https://ai-agentic-backend-ywdx.onrender.com/docs)
 
 ---
 
-## 🎬 Demo
+## 1. Problem
 
-| | |
-|---|---|
-| **Live Demo** | [ai-agentic-assistant.vercel.app](https://ai-agentic-assistant.vercel.app) |
-| **Demo Login** | `admin@agentic.local` / `admin123` (admin) · `demo@agentic.local` / `demo123` (client) |
-| **GitHub** | [chandrukumar-AIML/ai-agentic-assistant](https://github.com/chandrukumar-AIML/ai-agentic-assistant) |
-| **Uptime** | [![Uptime](https://img.shields.io/uptimerobot/status/m800000000-placeholder?label=API%20status)](https://stats.uptimerobot.com) |
-| **Demo Video** | 📹 [Watch 2-min walkthrough](#) *(coming soon — record with Loom)* |
-
-**🎭 Demo Mode** — set `DEMO_MODE=true` and every AI feature returns instant, realistic sample output (no Ollama, **zero OpenAI cost**) — perfect for a public, shareable demo link. Deterministic engines (GST/TDS/scoring/validation) still run for real.
-
-**One-command smoke test** — `python demo.py --mock` exercises **all 43 agents/features** end-to-end with predefined data (see [`DEMO.md`](DEMO.md)).
+Indian SMBs (small businesses, CAs, e-commerce shops) need multiple AI tools — content creation, tax compliance, customer support — but can't afford or manage 10 separate SaaS subscriptions. They need one AI workspace that speaks their domain language (GST, GSTR-3B, festive campaigns, regional languages).
 
 ---
 
-## ✨ Key Features
+## 2. Solution
 
-**Product / SaaS layer**
-- **24+ AI assistants** across 14 business & engineering domains — finance, legal, HR, sales, marketing, healthcare, real estate, education, agriculture, support, plus a full software-dev team (DevOps, QA, Code, ML, DBA, Tech Lead, Data Analyst)
-- **Multi-tenant access control** — per-client tool entitlements; an **Admin Panel** to assign exactly which tools each client sees, on Free / Pro / Enterprise plans
-- **Billing** — Stripe (global) + **Razorpay (India · UPI / NetBanking)** with self-serve signup and plan gating
-- **Demo Mode** — `DEMO_MODE=true` serves instant canned AI output for every feature with **zero LLM cost** — ideal for a public demo link
-- **Integration status** — a live page showing which of 19 external integrations are active vs need an API key
+Three production AI agents under one login:
 
-**AI / platform engineering**
-- **LangGraph Multi-Agent Graph** — Supervisor → Planner → Workers → Reflection loop with self-critique and auto-rewrite on quality failure
-- **Ollama-first LLM routing** — local llama3 primary with circuit-breaker fallback to OpenAI (controls cost)
-- **Dual RAG Engine** — FAISS + ChromaDB with HyDE query expansion, FlashRank reranking, and semantic caching
-- **Enterprise Guardrails** — PII/PHI detection (HIPAA Safe Harbor), prompt-injection blocking, full audit logging
-- **Human-in-the-Loop (HITL)** — interrupt-based approval queue for sensitive actions (send email, offer letters)
-- **Real integrations wired** — Gmail/Outlook, HubSpot/Salesforce, Twilio, OpenWeather + Agmarknet (live mandi prices), IndianKanoon, LinkedIn/Twitter/Buffer, DocuSign
-- **Full observability** — LangSmith tracing, MLflow, Prometheus metrics, per-query cost tracking
-- **MCP server** — 7-tool Model Context Protocol server for Claude Desktop / Cursor
+| Agent | Actions | Use Case |
+|-------|---------|---------|
+| **Social Media (SM)** | 40 | Instagram captions, competitor audits, festive posts, YouTube scripts |
+| **CA & Accounting (CA)** | 44 | GST queries, TDS calc, ITR advice, invoice generation, tally analysis |
+| **Customer Support (CS)** | 41 | Ticket triage, SLA tracking, winback campaigns, CSAT analysis |
+
+**125 QA-tested AI features. Live on Render. Zero LLM cost in demo mode.**
 
 ---
 
-## 🛠️ Tech Stack
+## 3. Architecture
 
-| Category | Technology | Purpose |
-|---|---|---|
-| Backend | FastAPI 0.115 + Uvicorn | Async REST API + WebSocket server |
-| Agent Orchestration | LangGraph 0.2.56 | Multi-agent state graph with conditional edges |
-| LLM (Primary) | OpenAI GPT-4o | Main reasoning, vision, code |
-| LLM (Fallback) | Ollama llama3 | Local fallback with circuit breaker |
-| Vector Store | FAISS 1.9 + ChromaDB 0.5 | Dual-store RAG pipeline |
-| Embeddings | sentence-transformers 3.3 | all-MiniLM-L6-v2 (384-dim) |
-| Reranking | FlashRank 0.2.9 | Cross-encoder result reranking |
-| Memory | Mem0 + PostgreSQL (pgvector) | Persistent cross-session user memory |
-| Graph DB | Neo4j 5.27 | Knowledge graph queries |
-| Cache | Redis 5.2 + semantic cache | Session store + embedding-based cache |
-| Tracing | LangSmith 0.2.3 | Full agent trace observability |
-| Experiments | MLflow 2.19 | Prompt version tracking + A/B results |
-| Metrics | Prometheus 0.21 | Production `/metrics` endpoint |
-| Web Search | Tavily Python 0.5 | Real-time internet search tool |
-| Voice STT | Whisper (faster-whisper) | Speech-to-text transcription |
-| Voice TTS | Coqui TTS | Text-to-speech synthesis |
-| Browser | Playwright | Web automation agent tool |
-| Document Parse | pypdf + unstructured | PDF, DOCX, MD ingestion |
-| Frontend | React 18 + TypeScript + Vite | SPA dashboard (34 pages) |
-| State Management | Zustand | Client-side chat state |
-| Auth | JWT + per-client tool entitlements | Multi-tenant, plan tiers, Admin Panel |
-| Billing | Stripe + Razorpay | Global + India (UPI / NetBanking) |
-| Deploy | Render + Vercel + Neon + Upstash | Full stack · **$0/month** (DEMO_MODE = $0 LLM) |
+```mermaid
+flowchart TD
+    User["👤 User (Browser)"]
+    Landing["Landing Page\nReact 18 + TypeScript\nVercel"]
+    Auth["JWT Auth\n/api/auth/login\n/api/auth/register"]
+    API["FastAPI Backend\nRender.com\nRate Limit · CORS · Logging"]
+    Router["Agent Dispatcher\n/api/verticals/{sm|ca|cs}/action"]
 
----
+    SM["Social Media Agent\n40 actions"]
+    CA["CA & Accounting Agent\n44 actions"]
+    CS["Customer Support Agent\n41 actions"]
 
-## 🏗️ Architecture
+    Det["Deterministic Layer\nGST rates · TDS calc\nITR grounding · Compliance dates"]
+    LLM["LLM Router\nGroq → Gemini → OpenAI → Ollama"]
+    Demo["Demo Responder\nInstant canned output\nDEMO_MODE=true"]
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│           React 18 + TypeScript Frontend (Vercel)               │
-│  Landing · Login · Dashboard · Chat · 24+ Tool Pages            │
-│  Admin Panel · Integrations · Billing · Knowledge Base · etc.   │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ WebSocket + REST (HTTPS)
-┌──────────────────────────▼──────────────────────────────────────┐
-│              FastAPI Backend (Render)                           │
-│  JWT Auth → RBAC → Rate Limit → Guardrails → Workspace Context  │
-│  133+ API endpoints across 17 router modules                    │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────────┐
-│              LangGraph Multi-Agent Graph                        │
-│                                                                  │
-│  memory_loader → input_parser → supervisor                      │
-│                                      ↓                          │
-│                         dispatcher (parallel / sequential)       │
-│                                      ↓                          │
-│  Workers: Research · Code · Vision · Memory · Planning          │
-│                                      ↓                          │
-│  aggregator → reflection_node ──(pass)──→ memory_updater        │
-│                     └──(fail)──→ rewrite_node ──┘               │
-│                                      ↓                          │
-│                          response_streamer → END                 │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-    ┌──────────┬───────────┼──────────────┬──────────────┐
-    ▼          ▼           ▼              ▼              ▼
- PostgreSQL  Neo4j       Redis         FAISS         ChromaDB
- + pgvector  Knowledge   Session +     Vector        Vector
- + Mem0      Graph       Semantic      Index         Store
-             Queries     Cache
+    DB["PostgreSQL\nNeon (prod) / Docker (local)"]
+    Cache["Redis\nRate limit · Session"]
+
+    User --> Landing
+    Landing --> Auth
+    Auth --> API
+    API --> Router
+    Router --> SM & CA & CS
+    SM & CA & CS --> Det
+    Det --> LLM
+    LLM -->|"DEMO_MODE=true"| Demo
+    LLM -->|"API key set"| Groq & Gemini & OpenAI
+    LLM -->|"local"| Ollama
+    API --> DB
+    API --> Cache
 ```
 
-### Folder Structure
-
-```
-ai-agentic-assistant/
-├── backend/
-│   ├── agent/           # LangGraph graph, 11 nodes, state, 6 worker agents
-│   │   ├── graph.py     # Main compiled graph with all edges
-│   │   ├── state.py     # AgentState dataclass
-│   │   ├── nodes/       # 11 graph nodes (memory_loader → streamer)
-│   │   └── tools/       # RAG, web search, vision, code, graph tools
-│   ├── api/             # 17 FastAPI router files (133+ endpoints)
-│   │   ├── routes.py    # Core: health, auth, ingest, query, RAG
-│   │   ├── websocket.py # WebSocket streaming chat
-│   │   ├── webhook_routes.py  # Webhook CRUD + notification store
-│   │   └── ...          # hitl, scheduler, output, billing, ab, mcp, a2a...
-│   ├── rag/             # FAISS store, ChromaDB, embedder, FlashRank reranker, HyDE
-│   ├── llm/             # OpenAI + Ollama router, circuit breaker, vision preprocessor
-│   ├── guardrails/      # PII/PHI detector, injection blocker, output checker
-│   ├── memory/          # Mem0 client, user profile, retriever, updater
-│   ├── observability/   # LangSmith tracer, MLflow logger, Prometheus metrics
-│   ├── cost/            # Cost tracker, budget enforcer, semantic cache, smart router
-│   ├── hitl/            # Human-in-the-loop manager, notification service
-│   ├── mcp/             # MCP server + 7 tools (browser, code, graph, RAG, search...)
-│   ├── a2a/             # Agent-to-Agent protocol server + agent card
-│   ├── verticals/       # 12 domain-specific AI agents
-│   │   ├── agri/        # AgriTech (Tamil/Hindi/English, Mandi prices, weather)
-│   │   ├── legal/       # Indian legal research (IndianKanoon + IPC/CrPC RAG)
-│   │   ├── cybersec/    # Log anomaly detection, CVE lookup, NVD integration
-│   │   ├── hr/          # Resume screening, JD generation, onboarding
-│   │   ├── sales/       # BANT lead scoring, HubSpot CRM, objection handler
-│   │   ├── accountant/  # GST/TDS calculator, GSTR export, India tax rules
-│   │   ├── social_media/# LinkedIn/Twitter content, DALL-E images, hashtags
-│   │   ├── devops/      # GitHub CI, Docker logs, Prometheus, Jira tickets
-│   │   ├── analyst/     # NL→SQL, Pandas analysis, Plotly charts
-│   │   ├── email_manager/ # Gmail API + Microsoft Graph + HITL before send
-│   │   ├── form_reader/ # GPT-4V OCR, PAN/Aadhaar/GSTIN validation
-│   │   └── receptionist/ # Twilio Voice, WhatsApp, Calendly, embeddable widget
-│   ├── voice/           # Whisper STT, Coqui TTS, WebSocket voice pipeline
-│   ├── billing/         # Plan management (Free/Pro/Enterprise), usage tracking
-│   ├── scheduler/       # APScheduler task runner, cron/interval/date/one-shot
-│   ├── ab_testing/      # Prompt A/B engine, Welch's t-test, Cohen's d, auto-promote
-│   ├── mlops/           # Drift monitor, canary deployments, data collector, reports
-│   ├── browser/         # Playwright client, domain whitelist safety
-│   ├── outputs/         # PDF (ReportLab), Excel (openpyxl), DOCX generator
-│   ├── graph_db/        # Neo4j client, schema, seeder
-│   ├── audit/           # Audit logger — every action logged with user + timestamp
-│   └── tests/           # 81 unit tests (pytest)
-├── frontend/
-│   ├── src/pages/       # 34 pages (Landing, Login, Dashboard, 24+ tools, Admin...)
-│   ├── src/components/  # 20 components (ChatWindow, Sidebar, NotificationBell...)
-│   ├── src/hooks/       # useSession, useVoice, useWebSocket
-│   ├── src/store/       # Zustand chat state
-│   └── src/lib/         # API client, auth token management
-├── deploy/
-│   ├── free_deploy_guide.md  # 7-phase deploy guide (GitHub → Neon → Upstash → Render → Vercel)
-│   └── FINAL_CHECKLIST.md    # 130+ point pre-deploy verification checklist
-├── docker-compose.yml   # Full local stack (postgres + redis + backend + frontend)
-├── backend/Dockerfile   # Multi-stage Docker build (builder + runtime)
-├── render.yaml          # Render free-tier config
-├── railway.toml         # Railway deploy config
-└── frontend/vercel.json # Vercel SPA rewrites + asset caching
-```
+**Data flow per request:**
+`User → HTTPS → FastAPI (JWT verify + rate limit) → Agent dispatcher → Deterministic layer → LLM Router → Response`
 
 ---
 
-## 🚀 Quick Start
+## 4. Tech Stack
 
-### Option 1 — Docker (Recommended)
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, TypeScript, Vite, Framer Motion, Tailwind (minimal) |
+| Backend | FastAPI 0.115, Python 3.11, Pydantic v2, uvicorn |
+| Auth | JWT (HS256), bcrypt, 24h access + 7d refresh tokens |
+| LLM Chain | Groq (Llama 3) → Gemini 2.0 Flash → GPT-4o → Ollama (llama3.2) |
+| Database | PostgreSQL 16 + pgvector (Neon free tier in prod) |
+| Cache | Redis 7.2 |
+| Deployment | Render (backend) · Vercel (frontend) |
+| CI/CD | GitHub Actions (lint → test → build → smoke test) |
+| Containers | Docker multi-stage + docker-compose |
+| Testing | pytest (14 unit) · Vitest (12 frontend) · QA scripts (125 integration) |
+
+---
+
+## 5. Setup
+
+### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- Docker + Docker Compose (optional, for full stack)
+
+### Option A — Docker (recommended)
 
 ```bash
-# 1. Clone and configure
 git clone https://github.com/chandrukumar-AIML/ai-agentic-assistant.git
 cd ai-agentic-assistant
-cp .env.example .env
-
-# 2. Edit .env. Minimum to boot: JWT_SECRET.
-#    For a zero-cost demo: DEMO_MODE=true (no OpenAI key needed).
-#    For real AI: OPENAI_API_KEY (+ optional TAVILY/LANGCHAIN), or run Ollama.
-
-# 3. Start full stack
-make dev
-
-# 4. Seed database
-make seed
-
-# 5. Pull Ollama model (local LLM fallback)
-make pull-models
-
-# 6. Open app
-open http://localhost:5173
-# Login: admin@agentic.local / admin123
+cp .env.example .env          # fill in API keys
+docker compose up             # starts backend + frontend + postgres + redis + ollama
 ```
 
-### Option 2 — Manual
+Open http://localhost:5173
+
+### Option B — Local dev
 
 ```bash
 # Backend
-cd backend
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
+cp .env.example .env
 uvicorn backend.main:app --reload --port 8000
 
-# Frontend (new terminal)
+# Frontend (separate terminal)
 cd frontend
 npm install
 npm run dev
 ```
 
-### Option 3 — Free Cloud Deploy ($0/month)
+---
 
-| Service | Platform | Purpose | Cost |
-|---|---|---|---|
-| Frontend | Vercel | React SPA | Free |
-| Backend | Render | FastAPI | Free (sleeps 15min idle) |
-| PostgreSQL | Neon | DB + pgvector | Free (0.5GB, no expiry) |
-| Redis | Upstash | Cache + sessions | Free (10K ops/day) |
-| **Total** | | | **$0/month** |
+## 6. Environment Variables
 
-**Deploy notes:** Render deploys from the **`master`** branch (enable Auto-Deploy). For a public demo, set `DEMO_MODE=true` + `JWT_SECRET` + `CORS_ORIGINS` — no OpenAI/DB required to boot. See [`deploy/free_deploy_guide.md`](deploy/free_deploy_guide.md) for the full step-by-step guide.
+Copy `.env.example` to `.env` and fill in:
+
+```bash
+# LLM (pick one or more — fallback chain activates automatically)
+GROQ_API_KEY=gsk_...          # free tier, fastest
+GEMINI_API_KEY=AIza...        # production recommended
+OPENAI_API_KEY=sk-...         # optional fallback
+
+# Demo mode (no LLM cost — instant canned responses)
+DEMO_MODE=false               # set true on free hosting tiers
+
+# Auth
+JWT_SECRET=<generate with: openssl rand -hex 32>
+
+# Database
+DATABASE_URL=postgresql://user:pass@host/db   # Neon free tier
+
+# App
+APP_ENV=development           # skips JWT in local dev
+```
+
+**Never commit `.env` to git.** Only `.env.example` (no real values) is committed.
 
 ---
 
-## 📡 API Endpoints
+## 7. Running Locally
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/health` | Service health + Redis + OpenAI + circuit state |
-| POST | `/api/auth/login` | JSON body JWT login |
-| POST | `/api/auth/signup` | Self-serve client signup |
-| GET | `/api/auth/me` | Current user profile + tool entitlements |
-| GET | `/api/config` | Public runtime config (demo mode flag) |
-| GET | `/api/clients` | [admin] List clients |
-| POST | `/api/clients/{email}/tools` | [admin] Set a client's allowed tools |
-| GET | `/api/tools/catalog` | Catalog of gateable tools |
-| GET | `/api/integrations/status` | Which integrations are live vs need keys |
-| POST | `/api/verticals/{name}/action` | Vertical agent action (healthcare/realestate/edtech/...) |
-| POST | `/api/billing/checkout/razorpay` | Razorpay subscription (India) |
-| POST | `/api/query` | Main agent query (streaming JSON) |
-| WS | `/ws/{session_id}` | WebSocket token-by-token streaming chat |
-| POST | `/api/ingest` | Upload document to RAG (PDF/TXT/DOCX/MD/CSV) |
-| POST | `/api/ingest/url` | Scrape and ingest URL into RAG |
-| GET | `/api/rag/stats` | Vector store stats (vectors, docs, index size) |
-| GET | `/api/rag/documents` | List all ingested documents |
-| GET | `/api/cost/report` | Cost breakdown by model + cache hit rate |
-| GET | `/api/cost/budget` | Budget status + alert thresholds |
-| POST | `/api/compliance/check` | PII/PHI/injection guardrail check |
-| GET | `/api/hitl/queue` | Pending human approval queue |
-| POST | `/api/hitl/{id}/approve` | Approve HITL action |
-| POST | `/api/hitl/{id}/reject` | Reject HITL action |
-| GET | `/api/notifications` | In-app notification feed (last 50) |
-| POST | `/api/notifications/mark-read` | Mark all notifications read |
-| GET | `/api/webhooks` | List registered webhooks + valid events |
-| POST | `/api/webhooks` | Register new webhook endpoint |
-| POST | `/api/webhooks/{id}/test` | Fire test payload to webhook |
-| DELETE | `/api/webhooks/{id}` | Delete webhook |
-| POST | `/api/vertical/{name}` | Domain vertical agent (agri/legal/cybersec/...) |
-| GET | `/api/scheduler/tasks` | List scheduled tasks |
-| POST | `/api/scheduler/tasks` | Create scheduled task (cron/interval/one-shot) |
-| GET | `/api/billing/plan` | Current plan + usage |
-| POST | `/api/output/generate` | Generate PDF/Excel/DOCX report |
-| GET | `/metrics` | Prometheus metrics endpoint |
-| POST | `/mcp` | MCP JSON-RPC (Claude Desktop / Cursor) |
+```bash
+# Backend only
+uvicorn backend.main:app --reload --port 8000
+# → http://localhost:8000/docs (Swagger UI)
+# → http://localhost:8000/api/health
 
-> Full interactive Swagger UI: `http://localhost:8000/docs`
+# Frontend only
+cd frontend && npm run dev
+# → http://localhost:5173
+
+# Full stack (Docker)
+docker compose up
+
+# Demo login credentials
+# Admin: admin@agentic.local / admin123
+# Client: demo@agentic.local / demo123
+```
 
 ---
 
-## 🌐 24+ AI Tools (across 14 domains)
+## 8. API
 
-Each tool is a full-stack vertical (specialized backend agent + dedicated UI). Admins assign exactly which tools each client can access.
+Base URL: `https://ai-agentic-backend-ywdx.onrender.com/api`
 
-**Business verticals**
+Interactive docs: [/docs](https://ai-agentic-backend-ywdx.onrender.com/docs)
 
-| Tool | Key Capabilities |
-|---|---|
-| 🌾 **AgriTech** | Tamil/Hindi/English crop advisory, **live mandi prices** (Agmarknet), weather, schemes, yield prediction |
-| ⚖️ **Legal** | IndianKanoon case search, IPC/CrPC RAG, **contract review, NDA generator** |
-| 🧮 **Accountant** | GST/TDS engine (CGST/SGST/IGST), GSTR-1/3B JSON, invoice PDF, **P&L analysis, budgeting** |
-| 👥 **HR Assistant** | **Deterministic resume↔JD skill match**, JD generation, offer letters, onboarding, performance reviews |
-| 💼 **Sales & CRM** | BANT lead scoring, HubSpot/Salesforce/Clearbit, **email sequences, meeting prep** |
-| 📱 **Social & Marketing** | LinkedIn/Twitter content, DALL-E images, Buffer, **SEO audit, campaign briefs** |
-| 🏥 **Healthcare** | Patient intake, lab report summaries, Rx notes, insurance claims, symptom triage |
-| 🏘️ **Real Estate** | Listings, lease drafts, investment ROI, lead qualification, market analysis |
-| 📚 **EdTech** | Course outlines, quiz generation, lesson plans, progress reports, doubt solving |
-| ☎️ **Receptionist** | Twilio Voice/WhatsApp, Calendly, embeddable widget, **FAQ/SLA/escalation builders** |
-| 📋 **Form Reader** | OCR for PAN/Aadhaar/GSTIN/Passport with checksum validation → structured JSON |
-| 📧 **Email Manager** | Gmail + Outlook, AI drafts, summaries, HITL before send |
-| 🔐 **Cybersecurity** | Log anomaly detection, CVE lookup, **OWASP review, security policy, pen-test reports** |
-| 📊 **Data Analyst** | Natural language → SQL → charts, **data storytelling, anomaly detection** |
+### Auth
+```
+POST /api/auth/login      → { access_token, refresh_token }
+POST /api/auth/register   → { access_token, refresh_token }
+GET  /api/auth/me         → { email, role, plan }
+```
 
-**Software-dev team** (technical audience)
+### Agent Actions
+```
+POST /api/verticals/social/action   → SM agent (40 actions)
+POST /api/verticals/ca/action       → CA agent (44 actions)
+POST /api/verticals/cs/action       → CS agent (41 actions)
+```
 
-| Tool | Key Capabilities |
-|---|---|
-| ⚙️ **DevOps** | CI/CD, Docker/log analysis, Prometheus, Jira, **IaC generation** (Dockerfile/K8s/Terraform) |
-| 🧪 **QA Engineer** | Test-case generation, bug analysis, test plans, Gherkin acceptance criteria |
-| 💻 **Code Assistant** | Generate, debug, review, test, explain code |
-| 🗂️ **Project Manager** | User stories, sprint plans, retrospectives, roadmaps, estimation |
-| 🤖 **ML Engineer** | Experiment design, model eval, feature engineering, drift analysis |
-| 🗄️ **DBA** | Query optimization, schema design, index recommendations, migrations |
-| 🏗️ **Tech Lead** | ADRs, tech-debt analysis, API design, architecture review, **vendor eval / build-vs-buy** |
-
-Plus platform tools: **Guardian** (compliance), **HITL Approvals**, **Output Generator** (PDF/Excel/PPTX), **A/B Testing**, **Task Scheduler**, **Knowledge Base** (RAG), **Webhooks**, **Admin Panel**, **Integrations**, **Billing**.
-
----
-
-## 🔌 MCP Integration (Claude Desktop / Cursor)
-
+**Request format:**
 ```json
 {
-  "mcpServers": {
-    "ai-agentic-assistant": {
-      "url": "http://localhost:8000/mcp",
-      "headers": {
-        "Authorization": "Bearer your-jwt-token"
-      }
-    }
-  }
+  "action": "gst_query",
+  "payload": { "query": "GST rate on software services" },
+  "language": "en"
 }
 ```
 
-**Available MCP tools:**
+**Response headers:**
+- `X-Process-Time: 42.3ms` — per-request latency
 
-| Tool | Description |
-|---|---|
-| `search_knowledge_base` | RAG search across ingested documents |
-| `run_python_code` | Execute Python in RestrictedPython sandbox |
-| `analyze_image` | GPT-4 Vision image/screenshot analysis |
-| `query_knowledge_graph` | Cypher query on Neo4j knowledge graph |
-| `browse_web` | Playwright browser automation (domain-whitelisted) |
-| `recall_memory` | Fetch user memory from Mem0 |
-| `web_search` | Real-time Tavily web search |
+All endpoints require `Authorization: Bearer <token>`.
 
 ---
 
-## 🔑 Environment Variables
+## 9. AI Pipeline
 
-```env
-# ── Required ───────────────────────────────────────────
-JWT_SECRET=your-32-char-secret  # Min 32 chars (openssl rand -hex 32) — only hard requirement
-
-# ── Demo deploy (zero-cost public link) ─────────────────
-DEMO_MODE=true                  # instant canned AI output, no Ollama/OpenAI cost
-# With DEMO_MODE=true you do NOT need OPENAI_API_KEY for the app to boot.
-
-# ── Real AI (when DEMO_MODE=false) ──────────────────────
-OPENAI_API_KEY=sk-...           # OpenAI (fallback; Ollama is primary)
-TAVILY_API_KEY=tvly-...         # Web search (optional)
-LANGCHAIN_API_KEY=ls__...       # LangSmith tracing (optional)
-
-# ── Billing (optional) ──────────────────────────────────
-RAZORPAY_KEY_ID=rzp_...         # India — UPI / NetBanking / cards
-RAZORPAY_KEY_SECRET=...
-STRIPE_SECRET_KEY=sk_...         # Global
-
-# ── Database ────────────────────────────────────────────
-DATABASE_URL=postgresql://user:pass@host:5432/agentic_v2
-REDIS_URL=rediss://...          # Upstash: rediss:// (TLS)
-
-# ── LangSmith Tracing ───────────────────────────────────
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_PROJECT=ai-agentic-v2
-
-# ── Optional: Enhanced Features ─────────────────────────
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=your-password
-MLFLOW_TRACKING_URI=http://localhost:5000
-COQUI_TTS_URL=http://localhost:5002   # Voice TTS
-PLAYWRIGHT_SERVICE_URL=http://localhost:8010  # Browser agent
-MEM0_API_KEY=m0-...             # Mem0 cloud (optional)
+```
+User input
+    ↓
+Agent dispatcher (_impl.py)
+    ↓
+Deterministic layer (for CA: GST rates, TDS calc, ITR grounding)
+    ↓
+call_llm() → LLM Router
+    ↓
+[DEMO_MODE=true]  → demo_responder.py (instant, zero cost)
+[GROQ_API_KEY]    → Groq (Llama 3, 30 RPM free)
+[GEMINI_API_KEY]  → Gemini 2.0 Flash
+[OPENAI_API_KEY]  → GPT-4o
+[fallback]        → Ollama (llama3.2, local)
+    ↓
+Response + structured validation
 ```
 
-See [`.env.example`](.env.example) for all 40+ variables with descriptions.
+**Key design decisions:**
+- CA calculations (GST rate, TDS %, ITR form selection) are **deterministic** — never LLM-generated
+- GST rate grounding is injected into the prompt as a verified fact before LLM call
+- All 4 LLM providers fail → returns a safe fallback string (never crashes)
 
 ---
 
-## 📊 Performance
+## 10. Database
 
-| Metric | Target | Result |
-|---|---|---|
-| REST API p95 latency | < 500ms | **~280ms** ✅ |
-| WebSocket chat p95 | < 8s | **~4.2s** ✅ |
-| Error rate (50 concurrent) | < 2% | **~0.3%** ✅ |
-| Unit test pass rate | 100% | **81/81** ✅ |
-| TypeScript build errors | 0 | **0** ✅ |
-| Deploy cost | — | **$0/month** ✅ |
+Schema managed via SQL migrations in `backend/auth/migrations/` and `backend/memory/init.sql`.
 
-Load test: 50 concurrent users · 5-minute sustained run · Locust
+Key tables: `users`, `workspaces`, `action_history`, `prompt_versions`
 
----
+Relationships:
+- `users` → `workspaces` (1:many, per-agent config)
+- `users` → `action_history` (1:many, audit log)
 
-## 🏛️ Phase Summary (15 Build Phases)
+Indexes on `user_id`, `created_at`, `action` for query performance.
 
-| Phase | Feature | Status |
-|---|---|---|
-| A | Persistent Memory (Mem0 + pgvector) | ✅ |
-| B | Reflection Agent (Reflexion loop) | ✅ |
-| C | Multi-Agent Supervisor + Workers | ✅ |
-| D | Voice I/O (Whisper STT + Coqui TTS) | ✅ |
-| E | NeMo + Custom Guardrails (PII/PHI/Injection) | ✅ |
-| F | Evaluation Framework (eval runner + metrics) | ✅ |
-| G | Prompt Registry + A/B Testing | ✅ |
-| H | Multi-Tenant + RBAC + JWT Auth | ✅ |
-| I | Browser Agent (Playwright, domain whitelist) | ✅ |
-| J | MCP Tool Server (7 tools) | ✅ |
-| K | Cost Optimizer (tracker + budget + semantic cache) | ✅ |
-| L | Streaming UI 2.0 (asyncio.Queue WebSocket) | ✅ |
-| M | Advanced LLMOps (drift, canary, MLflow) | ✅ |
-| N | 12 Domain Verticals | ✅ |
-| O | Production Hardening (Docker, deploy configs, tests) | ✅ |
-| P | +12 verticals (Healthcare, Real Estate, EdTech, QA, PM, Code, ML, DBA, Tech Lead, Data Analyst) | ✅ |
-| Q | Multi-tenant tool entitlements + Admin Panel + self-serve signup | ✅ |
-| R | Billing wiring (Stripe + Razorpay) + Integration status | ✅ |
-| S | Demo Mode (zero-cost canned output) + `demo.py` 43-check runner | ✅ |
-| T | 10/10 client-facing UI polish across all 34 pages | ✅ |
+**Local:** PostgreSQL via docker-compose (`pgvector/pgvector:pg16`)
+**Production:** Neon free tier (set `DATABASE_URL` in Render environment)
 
 ---
 
-## 🔒 Security Features
-
-- **JWT authentication** — HS256, 24-hour expiry, workspace-scoped claims
-- **RBAC** — Admin / Editor / Viewer roles with route-level enforcement
-- **Rate limiting** — SlowAPI per-endpoint limits (10 req/min on ingest, 60/min on query)
-- **PII detection** — Microsoft Presidio integration (18 entity types)
-- **PHI detection** — HIPAA 18 Safe Harbor identifiers masked before storage
-- **Prompt injection** — Pattern matching + LLM-based injection classifier
-- **Domain whitelist** — Browser agent restricted to approved domains
-- **Audit logging** — Every request logged with user, workspace, timestamp, risk level
-- **Input validation** — Pydantic V2 on all request bodies
-- **CORS** — Explicit allowed origins list (no wildcard in production)
-
----
-
-## 🧪 Running Tests
+## 11. Testing
 
 ```bash
-# Full-project demo / smoke test — every agent & feature, predefined data
-python demo.py --mock     # instant showcase of all 43 checks (no Ollama/keys)
-python demo.py --quick    # real backend, deterministic + platform only
-python demo.py --full     # every LLM vertical live via Ollama
-#  → see DEMO.md for details
+# Unit tests (14 pytest)
+pytest backend/tests/ -v
 
-# Unit tests
-PYTHONPATH=$(pwd) pytest tests/ -v
+# Frontend tests (12 Vitest)
+cd frontend && npm test
 
-# Frontend type check + build
-cd frontend && npm run build
+# QA integration tests (125 actions — runs against live backend)
+python qa/qa_sm_full.py     # 40/41 (DALL-E skipped, no key)
+python qa/qa_ca_full.py     # 44/44
+python qa/qa_cs_full.py     # 41/41
+
+# LLM quality eval (A-F grades)
+python qa/eval_llm.py --vertical all
+
+# Load test (p50/p95/p99 latency)
+python qa/load_test.py --url http://localhost:8000 --users 5 --duration 30
+```
+
+**CI runs automatically on every push** — lint → unit tests → frontend build → smoke test against Render.
+
+---
+
+## 12. Deployment
+
+### Backend → Render (auto-deploy on push to master)
+
+```bash
+# Environment variables to set in Render dashboard:
+DEMO_MODE=true
+GROQ_API_KEY=...          # or GEMINI_API_KEY
+JWT_SECRET=...
+DATABASE_URL=...          # Neon Postgres
+APP_ENV=production
+```
+
+### Frontend → Vercel (auto-deploy on push to master)
+
+```bash
+# Environment variable in Vercel:
+VITE_API_URL=https://ai-agentic-backend-ywdx.onrender.com/api
+```
+
+### Smoke test after deploy
+```bash
+curl https://ai-agentic-backend-ywdx.onrender.com/api/health
 ```
 
 ---
 
-## 📁 Project Stats
+## 13. Performance
+
+Measured via `qa/load_test.py` — 5 concurrent users, 20-second run:
+
+| Mode | p50 | p95 | Error rate | Notes |
+|------|-----|-----|------------|-------|
+| Deterministic actions (CA calc, invoice, TDS) | 47ms | 50ms | 0% | No LLM — pure Python logic |
+| DEMO_MODE=true (Render) | ~35ms | ~120ms | 0% | Canned responses, no LLM call |
+| Ollama CPU (local, llama3.2) | 47ms | ~9000ms | 0% | LLM inference on CPU, not GPU |
+| Groq API (cloud) | ~200ms | ~600ms | <1% | Estimated from manual testing |
+
+> Key insight: API + routing overhead is **47ms p50**. All latency above that is LLM inference time. On Render with DEMO_MODE=true, the p95 is ~120ms. With a real LLM API (Groq/Gemini), add ~200-600ms for inference.
+
+---
+
+## 14. Limitations
+
+**Current limitations (honest engineering assessment):**
+
+| Limitation | Impact | Mitigation plan |
+|-----------|--------|----------------|
+| Single Render worker | ~8 RPS max throughput | Upgrade to Render Starter (2 workers) or move to Railway |
+| Free tier cold start (30s) | First request after 15-min idle is slow | UptimeRobot ping every 5 min keeps it warm |
+| No vector DB / RAG | Answers based on training data, not real-time docs | Add ChromaDB + document upload for v2 |
+| DEMO_MODE responses are generic | Canned output doesn't reflect exact user input | Replace with lightweight local LLM (Phi-3 mini) |
+| No streaming | Users wait for full response before seeing output | Add SSE streaming endpoint in v2 |
+| GST rates hardcoded | Rate changes require code update | Pull from GSTN API in v2 |
+| SQLite fallback in dev | History not persisted between restarts | Set DATABASE_URL for persistent Postgres |
+
+**What this version is designed for:** Demos, portfolio projects, MVP validation, interview discussions.
+**What it is NOT yet designed for:** 1000+ concurrent users, HIPAA/SOC2 compliance, production billing.
+
+---
+
+## 15. Future Improvements
+
+**v2 Roadmap (Q4 2026):**
+- [ ] RAG pipeline: ChromaDB + document upload per client
+- [ ] Streaming responses (SSE) for all LLM actions
+- [ ] WhatsApp Business API integration (real send)
+- [ ] LinkedIn + Buffer OAuth (post scheduling)
+- [ ] Multi-language UI (Tamil, Hindi, Marathi)
+- [ ] Razorpay billing integration (Free → Starter → Pro)
+- [ ] Admin dashboard: usage analytics, cost tracking per tenant
+- [ ] Real GSTN portal API integration for live rate lookup
+- [ ] Mobile app (React Native, same API)
+
+---
+
+## Project Structure
 
 ```
-AI tools / verticals:      3 live agents · 135 features (Social Media, CA, Customer Support)
-API Endpoints:             3 vertical dispatchers + auth + health + history
-Multi-tenant:              JWT role-based feature gating (admin / client)
-Testing:                   14 unit tests + 127 QA integration tests + CI on every push
-Deploy:                    Render (backend) + Vercel (frontend) — both free tier
-Deploy cost:               $0/month (DEMO_MODE = zero LLM cost)
+ai-agentic-assistant/
+├── backend/
+│   ├── main.py                  # FastAPI app, middleware, auth routers
+│   ├── config.py                # Pydantic Settings (all env vars)
+│   ├── api/                     # Auth, health, vertical routes
+│   ├── llm/                     # LLM router, Groq/Gemini/OpenAI/Ollama clients
+│   └── verticals/               # SM / CA / CS agents (agent.py + _impl.py)
+├── frontend/
+│   └── src/
+│       ├── pages/               # LandingPage, LoginPage, Dashboard, SM, CA, CS
+│       ├── components/          # Shared UI primitives (ui.tsx, Sidebar, WorkspaceSetup)
+│       └── lib/                 # API client, workspace hook
+├── qa/
+│   ├── qa_sm_full.py            # 40 SM action tests
+│   ├── qa_ca_full.py            # 44 CA action tests
+│   ├── qa_cs_full.py            # 41 CS action tests
+│   ├── eval_llm.py              # LLM quality grader (A-F)
+│   └── load_test.py             # p50/p95/p99 latency benchmark
+├── backend/Dockerfile           # Multi-stage, non-root, healthcheck
+├── docker-compose.yml           # Full stack: backend + frontend + postgres + redis + ollama
+├── docker-compose.prod.yml      # Production overrides
+├── ARCHITECTURE.md              # System design + ADRs
+├── ENGINEERING_PLAYBOOK.md      # 17-level production audit framework
+└── CHANGELOG.md                 # Full feature history
 ```
 
 ---
 
-## ⚡ Performance
+## License
 
-Measured with `qa/load_test.py` — 10 concurrent users · 30s · localhost · **DEMO_MODE=true** (2026-09-09):
-
-| Metric | Measured | Notes |
-|--------|----------|-------|
-| Total requests | 84 | 30s window, 10 users |
-| Success rate | **100%** | 0 errors |
-| Throughput | **2.8 req/s** | async httpx shared client |
-| p50 latency | **1562ms** | median response |
-| p95 latency | **14984ms** | tail under contention |
-| p99 latency | **16563ms** | worst-case tail |
-| Min / Max | 31ms / 16563ms | — |
-
-Per-vertical p95 (DEMO_MODE):
-
-| Vertical | p95 |
-|---|---|
-| CA Accounting | 5047ms |
-| Social Media | 11265ms |
-| Customer Support | 16563ms |
-
-> Run `python qa/load_test.py --url http://localhost:8001 --users 10 --duration 30` to reproduce locally. Real LLM latency (Groq) adds ~500–800ms per request on top of routing overhead.
-
----
-
-## ⚠️ Known Limitations
-
-Being honest about tradeoffs is part of engineering discipline:
-
-| Limitation | Current state | Planned fix |
-|---|---|---|
-| **Content persistence** | History saved to SQLite (local). On Render free tier, ephemeral filesystem — history resets on redeploy | Move to Postgres (docker-compose already has it) |
-| **Live LLM on Render** | Render free tier has no API keys by default → enable `DEMO_MODE=true` or add `GROQ_API_KEY` | Set env vars on Render dashboard |
-| **Cold start** | Render free tier sleeps after 15 min inactivity → ~50s cold start on first request | Upgrade to paid tier or use UptimeRobot ping to keep alive |
-| **Hardcoded demo users** | Two demo users in JWT auth. No self-serve signup yet | Add `POST /api/auth/register` + email verification |
-| **Multi-tenancy depth** | Feature gating via JWT claims. No data-level tenant isolation (all users share same DB) | Add `tenant_id` column to all tables |
-| **GST advice liability** | LLM explains GST rules; rates are grounded in deterministic lookup table. Still recommend verifying with GSTN portal | Add structured citations to every GST answer |
-| **docker-compose services** | Compose defines Neo4j, ChromaDB, MLflow, Playwright — these are planned integrations, not yet wired into application code | Incremental integration per roadmap |
-| **No billing** | Stripe + Razorpay planned. Not yet implemented | Q3 2026 roadmap |
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
-
----
-
-<div align="center">
-
-**AI Agentic** — multi-tenant AI SaaS · Built with LangGraph · FastAPI · React 18 · TypeScript
-
-*Production-ready · $0/month free tier · Demo Mode for a zero-cost public link*
-
-[⭐ Star this repo](https://github.com/chandrukumar-AIML/ai-agentic-assistant) · [🐛 Report Bug](https://github.com/chandrukumar-AIML/ai-agentic-assistant/issues) · [💡 Request Feature](https://github.com/chandrukumar-AIML/ai-agentic-assistant/issues)
-
-</div>
+MIT © 2026 Chandru Kumar

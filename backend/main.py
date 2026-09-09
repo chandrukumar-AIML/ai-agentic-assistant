@@ -108,6 +108,7 @@ async def _request_logger(request: Request, call_next):
 
     response = await call_next(request)
     ms = round((time.monotonic() - start) * 1000, 1)
+    response.headers["X-Process-Time"] = f"{ms}ms"
     logger.info(
         "%s %s action=%s → %s  (%.1fms)",
         request.method, request.url.path, action or "-", response.status_code, ms,
