@@ -148,7 +148,28 @@ Severe headache + vomiting + neck stiffness suggests possible **meningitis** or 
 
 **Verdict:** Average investment — appreciation-led, not cashflow-led. Negotiate 5-8% or target higher-rent micro-market. Key risk: interest-rate sensitivity."""),
 
-    (("quiz", "lesson", "course", "student", "syllabus", "edtech", "mcq", "doubt"),
+    (("gst", "tds", "invoice", "p&l", "profit and loss", "budget forecast", "accountant", "gstr",
+      "chartered accountant", "tally", "itr", "income tax", "tds calc", "payroll", "journal entry",
+      "balance sheet", "audit", "gst rate", "cgst", "sgst", "igst", "hsn", "compliance"),
+     """## 🧮 GST / Tax Summary
+
+**GST Rate: Software Services (SAC 9983) — 18%**
+| Component | Rate | Amount (on ₹1,00,000) |
+|-----------|------|----------------------|
+| Taxable value | — | ₹1,00,000 |
+| CGST | 9% | ₹9,000 |
+| SGST | 9% | ₹9,000 |
+| **Invoice total** | | **₹1,18,000** |
+
+**Key rules:**
+- IT services, SaaS, software development → SAC 9983 → **18% GST**
+- Exported services with LUT → **0% (Zero-rated)**
+- GSTR-3B: report under 3.1(a) outward taxable; ITC eligible if supplier filed GSTR-1
+- Inter-state: IGST 18% replaces CGST+SGST
+
+**Tip:** Raise invoice with proper SAC code, collect 18% GST, file GSTR-1 by 11th of next month."""),
+
+    (("quiz", "lesson", "course", "student", "syllabus", "edtech", "mcq"),
      """## 📚 Quiz — Photosynthesis (Class 10)
 
 1. Which pigment captures light energy? **(A)** Chlorophyll · (B) Haemoglobin · (C) Melanin · (D) Keratin
@@ -157,19 +178,6 @@ Severe headache + vomiting + neck stiffness suggests possible **meningitis** or 
 
 **Answer key:** 1-A (chlorophyll absorbs red/blue light), 2-B.
 **HOTS:** Why are leaves green? **Marking:** 1 mark MCQ, 3 marks short. Time: 15 min."""),
-
-    (("gst", "tds", "invoice", "p&l", "profit and loss", "budget forecast", "accountant", "gstr"),
-     """## 🧮 GST / Tax Summary
-
-**Invoice ₹1,00,000 @ 18% (intra-state)**
-| Component | Rate | Amount |
-|-----------|------|--------|
-| Taxable value | — | ₹1,00,000 |
-| CGST | 9% | ₹9,000 |
-| SGST | 9% | ₹9,000 |
-| **Invoice total** | | **₹1,18,000** |
-
-**GSTR-3B note:** report outward taxable supplies under 3.1(a); ITC eligible if supplier filed GSTR-1. Inter-state would attract IGST 18% instead of CGST+SGST."""),
 
     (("resume", "job description", "candidate", "screen", "handbook", "performance review", "onboarding", "hr "),
      """## 👥 Candidate Screening
