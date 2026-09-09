@@ -46,10 +46,10 @@ const BENTO = [
 ]
 
 const STATS = [
-  { value: '115', suffix: '+', label: 'AI Features' },
+  { value: '135', suffix: '+', label: 'AI Features' },
   { value: '3',   suffix: '',  label: 'Languages' },
-  { value: '38',  suffix: 'ms', label: 'Avg Latency' },
-  { value: '$0',  suffix: '',  label: 'Monthly Cost' },
+  { value: '19',  suffix: '+', label: 'Unit Tests' },
+  { value: '₹0',  suffix: '',  label: 'Free Tier' },
 ]
 
 const PLANS = [
@@ -276,7 +276,7 @@ export default function LandingPage({ onSignIn, onSignUp }: Props) {
           <motion.div variants={fadeUp}>
             <span className="badge badge-accent" style={{ marginBottom: 28, display: 'inline-flex' }}>
               <span className="dot-live" />
-              115+ AI Features · 3 Agents · Live Demo
+              135+ AI Features · 3 Agents · Live Demo
             </span>
           </motion.div>
 
@@ -294,8 +294,8 @@ export default function LandingPage({ onSignIn, onSignUp }: Props) {
           <motion.p variants={fadeUp} style={{
             fontSize: 18, color: 'var(--text-2)', maxWidth: 560, margin: '0 auto 40px', lineHeight: 1.7,
           }}>
-            Customer Support · CA Accounting · Social Media — three production-ready AI agents
-            in English, Tamil, and Hindi. No setup required.
+            Customer Support · CA Accounting · Social Media — 135 AI-powered tools
+            in English, Tamil, and Hindi. Free tier. No setup required.
           </motion.p>
 
           <motion.div variants={fadeUp} style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
