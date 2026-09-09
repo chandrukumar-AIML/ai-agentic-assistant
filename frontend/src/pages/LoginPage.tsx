@@ -25,7 +25,7 @@ export default function LoginPage({ onLogin }: Props) {
     e.preventDefault()
     setError(''); setLoading(true)
     try {
-      const path = isSignup ? '/auth/signup' : '/auth/login'
+      const path = isSignup ? '/auth/register' : '/auth/login'
       const body = isSignup ? { email, password, full_name: fullName } : { email, password }
       const res  = await fetch(`${API}${path}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -33,6 +33,7 @@ export default function LoginPage({ onLogin }: Props) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || data.message || `${isSignup ? 'Signup' : 'Login'} failed`)
       sessionStorage.setItem('aaa_token', data.access_token)
+      if (data.refresh_token) sessionStorage.setItem('aaa_refresh', data.refresh_token)
       if (data.profile) sessionStorage.setItem('aaa_profile', JSON.stringify(data.profile))
       onLogin()
     } catch (err: any) {
