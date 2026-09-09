@@ -64,21 +64,26 @@ def save(
         logger.warning("History save failed (non-fatal): %s", exc)
 
 
-def get_history(user_id: str, vertical: str | None = None, limit: int = 20) -> list[dict]:
-    """Return recent history for a user, optionally filtered by vertical."""
+def get_history(
+    user_id: str,
+    vertical: str | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> list[dict]:
+    """Return recent history for a user, optionally filtered by vertical, with offset pagination."""
     try:
         with _get_conn() as conn:
             if vertical:
                 rows = conn.execute(
                     "SELECT * FROM content_history WHERE user_id=? AND vertical=? "
-                    "ORDER BY created_at DESC LIMIT ?",
-                    (user_id, vertical, limit),
+                    "ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                    (user_id, vertical, limit, offset),
                 ).fetchall()
             else:
                 rows = conn.execute(
                     "SELECT * FROM content_history WHERE user_id=? "
-                    "ORDER BY created_at DESC LIMIT ?",
-                    (user_id, limit),
+                    "ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                    (user_id, limit, offset),
                 ).fetchall()
             result = []
             for r in rows:
@@ -92,6 +97,25 @@ def get_history(user_id: str, vertical: str | None = None, limit: int = 20) -> l
     except Exception as exc:
         logger.warning("History fetch failed: %s", exc)
         return []
+
+
+def count_history(user_id: str, vertical: str | None = None) -> int:
+    """Total history items for a user (used for pagination metadata)."""
+    try:
+        with _get_conn() as conn:
+            if vertical:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM content_history WHERE user_id=? AND vertical=?",
+                    (user_id, vertical),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM content_history WHERE user_id=?",
+                    (user_id,),
+                ).fetchone()
+            return row[0] if row else 0
+    except Exception:
+        return 0
 
 
 def delete_item(user_id: str, item_id: int) -> bool:

@@ -15,15 +15,24 @@ class DeleteResponse(BaseModel):
     id: int
 
 
-@router.get("", summary="Get content history for the logged-in user")
+@router.get("", summary="Get content history for the logged-in user (paginated)")
 async def get_history(
     vertical: str | None = Query(None, description="Filter by vertical: social | ca | cs"),
     limit:    int        = Query(20, ge=1, le=100),
+    offset:   int        = Query(0, ge=0, description="Offset for pagination"),
     token:    dict       = Depends(verify_token),
 ):
     user_id = token.get("sub", "")
-    items = hist_db.get_history(user_id=user_id, vertical=vertical, limit=limit)
-    return {"user_id": user_id, "count": len(items), "items": items}
+    items = hist_db.get_history(user_id=user_id, vertical=vertical, limit=limit, offset=offset)
+    total = hist_db.count_history(user_id=user_id, vertical=vertical)
+    return {
+        "user_id": user_id,
+        "total":   total,
+        "limit":   limit,
+        "offset":  offset,
+        "has_more": offset + len(items) < total,
+        "items":   items,
+    }
 
 
 @router.delete("/{item_id}", response_model=DeleteResponse, summary="Delete a history item")

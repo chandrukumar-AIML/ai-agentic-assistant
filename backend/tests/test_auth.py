@@ -15,6 +15,7 @@ async def test_login_admin(client):
     assert r.status_code == 200
     data = r.json()
     assert "access_token" in data
+    assert "refresh_token" in data
     assert data["token_type"] == "bearer"
 
 
@@ -46,3 +47,49 @@ async def test_me_with_token(client):
     assert r.status_code == 200
     data = r.json()
     assert data["email"] == "admin@agentic.local"
+
+
+async def test_register_new_user(client):
+    r = await client.post("/api/auth/register", json={
+        "email": "newuser@test.com",
+        "password": "strongpass123",
+        "full_name": "Test User",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["user"]["email"] == "newuser@test.com"
+    assert data["user"]["role"] == "member"
+
+
+async def test_register_duplicate_email(client):
+    await client.post("/api/auth/register", json={
+        "email": "dup@test.com", "password": "pass12345", "full_name": "Dup User"
+    })
+    r = await client.post("/api/auth/register", json={
+        "email": "dup@test.com", "password": "pass12345", "full_name": "Dup User"
+    })
+    assert r.status_code == 409
+
+
+async def test_register_short_password(client):
+    r = await client.post("/api/auth/register", json={
+        "email": "short@test.com", "password": "abc", "full_name": "Short"
+    })
+    assert r.status_code == 422
+
+
+async def test_refresh_token(client):
+    login = await client.post("/api/auth/login", json={"email": "admin@agentic.local", "password": "admin123"})
+    refresh_tok = login.json()["refresh_token"]
+    r = await client.post("/api/auth/refresh", json={"refresh_token": refresh_tok})
+    assert r.status_code == 200
+    assert "access_token" in r.json()
+
+
+async def test_refresh_with_access_token_fails(client):
+    login = await client.post("/api/auth/login", json={"email": "admin@agentic.local", "password": "admin123"})
+    access_tok = login.json()["access_token"]
+    r = await client.post("/api/auth/refresh", json={"refresh_token": access_tok})
+    assert r.status_code == 401

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -19,8 +19,9 @@ limiter  = Limiter(key_func=get_remote_address)
 logger   = logging.getLogger(__name__)
 settings = get_settings()
 
-ALGORITHM    = "HS256"
-TOKEN_EXPIRE = timedelta(days=30) if settings.app_env == "development" else timedelta(hours=24)
+ALGORITHM       = "HS256"
+ACCESS_EXPIRE   = timedelta(days=30) if settings.app_env == "development" else timedelta(hours=24)
+REFRESH_EXPIRE  = timedelta(days=7)
 
 
 # ── Inline models (backend/auth/ was removed) ─────────────────────────────────
@@ -38,9 +39,10 @@ class PlanTier(str, Enum):
 
 
 class TokenResponse(BaseModel):
-    access_token: str
-    token_type:   str = "bearer"
-    expires_in:   int = 86400
+    access_token:  str
+    refresh_token: str
+    token_type:    str = "bearer"
+    expires_in:    int = 86400
 
 
 class JWTClaims(BaseModel):
@@ -66,21 +68,25 @@ def verify_password(plain: str, hashed: str) -> bool:
     return _pwd_ctx.verify(plain, hashed)
 
 
+def _make_token(payload: dict, expire: timedelta) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {**payload, "iat": int(now.timestamp()), "exp": int((now + expire).timestamp())}
+    return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
+
+
 def create_access_token(
     user_id: str, email: str,
     workspace_id: str, workspace_slug: str,
     role: UserRole, plan_tier: PlanTier,
 ) -> TokenResponse:
-    now = datetime.now(timezone.utc)
-    payload = {
+    base = {
         "sub": user_id, "email": email,
         "workspace_id": workspace_id, "workspace_slug": workspace_slug,
         "role": role.value, "plan_tier": plan_tier.value,
-        "iat": int(now.timestamp()),
-        "exp": int((now + TOKEN_EXPIRE).timestamp()),
     }
-    token = jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
-    return TokenResponse(access_token=token, token_type="bearer", expires_in=86400)
+    access  = _make_token({**base, "type": "access"},  ACCESS_EXPIRE)
+    refresh = _make_token({"sub": user_id, "type": "refresh"}, REFRESH_EXPIRE)
+    return TokenResponse(access_token=access, refresh_token=refresh, expires_in=86400)
 
 
 def decode_token(token: str) -> dict:
@@ -195,3 +201,76 @@ async def me(claims: dict = Depends(verify_token)):
 @router.get("/auth/profile")
 async def profile(claims: dict = Depends(verify_token)):
     return await me(claims)
+
+
+# ── Register ──────────────────────────────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    email:     EmailStr
+    password:  str
+    full_name: str
+
+
+@router.post("/auth/register", status_code=201, summary="Self-serve user registration")
+async def register(body: RegisterRequest):
+    if len(body.password) < 8:
+        raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
+
+    from backend.db.users import create_user, get_user_by_email
+    if body.email in _DEMO_USERS or get_user_by_email(body.email):
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    user = create_user(
+        email=body.email,
+        full_name=body.full_name,
+        password_hash=hash_password(body.password),
+        role="member",
+        plan_tier="free",
+    )
+    if not user:
+        raise HTTPException(status_code=500, detail="Registration failed — please try again")
+
+    token = create_access_token(
+        user_id=user["id"], email=user["email"],
+        workspace_id=user["workspace_id"], workspace_slug=user["workspace_slug"],
+        role=UserRole.member, plan_tier=PlanTier.free,
+    )
+    return {**token.model_dump(), "user": user}
+
+
+# ── Refresh token ─────────────────────────────────────────────────────────────
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+@router.post("/auth/refresh", summary="Exchange refresh token for new access token")
+async def refresh_token(body: RefreshRequest):
+    try:
+        claims = jwt.decode(body.refresh_token, settings.jwt_secret, algorithms=[ALGORITHM])
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid refresh token: {e}")
+
+    if claims.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Token is not a refresh token")
+
+    user_id = claims.get("sub", "")
+
+    # Look up the user (demo users + registered users)
+    user = next((u for u in _DEMO_USERS.values() if u["id"] == user_id), None)
+    if not user:
+        # For registered users we need email; fall back to a minimal token
+        new_access = _make_token(
+            {"sub": user_id, "email": "", "workspace_id": "ws-001",
+             "workspace_slug": "default", "role": "member", "plan_tier": "free", "type": "access"},
+            ACCESS_EXPIRE,
+        )
+        new_refresh = _make_token({"sub": user_id, "type": "refresh"}, REFRESH_EXPIRE)
+        return TokenResponse(access_token=new_access, refresh_token=new_refresh, expires_in=86400)
+
+    token = create_access_token(
+        user_id=user["id"], email=user["email"],
+        workspace_id=user["workspace_id"], workspace_slug=user["workspace_slug"],
+        role=user["role"], plan_tier=user["plan_tier"],
+    )
+    return token

@@ -14,9 +14,11 @@ from backend.api.auth import router as auth_router
 from backend.api.auth_social import router as auth_social_router
 from backend.api.health import router as health_router
 from backend.api.history import router as history_router
+from backend.api.metrics import router as metrics_router
 from backend.api.vertical_routes import router as vertical_router
 from backend.config import get_settings
 from backend.db import history as hist_db
+from backend.db import users as users_db
 
 
 class _JSONFormatter(logging.Formatter):
@@ -66,6 +68,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for header, value in _SECURITY_HEADERS.items():
+        response.headers[header] = value
+    return response
 
 
 @app.middleware("http")
@@ -118,12 +137,14 @@ app.include_router(auth_social_router, prefix="/api")
 app.include_router(health_router,      prefix="/api")
 app.include_router(vertical_router,    prefix="/api")
 app.include_router(history_router,     prefix="/api")
+app.include_router(metrics_router)
 
 
 @app.on_event("startup")
 async def on_startup():
     hist_db.init_db()
-    logger.info("History DB initialised")
+    users_db.init_users_table()
+    logger.info("DB initialised (history + users)")
 
 
 @app.get("/")
