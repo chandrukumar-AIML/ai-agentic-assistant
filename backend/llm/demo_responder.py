@@ -20,7 +20,88 @@ def _texts(messages: list[dict]) -> tuple[str, str]:
 
 
 # (keywords, template) — first match wins. Templates are realistic markdown.
+# Vertical-specific templates come FIRST to avoid false matches from generic keywords.
 _TEMPLATES: list[tuple[tuple[str, ...], str]] = [
+
+    # ── Social Media vertical ──────────────────────────────────────────────────
+    (("instagram", "reel", "youtube", "tiktok", "twitter thread", "viral hook",
+      "caption", "brand voice", "content pillar", "repurpose content", "festive post",
+      "social media post", "ad copy", "influencer brief", "meme", "bio optimizer",
+      "story highlight", "product launch kit", "ab copy", "creative score",
+      "social roi", "mission control", "goal engine", "ai team meeting",
+      "spiceroute", "kavitha"),
+     """## 📱 Social Media Content — SpiceRoute Teas
+
+**Caption (Instagram)**
+Brewing more than just tea ☕ — we brew **stories, traditions & wellness** for modern India.
+
+From the misty hills of Munnar to your morning cup, every sip of SpiceRoute is a journey.
+
+✨ 100% natural · No additives · Sourced direct from estates
+
+🛒 Link in bio | #SpiceRouteTeas #IndianTea #WellnessLifestyle #ChaiTime #MadeInIndia
+
+---
+**Reel Hook (0–3 sec):** *"You've been making chai wrong your whole life 😱"*
+
+**Twitter Thread (3 tweets):**
+1/ Indian tea culture isn't just a beverage — it's a ₹14,000 Cr industry waiting to go premium. Here's how SpiceRoute is changing the game 🧵
+2/ We work directly with 12 estates in Darjeeling, Assam & Nilgiris. No middlemen = fresher tea + fair farmer pay.
+3/ Our bestseller? Masala Chai Concentrate. Pre-made, no compromise on flavour. Try it → [link]
+
+**Best post time:** Tue/Thu 7–9 AM & 8–10 PM IST (peak chai hours 😄)"""),
+
+    (("crisis", "reputation", "negative comment", "pr response", "brand damage",
+      "competitor audit", "competitor analysis", "brand monitor", "benchmark engagement",
+      "performance score", "india trend", "regional post", "niche template", "bulk generate"),
+     """## 🚨 Crisis Response & Brand Intelligence
+
+**Crisis Response Draft**
+We hear you, and we're sorry. This is not the experience we want for any of our customers.
+
+We've flagged this internally and our team will reach out within **2 business hours** to make it right. Your feedback helps us improve — thank you for taking the time to share it.
+
+— SpiceRoute Teas Customer Care
+
+---
+**Competitor Audit — Quick View**
+| Brand | Followers | Avg Engagement | Posting Freq |
+|-------|-----------|----------------|--------------|
+| TeaBox | 2.1L | 3.2% | 2×/day |
+| Vahdam | 5.8L | 2.8% | 3×/day |
+| **SpiceRoute** | 42K | **4.7%** | 1×/day |
+
+**Insight:** SpiceRoute has the highest engagement rate despite lowest follower count — quality > quantity. Opportunity: increase posting frequency 2×/day to accelerate growth.
+
+**India Trends this week:** #MonsoonChai, #WorkFromHomeTea, #MadeInIndia premium"""),
+
+    # ── CA Accounting vertical ─────────────────────────────────────────────────
+    (("ca firm", "chartered accountant", "sharma", "priya sharma", "client health",
+      "command center", "strategy meeting", "goal planner", "client proposal",
+      "client query", "client communication", "ca agent", "reconcil", "overdue",
+      "cash flow forecast", "business valuation", "msme", "gst notice reply",
+      "directors report", "partnership deed", "startup guide", "mca", "roc"),
+     """## 🏢 CA Practice Dashboard — Sharma & Co
+
+**Client Health Overview**
+| Client | Compliance | Pending | Risk |
+|--------|------------|---------|------|
+| ZenFit Pvt Ltd | ✅ Up to date | GSTR-3B Oct | Low |
+| FreshMart Foods | ⚠️ Overdue | TDS Q2 filing | Medium |
+| Acme Traders | ✅ Up to date | Advance tax Dec | Low |
+| StartupX Labs | 🔴 Action needed | ITR + GST notice reply | High |
+
+**This Month's Priority Actions**
+1. File GSTR-1 for 3 clients by 11th
+2. Reply to GST notice (StartupX) — deadline 15th
+3. TDS deduction reconciliation before 7th
+4. Advance tax Q3 reminders to all clients
+
+**Client Query — GST on Software Services**
+IT/SaaS services fall under SAC 9983 — **18% GST** applies (CGST 9% + SGST 9% for intra-state; IGST 18% for inter-state). If exporting services, apply for LUT and charge 0%.
+
+**Firm Goal This Quarter:** Onboard 5 new SMB clients, automate monthly compliance reminders, reduce overdue rate from 23% → <10%."""),
+
     (("owasp", "penetration", "security review", "vulnerab", "injection"),
      """## 🔐 OWASP Top 10 Security Review
 
