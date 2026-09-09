@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "backend",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d C:\\Users\\kumar\\chandLab\\ai-agentic-assistant && uvicorn backend.main:app --reload --port 8000"],
+      "port": 8000
+    },
+    {
       "name": "frontend",
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "cd /d C:\\Users\\kumar\\chandLab\\ai-agentic-assistant\\frontend && .\\node_modules\\.bin\\vite.cmd --host 0.0.0.0 --port 5173"],

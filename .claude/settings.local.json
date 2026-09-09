@@ -6,7 +6,16 @@
       "Bash(curl -s http://localhost:5173)",
       "Bash(python -c ' *)",
       "Bash(npm run *)",
-      "Bash(echo \"Frontend PID: $!\")"
+      "Bash(echo \"Frontend PID: $!\")",
+      "Bash(grep \"\\\\.md$\")",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:8001/api/health\" -Method Get)",
+      "PowerShell(cd \"C:\\\\Users\\\\kumar\\\\chandLab\\\\ai-agentic-assistant\"; $env:DEMO_MODE=\"true\"; python qa/load_test.py --url http://localhost:8001 --users 5 --duration 20 2>&1)",
+      "PowerShell(cd \"C:\\\\Users\\\\kumar\\\\chandLab\\\\ai-agentic-assistant\"; $env:DEMO_MODE=\"true\"; $env:APP_ENV=\"development\"; $env:JWT_SECRET=\"ci-test-secret-32-chars-minimum-ok\"; python qa/load_test.py --url http://localhost:8001 --users 10 --duration 30 2>&1)",
+      "PowerShell(cd C:\\\\Users\\\\kumar\\\\chandLab\\\\ai-agentic-assistant; $env:APP_ENV=\"test\"; $env:JWT_SECRET=\"ci-test-secret-32-chars-minimum-ok\"; $env:DEMO_MODE=\"true\"; python -m pytest backend/tests/ -v --tb=short 2>&1 | Select-Object -Last 25)",
+      "PowerShell(cd C:\\\\Users\\\\kumar\\\\chandLab\\\\ai-agentic-assistant; $env:APP_ENV=\"test\"; $env:JWT_SECRET=\"ci-test-secret-32-chars-minimum-ok\"; $env:DEMO_MODE=\"true\"; python -m pytest backend/tests/ -v --tb=short 2>&1 | Select-Object -Last 30)",
+      "PowerShell(cd C:\\\\Users\\\\kumar\\\\chandLab\\\\ai-agentic-assistant; $env:APP_ENV=\"test\"; $env:JWT_SECRET=\"ci-test-secret-32-chars-minimum-ok\"; $env:DEMO_MODE=\"true\"; python -m pytest backend/tests/ --tb=short -q 2>&1 | Select-Object -Last 10)"
     ]
   }
 }
