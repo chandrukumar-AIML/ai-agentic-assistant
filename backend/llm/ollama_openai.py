@@ -75,8 +75,9 @@ async def ollama_chat_completion(
             from backend.llm.demo_responder import demo_complete
             msgs = ([{"role": "system", "content": system}] if system else []) + list(messages)
             return demo_complete(msgs)[0]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error("demo_complete failed (DEMO_MODE=true): %s", e)
+            return f"[Demo mode] Request processed. Action: {action or 'unknown'}"
 
     if system and (not messages or messages[0].get("role") != "system"):
         messages = [{"role": "system", "content": system}] + list(messages)
